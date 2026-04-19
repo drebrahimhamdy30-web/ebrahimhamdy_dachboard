@@ -3,97 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>إضافة طلب جديد</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; background-color: #f4f7f9; color: #333; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; border-right: 6px solid #0088cc; }
-        h2 { text-align: center; color: #0088cc; margin-bottom: 20px; }
-        label { font-size: 13px; color: #666; display: block; margin-top: 10px; font-weight: bold; }
-        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
-        input:focus { border-color: #0088cc; outline: none; }
-        input[readonly] { background: #f9f9f9; color: #888; cursor: not-allowed; border-style: dashed; }
-        .vendor-input { border-color: #ffc107; background-color: #fffdf5; } /* لون مميز للموردين */
-        .diff-box { margin-top: 12px; padding: 10px; background: #eef9ff; border-radius: 8px; text-align: center; font-weight: bold; color: #005a8d; font-size: 15px; }
-        button { width: 100%; padding: 18px; background: #28a745; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button:active { transform: scale(0.98); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        button:hover { background-color: #218838; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h2>مطابقة أرصدة المحافظ والمدفوعات 🔍</h2>
-    <div id="wallets_container"></div>
-    <button id="submit_btn">إرسال تقرير التقفيل ✅</button>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+<div class="container">
+    <h2>أضف طلب جديد</h2>
+    
+    <form id="orderForm">
+        <div class="form-group">
+            <label for="orderType">اختر نوع الطلب</label>
+            <select id="orderType" onchange="toggleFields()" required>
+                <option value="">-- اختر النوع --</option>
+                <option value="شراء">شراء</option>
+                <option value="تحويل">تحويل</option>
+                <option value="اشعار">إشعار</option>
+                <option value="جرد">جرد</option>
+            </select>
+        </div>
 
-        const params = new URLSearchParams(window.location.search);
+        <div class="form-group">
+            <label for="targetBranch">الفرع المستهدف (Target Branch)</label>
+            <select id="targetBranch" required>
+                <option value="المعمورة">فرع المعمورة</option>
+                <option value="سان ستيفانو">فرع سان ستيفانو</option>
+                <option value="سيدى بشر">فرع سيدى بشر</option>
+            </select>
+        </div>
+
+        <div id="dynamicFields">
+            
+            <div id="productField" class="form-group hidden">
+                <label>كود أو اسم المنتج</label>
+                <input type="text" placeholder="أدخل بيانات المنتج">
+            </div>
+
+            <div id="quantityField" class="form-group hidden">
+                <label>الكمية</label>
+                <input type="number" placeholder="0">
+            </div>
+
+            <div id="customerField" class="form-group hidden">
+                <label>كود أو اسم العميل</label>
+                <input type="text" placeholder="أدخل بيانات العميل">
+            </div>
+
+            <div id="noticeFields" class="form-group hidden">
+                <label>محتوى الإشعار</label>
+                <textarea rows="3" placeholder="اكتب تفاصيل الإشعار هنا..."></textarea>
+                
+                <label style="margin-top: 10px;">الجهة المختصة</label>
+                <select>
+                    <option value="مبيعات">مبيعات</option>
+                    <option value="مشتريات">مشتريات</option>
+                    <option value="مدخل بيانات">مدخل بيانات</option>
+                    <option value="جرد">جرد</option>
+                    <option value="ادارة">إدارة</option>
+                    <option value="حسابات">حسابات</option>
+                </select>
+            </div>
+
+        </div>
+
+        <button type="submit">إرسال الطلب</button>
+    </form>
+</div>
+
+<script>
+    function toggleFields() {
+        const type = document.getElementById('orderType').value;
         
-        const wallets = [
-            { id: 'paymob', name: 'باي موب (Paymob)', key: 'p_paymob' },
-            { id: 'fawry1843', name: 'فورى 1843', key: 'p_fawry8003' },
-            { id: 'fawry6060', name: 'فورى 6060', key: 'p_fawry6064' },
-            { id: 'vodafone', name: 'فودافون كاش', key: 'p_vodafone' }
-        ];
+        // إخفاء الكل أولاً
+        document.getElementById('productField').classList.add('hidden');
+        document.getElementById('quantityField').classList.add('hidden');
+        document.getElementById('customerField').classList.add('hidden');
+        document.getElementById('noticeFields').classList.add('hidden');
 
-        const container = document.getElementById('wallets_container');
-        wallets.forEach(w => {
-            const prevVal = parseFloat(params.get(w.key)) || 0;
-            const div = document.createElement('div');
-            div.className = 'card';
-            div.innerHTML = `
-                <strong style="font-size: 17px;">${w.name}</strong>
-                <label>الرصيد الافتتاحي (من الشيت):</label>
-                <input type="number" id="prev_${w.id}" value="${prevVal.toFixed(2)}" readonly>
-                
-                <label style="color: #d9534f;">مدفوعات موردين (صرف):</label>
-                <input type="number" class="calc-input vendor-input" id="vendor_${w.id}" data-id="${w.id}" placeholder="0.00" inputmode="decimal">
+        if (type === 'شراء' || type === 'تحويل') {
+            document.getElementById('productField').classList.remove('hidden');
+            document.getElementById('quantityField').classList.remove('hidden');
+            document.getElementById('customerField').classList.remove('hidden');
+        } else if (type === 'جرد') {
+            document.getElementById('productField').classList.remove('hidden');
+        } else if (type === 'اشعار') {
+            document.getElementById('noticeFields').classList.remove('hidden');
+        }
+    }
+</script>
 
-                <label>الرصيد الحالي بالماكينة:</label>
-                <input type="number" class="calc-input" id="curr_${w.id}" data-id="${w.id}" placeholder="0.00" inputmode="decimal">
-                
-                <div class="diff-box">الصافي (مبيعات): <span id="diff_${w.id}">0.00</span> ج.م</div>
-            `;
-            container.appendChild(div);
-        });
-
-        // كود حساب الصافي المعدل
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('calc-input')) {
-                const id = e.target.getAttribute('data-id');
-                const prev = parseFloat(document.getElementById(`prev_${id}`).value) || 0;
-                const vendor = parseFloat(document.getElementById(`vendor_${id}`).value) || 0;
-                const curr = parseFloat(document.getElementById(`curr_${id}`).value) || 0;
-                
-                // المعادلة: (الحالي + اللي اتصرف للمورد) - القديم
-                const diff = ((curr + vendor) - prev).toFixed(2);
-                document.getElementById(`diff_${id}`).innerText = diff;
-            }
-        });
-
-        document.getElementById('submit_btn').onclick = () => {
-            const resultData = {
-                timestamp: new Date().toLocaleString('ar-EG'),
-                report_type: "Wallet Matching with Vendor Payouts",
-                details: {}
-            };
-
-            wallets.forEach(w => {
-                const p = parseFloat(document.getElementById(`prev_${w.id}`).value) || 0;
-                const v = parseFloat(document.getElementById(`vendor_${w.id}`).value) || 0;
-                const c = parseFloat(document.getElementById(`curr_${w.id}`).value) || 0;
-                resultData.details[w.id] = {
-                    name: w.name,
-                    opening: p,
-                    vendor_payout: v,
-                    closing: c,
-                    net_sales: ((c + v) - p).toFixed(2)
-                };
-            });
-
-            tg.sendData(JSON.stringify(resultData)); 
-            tg.close();
-        };
-    </script>
 </body>
 </html>
