@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عرض المشتريات - نظام الصيدلية</title>
+    <title>إدارة المشتريات - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .status-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; }
+        .company-input { padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 120px; }
+        .filter-section { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .badge-new { background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+    </style>
 </head>
 <body>
 
     <header class="main-header">
-        <div class="user-info">المستخدم الحالي: <span id="displayUser">...</span></div>
-        <div class="logo"><b>سجل المشتريات المركزي</b></div>
+        <div class="user-info">المستخدم: <span id="displayUser">...</span></div>
+        <div class="logo"><b>إدارة المشتريات والنواقص</b></div>
         <button class="btn btn-danger" onclick="logout()">خروج</button>
     </header>
 
@@ -21,20 +27,28 @@
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0;">طلبات الشراء الواردة</h2>
+            <div class="filter-section">
+                <span>تصفية حسب الحالة:</span>
+                <select id="statusFilter" onchange="renderTable()">
+                    <option value="new">طلبات جديدة (انتظار)</option>
+                    <option value="ordered">تم الطلب</option>
+                    <option value="unavailable">غير متوفر</option>
+                    <option value="all">الكل</option>
+                </select>
                 <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات ↻</button>
             </div>
-            
+
             <div style="overflow-x: auto;">
                 <table id="purchasesTable">
                     <thead>
                         <tr>
-                            <th>التاريخ (CreatedAt)</th>
+                            <th>التاريخ</th>
                             <th>الفرع</th>
-                            <th>المنتج (Item)</th>
-                            <th>الكمية (Qty)</th>
-                            <th>بواسطة (User)</th>
+                            <th>المنتج</th>
+                            <th>الكمية</th>
+                            <th>الحالة</th>
+                            <th>الشركة الموردة</th>
+                            <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -46,47 +60,83 @@
 
     <script src="api.js"></script>
     <script>
-        // التأكد من الهوية
         const user = checkAuth();
         document.getElementById('displayUser').innerText = user;
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
-        }
+        let allData = []; // لتخزين البيانات محلياً للفلترة السريعة
 
         async function loadPurchases() {
             const tbody = document.querySelector('#purchasesTable tbody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">جاري جلب البيانات من n8n...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
 
             try {
-                const data = await fetchData(); // جلب البيانات باستخدام api.js
-                
-                // فلترة البيانات لتظهر "شراء" فقط بناءً على حقل type في n8n
-                const purchaseOrders = data.filter(order => order.type === 'شراء');
-
-                tbody.innerHTML = ''; 
-
-                if (purchaseOrders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد بيانات شراء متاحة حالياً</td></tr>';
-                    return;
-                }
-
-                // رسم الجدول بناءً على هيكلة JSON في الصورة (user, type, branch, item, qty, createdAt)
-                purchaseOrders.forEach(order => {
-                    const row = `
-                        <tr>
-                            <td>${new Date(order.createdAt).toLocaleString('ar-EG') || '-'}</td>
-                            <td>${order.branch || '-'}</td>
-                            <td>${order.item || '-'}</td>
-                            <td>${order.qty || '-'}</td>
-                            <td>${order.user || '-'}</td>
-                        </tr>
-                    `;
-                    tbody.insertAdjacentHTML('beforeend', row);
-                });
+                allData = await fetchData();
+                renderTable(); // عرض الجدول بناءً على الفلتر الحالي
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">خطأ في الاتصال بالـ Webhook. تأكد من تشغيل الـ Workflow في n8n</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">فشل في جلب البيانات</td></tr>';
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#purchasesTable tbody');
+            const filterValue = document.getElementById('statusFilter').value;
+            
+            // فلترة البيانات بناءً على النوع "شراء" أولاً، ثم الحالة ثانياً
+            let filtered = allData.filter(order => order.type === 'شراء');
+
+            if (filterValue === 'new') {
+                filtered = filtered.filter(order => !order.status || order.status === '');
+            } else if (filterValue !== 'all') {
+                filtered = filtered.filter(order => order.status === filterValue);
+            }
+
+            tbody.innerHTML = '';
+
+            filtered.forEach(order => {
+                const row = `
+                    <tr>
+                        <td>${formatDate(order.createdAt)}</td>
+                        <td>${order.branch}</td>
+                        <td>${order.item}</td>
+                        <td>${order.qty}</td>
+                        <td>
+                            <select class="status-select" id="status-${order.id}">
+                                <option value="" ${!order.status ? 'selected' : ''}>انتظار ⏳</option>
+                                <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                                <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="company-input" id="company-${order.id}" 
+                                   placeholder="اسم الشركة" value="${order.company || ''}">
+                        </td>
+                        <td>
+                            <button class="btn btn-success" onclick="updateOrderStatus('${order.id}')">حفظ</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        async function updateOrderStatus(orderId) {
+            const status = document.getElementById(`status-${orderId}`).value;
+            const company = document.getElementById(`company-${orderId}`).value;
+
+            const updateData = {
+                id: orderId,
+                status: status,
+                company: company,
+                action: 'update_status' // وسيلة لـ n8n ليعرف أن هذا تحديث وليس إضافة
+            };
+
+            try {
+                // سنستخدم نفس الوظيفة لإرسال التحديث لـ n8n
+                await postData(updateData);
+                alert("تم تحديث حالة الطلب");
+                loadPurchases(); // إعادة تحميل الجدول
+            } catch (error) {
+                alert("فشل التحديث");
             }
         }
 
