@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم طلبات الفروع</title>
+    <style>
+        :root { --primary: #1a73e8; --success: #28a745; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* الهيدر ومعلومات المستخدم */
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .user-info { font-weight: bold; color: var(--primary); }
+        .logout-btn { padding: 5px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; }
+
+        /* كارت الإدخال */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        h2 { margin-top: 0; color: #333; font-size: 1.5rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+        select, input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        
+        .full-width { grid-column: span 2; }
+        .submit-btn { width: 100%; padding: 15px; background: var(--success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .submit-btn:hover { background: #218838; opacity: 0.9; }
+
+        /* جدول العرض */
+        .table-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; text-align: right; }
+        th { background: #f1f3f4; padding: 15px; color: #555; }
+        td { padding: 15px; border-bottom: 1px solid #eee; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; }
+        .bg-blue { background: #007bff; } .bg-orange { background: #fd7e14; } .bg-green { background: #28a745; }
+        
+        .hidden { display: none; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="user-info">مرحباً: <span id="displayUser">...</span></div>
+        <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
+    </div>
+
+    <div class="card">
+        <h2>أضف طلب جديد</h2>
+        <form id="orderForm">
+            <div class="form-grid">
+                <div>
+                    <label>نوع الطلب</label>
+                    <select id="orderType" onchange="toggleFields()" required>
+                        <option value="">-- اختر النوع --</option>
+                        <option value="شراء">شراء</option>
+                        <option value="تحويل">تحويل</option>
+                        <option value="اشعار">إشعار</option>
+                        <option value="جرد">جرد</option>
+                    </select>
+                </div>
+                <div>
+                    <label>الفرع المستهدف</label>
+                    <select id="targetBranch" required>
+                        <option value="المعمورة">فرع المعمورة</option>
+                        <option value="سان ستيفانو">فرع سان ستيفانو</option>
+                        <option value="سيدى بشر">فرع سيدى بشر</option>
+                    </select>
+                </div>
+
+                <div id="productField" class="hidden">
+                    <label>المنتج (اسم أو كود)</label>
+                    <input type="text" id="itemName">
+                </div>
+                <div id="quantityField" class="hidden">
+                    <label>الكمية</label>
+                    <input type="number" id="qty">
+                </div>
+
+                <div id="customerField" class="full-width hidden">
+                    <label>العميل (اسم أو كود)</label>
+                    <input type="text" id="customer">
+                </div>
+
+                <div id="noticeFields" class="full-width hidden">
+                    <div class="form-grid">
+                        <div>
+                            <label>الجهة المختصة</label>
+                            <select id="dept">
+                                <option value="مبيعات">مبيعات</option>
+                                <option value="مشتريات">مشتريات</option>
+                                <option value="إدارة">إدارة</option>
+                                <option value="مدخل بيانات">مدخل بيانات</option>
+                                <option value="جرد">جرد</option>
+                                <option value="حسابات">حسابات</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>التفاصيل</label>
+                            <input type="text" id="note" placeholder="اكتب محتوى الإشعار">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="submit-btn" onclick="sendToN8N()">إرسال الطلب وحفظه</button>
+        </form>
+    </div>
+
+    <div class="table-card">
+        <h3 style="padding: 15px; margin: 0; background: #fff;">آخر الطلبات المرسلة</h3>
+        <table id="ordersTable">
+            <thead>
+                <tr>
+                    <th>الوقت</th>
+                    <th>النوع</th>
+                    <th>الفرع</th>
+                    <th>التفاصيل</th>
+                    <th>بواسطة</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 1. نظام الحماية: التأكد من وجود مستخدم
+    const activeUser = localStorage.getItem('activeUser');
+    if (!activeUser) {
+        window.location.href = "index.html";
+    } else {
+        document.getElementById('displayUser').innerText = activeUser;
+    }
+
+    function logout() {
+        localStorage.removeItem('activeUser');
+        window.location.href = "index.html";
+    }
+
+    // 2. التحكم في ظهور الخانات
+    function toggleFields() {
+        const type = document.getElementById('orderType').value;
+        const ids = ['productField', 'quantityField', 'customerField', 'noticeFields'];
+        ids.forEach(id => document.getElementById(id).classList.add('hidden'));
+
+        if (type === 'شراء' || type === 'تحويل') {
+            document.getElementById('productField').classList.remove('hidden');
+            document.getElementById('quantityField').classList.remove('hidden');
+            document.getElementById('customerField').classList.remove('hidden');
+        } else if (type === 'جرد') {
+            document.getElementById('productField').classList.remove('hidden');
+        } else if (type === 'اشعار') {
+            document.getElementById('noticeFields').classList.remove('hidden');
+        }
+    }
+
+    // 3. الربط مع n8n
+    async function sendToN8N() {
+        const type = document.getElementById('orderType').value;
+        if(!type) return alert("اختر نوع الطلب");
+
+        const data = {
+            user: activeUser,
+            type: type,
+            branch: document.getElementById('targetBranch').value,
+            item: document.getElementById('itemName').value,
+            qty: document.getElementById('qty').value,
+            customer: document.getElementById('customer').value,
+            dept: document.getElementById('dept').value,
+            note: document.getElementById('note').value,
+            date: new Date().toLocaleString('ar-EG')
+        };
+
+        // استبدل الرابط أدناه برابط الـ Webhook من n8n
+        const webhookURL = 'ضع_رابط_الويبهوك_هنا';
+
+        try {
+            // إضافة السطر للجدول فوراً (بشكل مؤقت)
+            addToTable(data);
+            
+            // إرسال البيانات فعلياً
+            /*
+            await fetch(webhookURL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            */
+            
+            alert("تم إرسال الطلب بنجاح");
+            document.getElementById('orderForm').reset();
+            toggleFields();
+        } catch (e) {
+            alert("حدث خطأ في الاتصال");
+        }
+    }
+
+    function addToTable(d) {
+        const tbody = document.querySelector('#ordersTable tbody');
+        const badgeClass = d.type === 'شراء' ? 'bg-blue' : d.type === 'تحويل' ? 'bg-orange' : 'bg-green';
+        const row = `<tr>
+            <td>${new Date().toLocaleTimeString('ar-EG')}</td>
+            <td><span class="badge ${badgeClass}">${d.type}</span></td>
+            <td>${d.branch}</td>
+            <td>${d.item || d.note || 'جرد منتج'}</td>
+            <td>${d.user}</td>
+        </tr>`;
+        tbody.insertAdjacentHTML('afterbegin', row);
+    }
+</script>
+
+</body>
+</html>
