@@ -1,82 +1,75 @@
 /**
  * نظام الربط البرمجي الموحد لشبكة صيدليات د. إبراهيم
- * مصمم ليكون قابلاً للتوسع والربط مع n8n وجوجل شيت
  */
 
 const CONFIG = {
-    // رابط إرسال الطلبات (POST)
+    // رابط إرسال الطلبات (تأكد من أنه الرابط الدائم Production)
     SEND_ORDER_WEBHOOK: 'https://agent.ebrahimhamdy.com/webhook/taskmanagement',
-    // رابط جلب البيانات (GET) - تأكد أنه رابط الـ Production
+    
+    // رابط جلب البيانات (تأكد من مطابقة الكلمة get_order مع إعداد n8n)
     FETCH_ORDERS_WEBHOOK: 'https://agent.ebrahimhamdy.com/webhook/get_order',
 };
 
 /**
- * وظيفة إرسال البيانات إلى n8n
- * @param {Object} data - بيانات الطلب (user, type, branch, item, qty)
+ * وظيفة إرسال البيانات (المستخدمة في main.html)
  */
 async function postData(data) {
     try {
-        console.log("جاري إرسال الطلب إلى n8n...", data);
         const response = await fetch(CONFIG.SEND_ORDER_WEBHOOK, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-
-        if (!response.ok) throw new Error(`خطأ في الإرسال: ${response.status}`);
-        
-        const result = await response.json();
-        return result;
+        if (!response.ok) throw new Error('فشل في إرسال البيانات');
+        return await response.json();
     } catch (error) {
-        console.error("فشل في الوصول إلى n8n (إرسال):", error);
+        console.error("Error posting data:", error);
         throw error;
     }
 }
 
 /**
- * وظيفة جلب البيانات من n8n وعرضها في الجداول
- * مصممة لتتحمل اختلاف تنسيقات البيانات من n8n
+ * وظيفة جلب البيانات (المستخدمة في المشتريات والتحويلات)
  */
 async function fetchData() {
     try {
-        console.log("جاري طلب البيانات من:", CONFIG.FETCH_ORDERS_WEBHOOK);
+        console.log("جاري طلب البيانات من n8n...");
         const response = await fetch(CONFIG.FETCH_ORDERS_WEBHOOK);
         
-        if (!response.ok) {
-            throw new Error(`خطأ في الاتصال بالـ Webhook: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         
         const data = await response.json();
-        console.log("تم استلام البيانات بنجاح:", data);
+        console.log("البيانات المستلمة:", data);
 
-        // معالجة البيانات لضمان إرجاع قائمة (Array) دائماً للمتصفح
-        if (Array.isArray(data)) {
-            return data;
-        } else if (data && typeof data === 'object') {
-            // إذا كانت البيانات مغلفة داخل JSON Body
-            if (Array.isArray(data.data)) return data.data;
-            if (Array.isArray(data.items)) return data.items;
-            // إذا كان سطر واحد فقط ككائن (Object) نحوله لقائمة
-            return [data];
-        }
-        
-        return []; // إرجاع قائمة فارغة إذا لم توجد بيانات
+        // n8n قد يرسل البيانات كمصفوفة أو كائن وحيد
+        return Array.isArray(data) ? data : [data];
     } catch (error) {
-        console.error("خطأ فني في جلب البيانات:", error);
+        console.error("Error fetching data:", error);
         throw error;
     }
 }
 
 /**
- * وظيفة الحماية والتحقق من هوية المستخدم
+ * وظيفة مساعدة لتنسيق الوقت بشكل جمالي
+ */
+function formatDate(isoString) {
+    if (!isoString) return "-";
+    const date = new Date(isoString);
+    return date.toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+/**
+ * نظام الحماية والتحقق من الهوية
  */
 function checkAuth() {
     const user = localStorage.getItem('activeUser');
     if (!user) {
-        // إذا لم يكن مسجلاً، يوجهه لصفحة الدخول
         window.location.href = 'index.html';
         return null;
     }
@@ -84,7 +77,7 @@ function checkAuth() {
 }
 
 /**
- * وظيفة تسجيل الخروج
+ * تسجيل الخروج
  */
 function logout() {
     localStorage.clear();
