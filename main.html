@@ -3,214 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم طلبات الفروع</title>
+    <title>نظام إدارة الصيدلية المتكامل</title>
     <style>
-        :root { --primary: #1a73e8; --success: #28a745; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
+        :root { --primary: #1a73e8; --success: #28a745; --bg: #f8f9fa; --dark: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 0; }
         
-        /* الهيدر ومعلومات المستخدم */
-        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .user-info { font-weight: bold; color: var(--primary); }
-        .logout-btn { padding: 5px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        /* القائمة العلوية (Tabs) */
+        .navbar { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: center; position: sticky; top: 0; z-index: 1000; }
+        .nav-item { padding: 15px 20px; cursor: pointer; color: #666; font-weight: bold; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: #f0f7ff; }
+        .nav-item:hover { background: #f9f9f9; }
 
-        /* كارت الإدخال */
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        h2 { margin-top: 0; color: #333; font-size: 1.5rem; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
-        
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
-        select, input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-        
-        .full-width { grid-column: span 2; }
-        .submit-btn { width: 100%; padding: 15px; background: var(--success); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        .submit-btn:hover { background: #218838; opacity: 0.9; }
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+        .page { display: none; } /* إخفاء الصفحات افتراضياً */
+        .page.active { display: block; } /* إظهار الصفحة النشطة */
 
-        /* جدول العرض */
-        .table-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; text-align: right; }
-        th { background: #f1f3f4; padding: 15px; color: #555; }
-        td { padding: 15px; border-bottom: 1px solid #eee; }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; color: white; font-weight: bold; }
+        /* التنسيقات العامة */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { color: var(--dark); margin-top: 0; border-right: 4px solid var(--primary); padding-right: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { background: #f1f3f4; padding: 12px; text-align: right; color: #555; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; color: white; font-weight: bold; }
         .bg-blue { background: #007bff; } .bg-orange { background: #fd7e14; } .bg-green { background: #28a745; }
         
-        .hidden { display: none; }
-        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+        input, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-send { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+
+        .header-info { text-align: left; padding: 10px; font-size: 0.9rem; color: var(--primary); }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <div class="user-info">مرحباً: <span id="displayUser">...</span></div>
-        <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
+    <div class="header-info">مرحباً: <span id="userName">...</span> | <a href="#" onclick="logout()" style="color:red">خروج</a></div>
+
+    <div class="navbar">
+        <div class="nav-item active" onclick="showPage('addOrderPage', this)">إضافة طلب</div>
+        <div class="nav-item" onclick="showPage('purchasePage', this)">المشتريات</div>
+        <div class="nav-item" onclick="showPage('transferPage', this)">التحويلات</div>
+        <div class="nav-item" onclick="showPage('inventoryPage', this)">الجرد</div>
     </div>
 
-    <div class="card">
-        <h2>أضف طلب جديد</h2>
-        <form id="orderForm">
-            <div class="form-grid">
-                <div>
-                    <label>نوع الطلب</label>
-                    <select id="orderType" onchange="toggleFields()" required>
-                        <option value="">-- اختر النوع --</option>
-                        <option value="شراء">شراء</option>
-                        <option value="تحويل">تحويل</option>
-                        <option value="اشعار">إشعار</option>
-                        <option value="جرد">جرد</option>
-                    </select>
-                </div>
-                <div>
-                    <label>الفرع المستهدف</label>
-                    <select id="targetBranch" required>
-                        <option value="المعمورة">فرع المعمورة</option>
-                        <option value="سان ستيفانو">فرع سان ستيفانو</option>
-                        <option value="سيدى بشر">فرع سيدى بشر</option>
-                    </select>
-                </div>
-
-                <div id="productField" class="hidden">
-                    <label>المنتج (اسم أو كود)</label>
-                    <input type="text" id="itemName">
-                </div>
-                <div id="quantityField" class="hidden">
-                    <label>الكمية</label>
-                    <input type="number" id="qty">
-                </div>
-
-                <div id="customerField" class="full-width hidden">
-                    <label>العميل (اسم أو كود)</label>
-                    <input type="text" id="customer">
-                </div>
-
-                <div id="noticeFields" class="full-width hidden">
-                    <div class="form-grid">
-                        <div>
-                            <label>الجهة المختصة</label>
-                            <select id="dept">
-                                <option value="مبيعات">مبيعات</option>
-                                <option value="مشتريات">مشتريات</option>
-                                <option value="إدارة">إدارة</option>
-                                <option value="مدخل بيانات">مدخل بيانات</option>
-                                <option value="جرد">جرد</option>
-                                <option value="حسابات">حسابات</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>التفاصيل</label>
-                            <input type="text" id="note" placeholder="اكتب محتوى الإشعار">
-                        </div>
+    <div class="container">
+        
+        <div id="addOrderPage" class="page active">
+            <div class="card">
+                <h2>نموذج إدخال طلب جديد</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label>نوع الطلب</label>
+                        <select id="orderType" onchange="updateFormFields()">
+                            <option value="شراء">شراء</option>
+                            <option value="تحويل">تحويل</option>
+                            <option value="جرد">جرد</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>الفرع</label>
+                        <select id="branch">
+                            <option>المعمورة</option>
+                            <option>سان ستيفانو</option>
+                            <option>سيدى بشر</option>
+                        </select>
                     </div>
                 </div>
+                <div id="itemContainer">
+                    <label>المنتج</label>
+                    <input type="text" id="itemName" placeholder="اسم المنتج أو الكود">
+                    <label>الكمية / التفاصيل</label>
+                    <input type="text" id="itemDetails">
+                </div>
+                <button class="btn-send" onclick="submitOrder()">إرسال الطلب</button>
             </div>
-            <button type="button" class="submit-btn" onclick="sendToN8N()">إرسال الطلب وحفظه</button>
-        </form>
+        </div>
+
+        <div id="purchasePage" class="page">
+            <div class="card">
+                <h2>سجل المشتريات</h2>
+                <table id="purchaseTable">
+                    <thead><tr><th>التاريخ</th><th>الفرع</th><th>المنتج</th><th>بواسطة</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="transferPage" class="page">
+            <div class="card">
+                <h2>سجل التحويلات بين الفروع</h2>
+                <table id="transferTable">
+                    <thead><tr><th>التاريخ</th><th>من فرع</th><th>المنتج</th><th>الحالة</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="inventoryPage" class="page">
+            <div class="card">
+                <h2>سجل عمليات الجرد</h2>
+                <table id="inventoryTable">
+                    <thead><tr><th>التاريخ</th><th>الفرع</th><th>المنتج</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
-    <div class="table-card">
-        <h3 style="padding: 15px; margin: 0; background: #fff;">آخر الطلبات المرسلة</h3>
-        <table id="ordersTable">
-            <thead>
-                <tr>
-                    <th>الوقت</th>
-                    <th>النوع</th>
-                    <th>الفرع</th>
-                    <th>التفاصيل</th>
-                    <th>بواسطة</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
-</div>
+    <script>
+        // التحقق من الدخول
+        const user = localStorage.getItem('activeUser');
+        if(!user) window.location.href = 'index.html';
+        document.getElementById('userName').innerText = user;
 
-<script>
-    // 1. نظام الحماية: التأكد من وجود مستخدم
-    const activeUser = localStorage.getItem('activeUser');
-    if (!activeUser) {
-        window.location.href = "index.html";
-    } else {
-        document.getElementById('displayUser').innerText = activeUser;
-    }
+        // وظيفة التبديل بين الصفحات
+        function showPage(pageId, element) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(pageId).classList.add('active');
+            element.classList.add('active');
 
-    function logout() {
-        localStorage.removeItem('activeUser');
-        window.location.href = "index.html";
-    }
-
-    // 2. التحكم في ظهور الخانات
-    function toggleFields() {
-        const type = document.getElementById('orderType').value;
-        const ids = ['productField', 'quantityField', 'customerField', 'noticeFields'];
-        ids.forEach(id => document.getElementById(id).classList.add('hidden'));
-
-        if (type === 'شراء' || type === 'تحويل') {
-            document.getElementById('productField').classList.remove('hidden');
-            document.getElementById('quantityField').classList.remove('hidden');
-            document.getElementById('customerField').classList.remove('hidden');
-        } else if (type === 'جرد') {
-            document.getElementById('productField').classList.remove('hidden');
-        } else if (type === 'اشعار') {
-            document.getElementById('noticeFields').classList.remove('hidden');
-        }
-    }
-
-// 3. الربط مع n8n
-    async function sendToN8N() {
-        const type = document.getElementById('orderType').value;
-        if(!type) return alert("اختر نوع الطلب");
-
-        const data = {
-            user: activeUser,
-            type: type,
-            branch: document.getElementById('targetBranch').value,
-            item: document.getElementById('itemName').value,
-            qty: document.getElementById('qty').value,
-            customer: document.getElementById('customer').value,
-            dept: document.getElementById('dept').value,
-            note: document.getElementById('note').value,
-            date: new Date().toLocaleString('ar-EG')
-        };
-
-        const webhookURL = 'https://agent.ebrahimhamdy.com/webhook-test/taskmanagement';
-
-        try {
-            // إرسال البيانات فعلياً إلى n8n
-            const response = await fetch(webhookURL, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-
-            if (response.ok) {
-                // إذا تم الإرسال بنجاح، أضف السطر للجدول وظهر الرسالة
-                addToTable(data);
-                alert("تم إرسال الطلب بنجاح");
-                document.getElementById('orderForm').reset();
-                toggleFields();
-            } else {
-                alert("حدثت مشكلة في الخادم، برجاء المحاولة لاحقاً");
+            // عند فتح صفحة معينة، يمكننا جلب بياناتها فقط من n8n
+            if(pageId !== 'addOrderPage') {
+                loadDataFromN8N(pageId);
             }
-        } catch (e) {
-            console.error("Error:", e);
-            alert("حدث خطأ في الاتصال بالإنترنت");
         }
-    }
 
-    function addToTable(d) {
-        const tbody = document.querySelector('#ordersTable tbody');
-        const badgeClass = d.type === 'شراء' ? 'bg-blue' : d.type === 'تحويل' ? 'bg-orange' : 'bg-green';
-        const row = `<tr>
-            <td>${new Date().toLocaleTimeString('ar-EG')}</td>
-            <td><span class="badge ${badgeClass}">${d.type}</span></td>
-            <td>${d.branch}</td>
-            <td>${d.item || d.note || 'جرد منتج'}</td>
-            <td>${d.user}</td>
-        </tr>`;
-        tbody.insertAdjacentHTML('afterbegin', row);
-    }
-</script>
+        async function loadDataFromN8N(pageType) {
+            console.log("جاري جلب بيانات: " + pageType);
+            // هنا تضع رابط الويبهوك (GET) الذي يسحب من جوجل شيت
+            // وتقوم بتصفية البيانات حسب النوع وتعبئة الجدول المناسب
+        }
 
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
 </body>
 </html>
