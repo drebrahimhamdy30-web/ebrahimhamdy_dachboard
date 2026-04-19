@@ -64,33 +64,33 @@
         const user = checkAuth();
         document.getElementById('displayUser').innerText = user;
 
-        async function submitOrder() {
-            const btn = document.getElementById('submitBtn');
-            const formData = {
-                user: user,
-                type: document.getElementById('type').value,
-                branch: document.getElementById('branch').value,
-                item: document.getElementById('item').value,
-                qty: document.getElementById('qty').value,
-                createdAt: new Date().toISOString() // توقيت قياسي للـ n8n
-            };
+async function submitOrder() {
+    const user = checkAuth();
+    const btn = document.getElementById('submitBtn');
+    const formData = {
+        user: user,
+        type: document.getElementById('type').value,
+        branch: document.getElementById('branch').value,
+        item: document.getElementById('item').value,
+        qty: document.getElementById('qty').value,
+        status: '',   // حقل فارغ للطلب الجديد
+        company: '',  // حقل فارغ للطلب الجديد
+        createdAt: new Date().toISOString()
+    };
 
-            try {
-                btn.disabled = true;
-                btn.innerText = "جاري الإرسال...";
-                
-                // استخدام الوظيفة الموحدة من api.js
-                await postData(formData); 
-                
-                alert("تم إرسال الطلب بنجاح لـ n8n");
-                document.getElementById('orderForm').reset();
-            } catch (error) {
-                alert("فشل الإرسال، تأكد من اتصال الإنترنت أو رابط الويب هوك");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "إرسال الطلب الآن";
-            }
-        }
+    try {
+        btn.disabled = true;
+        btn.innerText = "جاري الإرسال...";
+        await postData(formData);
+        alert("تم إرسال الطلب بنجاح");
+        document.getElementById('orderForm').reset();
+    } catch (error) {
+        alert("خطأ في الإرسال");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "إرسال الطلب الآن";
+    }
+}
 
         function logout() {
             localStorage.clear();
