@@ -2,164 +2,34 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة طلبات الفروع</title>
+    <title>دخول نظام الصيدليات</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        
-        /* تصميم شاشة الإدخال */
-        .form-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 30px; }
-        h2 { text-align: center; color: #1a73e8; margin-top: 0; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; color: #444; }
-        select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        
-        /* تصميم شاشة العرض */
-        .display-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th { background-color: #f8f9fa; color: #333; text-align: right; padding: 12px; border-bottom: 2px solid #dee2e6; }
-        td { padding: 12px; border-bottom: 1px solid #eee; color: #555; }
-        tr:hover { background-color: #f9f9f9; }
-        
-        /* التسميات الملونة للحالات */
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; color: white; }
-        .bg-blue { background-color: #007bff; }
-        .bg-green { background-color: #28a745; }
-        .bg-orange { background-color: #fd7e14; }
-        
-        .hidden { display: none; }
-        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    
-    <div class="form-card">
-        <h2>أضف طلب جديد</h2>
-        <form id="orderForm">
-            <div class="form-row">
-                <div>
-                    <label>نوع الطلب</label>
-                    <select id="orderType" onchange="toggleFields()" required>
-                        <option value="">-- اختر النوع --</option>
-                        <option value="شراء">شراء</option>
-                        <option value="تحويل">تحويل</option>
-                        <option value="اشعار">إشعار</option>
-                        <option value="جرد">جرد</option>
-                    </select>
-                </div>
-                <div>
-                    <label>الفرع المستهدف</label>
-                    <select id="targetBranch" required>
-                        <option value="المعمورة">فرع المعمورة</option>
-                        <option value="سان ستيفانو">فرع سان ستيفانو</option>
-                        <option value="سيدى بشر">فرع سيدى بشر</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="dynamicFields">
-                <div class="form-row">
-                    <div id="productField" class="hidden">
-                        <label>المنتج</label>
-                        <input type="text" id="itemName" placeholder="اسم أو كود المنتج">
-                    </div>
-                    <div id="quantityField" class="hidden">
-                        <label>الكمية</label>
-                        <input type="number" id="qty" placeholder="0">
-                    </div>
-                </div>
-                
-                <div id="customerField" class="form-group hidden" style="margin-bottom:15px;">
-                    <label>العميل</label>
-                    <input type="text" id="customer" placeholder="اسم أو كود العميل">
-                </div>
-
-                <div id="noticeFields" class="hidden">
-                    <label>التفاصيل والجهة المختصة</label>
-                    <div class="form-row">
-                        <textarea id="note" rows="2" placeholder="اكتب تفاصيل الإشعار..."></textarea>
-                        <select id="dept">
-                            <option value="مبيعات">مبيعات</option>
-                            <option value="مشتريات">مشتريات</option>
-                            <option value="إدارة">إدارة</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <button type="button" onclick="addOrder()">إرسال الطلب</button>
-        </form>
+    <div class="login-box">
+        <h2>تسجيل الدخول</h2>
+        <input type="text" id="username" placeholder="اسم المستخدم (مثلاً: د. إبراهيم)">
+        <input type="password" id="password" placeholder="كلمة المرور">
+        <button onclick="handleLogin()">دخول</button>
     </div>
 
-    <div class="display-card">
-        <h3 style="margin-top:0;">سجل الطلبات الأخيرة</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>الوقت</th>
-                        <th>النوع</th>
-                        <th>الفرع</th>
-                        <th>البيانات</th>
-                        <th>الجهة/العميل</th>
-                    </tr>
-                </thead>
-                <tbody id="ordersTableBody">
-                    </tbody>
-            </table>
-        </div>
-    </div>
+    <script>
+        function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
 
-</div>
-
-<script>
-    function toggleFields() {
-        const type = document.getElementById('orderType').value;
-        const fields = ['productField', 'quantityField', 'customerField', 'noticeFields'];
-        fields.forEach(f => document.getElementById(f).classList.add('hidden'));
-
-        if (type === 'شراء' || type === 'تحويل') {
-            document.getElementById('productField').classList.remove('hidden');
-            document.getElementById('quantityField').classList.remove('hidden');
-            document.getElementById('customerField').classList.remove('hidden');
-        } else if (type === 'جرد') {
-            document.getElementById('productField').classList.remove('hidden');
-        } else if (type === 'اشعار') {
-            document.getElementById('noticeFields').classList.remove('hidden');
+            if(user && pass === "1234") { // يمكنك تغيير كلمة المرور هنا
+                localStorage.setItem('activeUser', user); // حفظ الاسم
+                window.location.href = "main.html"; // التوجه لصفحة الطلبات
+            } else {
+                alert("برجاء إدخال اسم المستخدم وكلمة مرور صحيحة");
+            }
         }
-    }
-
-    function addOrder() {
-        const type = document.getElementById('orderType').value;
-        const branch = document.getElementById('targetBranch').value;
-        if(!type) return alert("من فضلك اختر نوع الطلب");
-
-        const time = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'});
-        const table = document.getElementById('ordersTableBody');
-        
-        let details = document.getElementById('itemName').value || "-";
-        if(document.getElementById('qty').value) details += ` (كمية: ${document.getElementById('qty').value})`;
-        
-        let extra = document.getElementById('customer').value || document.getElementById('dept').value || "-";
-
-        const row = `<tr>
-            <td>${time}</td>
-            <td><span class="badge ${type==='شراء'?'bg-blue':type==='تحويل'?'bg-orange':'bg-green'}">${type}</span></td>
-            <td>${branch}</td>
-            <td>${details}</td>
-            <td>${extra}</td>
-        </tr>`;
-
-        table.insertAdjacentHTML('afterbegin', row);
-        document.getElementById('orderForm').reset();
-        toggleFields();
-    }
-</script>
-
+    </script>
 </body>
 </html>
