@@ -156,7 +156,7 @@
         }
     }
 
-    // 3. الربط مع n8n
+// 3. الربط مع n8n
     async function sendToN8N() {
         const type = document.getElementById('orderType').value;
         if(!type) return alert("اختر نوع الطلب");
@@ -173,27 +173,28 @@
             date: new Date().toLocaleString('ar-EG')
         };
 
-        // استبدل الرابط أدناه برابط الـ Webhook من n8n
         const webhookURL = 'https://agent.ebrahimhamdy.com/webhook-test/taskmanagement';
 
         try {
-            // إضافة السطر للجدول فوراً (بشكل مؤقت)
-            addToTable(data);
-            
-            // إرسال البيانات فعلياً
-            /*
-            await fetch(webhookURL, {
+            // إرسال البيانات فعلياً إلى n8n
+            const response = await fetch(webhookURL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
-            */
-            
-            alert("تم إرسال الطلب بنجاح");
-            document.getElementById('orderForm').reset();
-            toggleFields();
+
+            if (response.ok) {
+                // إذا تم الإرسال بنجاح، أضف السطر للجدول وظهر الرسالة
+                addToTable(data);
+                alert("تم إرسال الطلب بنجاح");
+                document.getElementById('orderForm').reset();
+                toggleFields();
+            } else {
+                alert("حدثت مشكلة في الخادم، برجاء المحاولة لاحقاً");
+            }
         } catch (e) {
-            alert("حدث خطأ في الاتصال");
+            console.error("Error:", e);
+            alert("حدث خطأ في الاتصال بالإنترنت");
         }
     }
 
