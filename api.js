@@ -1,6 +1,6 @@
 const CONFIG = {
     SEND_ORDER_WEBHOOK: 'https://agent.ebrahimhamdy.com/webhook/taskmanagement',
-    FETCH_ORDERS_WEBHOOK: 'https://agent.ebrahimhamdy.com/webhook/get-orders', // رابط افتراضي للجلب
+    FETCH_ORDERS_WEBHOOK: 'https://agent.ebrahimhamdy.com/webhook/get_order', // رابط افتراضي للجلب
 };
 
 // وظيفة عامة لإرسال البيانات
