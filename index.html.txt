@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل نواقص الصيدلية</title>
+    <style>
+        :root { --primary: #2c3e50; --success: #27ae60; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 20px; font-size: 1.5rem; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box; transition: 0.3s; font-size: 1rem; }
+        input:focus, select:focus { border-color: var(--success); outline: none; }
+        button { width: 100%; padding: 15px; background-color: var(--success); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #219150; transform: translateY(-2px); }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; display: none; }
+        .success-msg { background-color: #d4edda; color: #155724; }
+        .error-msg { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>تسجيل ناقص جديد 💊</h2>
+    
+    <label>اسم الصنف</label>
+    <input type="text" id="itemName" placeholder="مثال: كونجيستال علبة" required>
+
+    <label>الفرع</label>
+    <select id="branch">
+        <option value="المعمورة">فرع المعمورة</option>
+        <option value="سان">فرع سان</option>
+        <option value="سيدي بشر">فرع سيدي بشر</option>
+    </select>
+
+    <label>الكمية المطلوبة (اختياري)</label>
+    <input type="number" id="quantity" placeholder="1" min="1">
+
+    <button id="submitBtn" onclick="sendData()">تسجيل الطلب</button>
+    
+    <div id="status"></div>
+</div>
+
+<script>
+    async function sendData() {
+        const btn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const item = document.getElementById('itemName').value;
+        const branch = document.getElementById('branch').value;
+        const qty = document.getElementById('quantity').value || 1;
+
+        if (!item) {
+            alert("من فضلك اكتب اسم الصنف");
+            return;
+        }
+
+        // تحضير الواجهة للحالة "جاري الإرسال"
+        btn.disabled = true;
+        btn.innerText = "جاري الحفظ...";
+        statusDiv.style.display = "none";
+
+        try {
+            // ضع رابط الـ Webhook الخاص بـ n8n هنا
+            const webhookUrl = 'https://YOUR_N8N_URL/webhook-test/shortage-test';
+
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    itemName: item,
+                    branch: branch,
+                    quantity: qty,
+                    employee: "Staff", // يمكنك تطويرها لاحقاً لإضافة اسم الموظف
+                    date: new Date().toLocaleString('ar-EG')
+                })
+            });
+
+            if (response.ok) {
+                const resData = await response.json();
+                statusDiv.className = "success-msg";
+                statusDiv.innerText = resData.message || "تم تسجيل الناقص بنجاح ✅";
+                document.getElementById('itemName').value = ""; // مسح الخانة بعد النجاح
+            } else {
+                throw new Error();
+            }
+        } catch (error) {
+            statusDiv.className = "error-msg";
+            statusDiv.innerText = "حدث خطأ في الاتصال بالسيرفر ❌";
+        } finally {
+            statusDiv.style.display = "block";
+            btn.disabled = false;
+            btn.innerText = "تسجيل الطلب";
+        }
+    }
+</script>
+
+</body>
+</html>
