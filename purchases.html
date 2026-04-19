@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل المشتريات - نظام الصيدلية</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="user-info">مرحباً: <span id="displayUser">...</span></div>
+        <div class="logo"><b>نظام إدارة المشتريات</b></div>
+        <button class="btn btn-danger" onclick="logout()">خروج</button>
+    </header>
+
+    <nav class="nav-menu">
+        <a href="main.html" class="nav-link">إضافة طلب</a>
+        <a href="purchases.html" class="nav-link active">المشتريات</a>
+        <a href="transfers.html" class="nav-link">التحويلات</a>
+        <a href="inventory.html" class="nav-link">الجرد</a>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin:0;">سجل طلبات الشراء</h2>
+                <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات ↻</button>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table id="purchasesTable">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>الفرع</th>
+                            <th>المنتج</th>
+                            <th>الكمية</th>
+                            <th>بواسطة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // 1. التأكد من الهوية عند فتح الصفحة
+        const user = checkAuth();
+        document.getElementById('displayUser').innerText = user;
+
+        function logout() {
+            localStorage.removeItem('activeUser');
+            window.location.href = 'index.html';
+        }
+
+        // 2. وظيفة جلب وعرض المشتريات فقط
+        async function loadPurchases() {
+            const tbody = document.querySelector('#purchasesTable tbody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+
+            try {
+                const allOrders = await fetchData(); // نستخدم الوظيفة الموجودة في api.js
+                
+                // فلترة البيانات لعرض "شراء" فقط
+                const purchaseOrders = allOrders.filter(order => order.type === 'شراء');
+
+                tbody.innerHTML = ''; // مسح رسالة التحميل
+
+                if (purchaseOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات شراء مسجلة</td></tr>';
+                    return;
+                }
+
+                purchaseOrders.forEach(order => {
+                    const row = `
+                        <tr>
+                            <td>${order.date || '-'}</td>
+                            <td>${order.branch || '-'}</td>
+                            <td>${order.item || '-'}</td>
+                            <td>${order.qty || '-'}</td>
+                            <td>${order.user || '-'}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">فشل في جلب البيانات. تأكد من إعداد n8n</td></tr>';
+            }
+        }
+
+        // تشغيل الجلب تلقائياً عند تحميل الصفحة
+        window.onload = loadPurchases;
+    </script>
+</body>
+</html>
