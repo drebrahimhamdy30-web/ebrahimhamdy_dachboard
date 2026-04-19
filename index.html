@@ -3,98 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل نواقص الصيدلية</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { text-align: center; color: var(--primary); margin-bottom: 20px; font-size: 1.5rem; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box; transition: 0.3s; font-size: 1rem; }
-        input:focus, select:focus { border-color: var(--success); outline: none; }
-        button { width: 100%; padding: 15px; background-color: var(--success); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background-color: #219150; transform: translateY(-2px); }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-        #status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; display: none; }
-        .success-msg { background-color: #d4edda; color: #155724; }
-        .error-msg { background-color: #f8d7da; color: #721c24; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; background-color: #f4f7f9; color: #333; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; border-right: 6px solid #0088cc; }
+        h2 { text-align: center; color: #0088cc; margin-bottom: 20px; }
+        label { font-size: 13px; color: #666; display: block; margin-top: 10px; font-weight: bold; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
+        input:focus { border-color: #0088cc; outline: none; }
+        input[readonly] { background: #f9f9f9; color: #888; cursor: not-allowed; border-style: dashed; }
+        .vendor-input { border-color: #ffc107; background-color: #fffdf5; } /* لون مميز للموردين */
+        .diff-box { margin-top: 12px; padding: 10px; background: #eef9ff; border-radius: 8px; text-align: center; font-weight: bold; color: #005a8d; font-size: 15px; }
+        button { width: 100%; padding: 18px; background: #28a745; color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
+    <h2>مطابقة أرصدة المحافظ والمدفوعات 🔍</h2>
+    <div id="wallets_container"></div>
+    <button id="submit_btn">إرسال تقرير التقفيل ✅</button>
 
-<div class="card">
-    <h2>تسجيل ناقص جديد 💊</h2>
-    
-    <label>اسم الصنف</label>
-    <input type="text" id="itemName" placeholder="مثال: كونجيستال علبة" required>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
 
-    <label>الفرع</label>
-    <select id="branch">
-        <option value="المعمورة">فرع المعمورة</option>
-        <option value="سان">فرع سان</option>
-        <option value="سيدي بشر">فرع سيدي بشر</option>
-    </select>
+        const params = new URLSearchParams(window.location.search);
+        
+        const wallets = [
+            { id: 'paymob', name: 'باي موب (Paymob)', key: 'p_paymob' },
+            { id: 'fawry1843', name: 'فورى 1843', key: 'p_fawry8003' },
+            { id: 'fawry6060', name: 'فورى 6060', key: 'p_fawry6064' },
+            { id: 'vodafone', name: 'فودافون كاش', key: 'p_vodafone' }
+        ];
 
-    <label>الكمية المطلوبة (اختياري)</label>
-    <input type="number" id="quantity" placeholder="1" min="1">
+        const container = document.getElementById('wallets_container');
+        wallets.forEach(w => {
+            const prevVal = parseFloat(params.get(w.key)) || 0;
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <strong style="font-size: 17px;">${w.name}</strong>
+                <label>الرصيد الافتتاحي (من الشيت):</label>
+                <input type="number" id="prev_${w.id}" value="${prevVal.toFixed(2)}" readonly>
+                
+                <label style="color: #d9534f;">مدفوعات موردين (صرف):</label>
+                <input type="number" class="calc-input vendor-input" id="vendor_${w.id}" data-id="${w.id}" placeholder="0.00" inputmode="decimal">
 
-    <button id="submitBtn" onclick="sendData()">تسجيل الطلب</button>
-    
-    <div id="status"></div>
-</div>
+                <label>الرصيد الحالي بالماكينة:</label>
+                <input type="number" class="calc-input" id="curr_${w.id}" data-id="${w.id}" placeholder="0.00" inputmode="decimal">
+                
+                <div class="diff-box">الصافي (مبيعات): <span id="diff_${w.id}">0.00</span> ج.م</div>
+            `;
+            container.appendChild(div);
+        });
 
-<script>
-    async function sendData() {
-        const btn = document.getElementById('submitBtn');
-        const statusDiv = document.getElementById('status');
-        const item = document.getElementById('itemName').value;
-        const branch = document.getElementById('branch').value;
-        const qty = document.getElementById('quantity').value || 1;
+        // كود حساب الصافي المعدل
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('calc-input')) {
+                const id = e.target.getAttribute('data-id');
+                const prev = parseFloat(document.getElementById(`prev_${id}`).value) || 0;
+                const vendor = parseFloat(document.getElementById(`vendor_${id}`).value) || 0;
+                const curr = parseFloat(document.getElementById(`curr_${id}`).value) || 0;
+                
+                // المعادلة: (الحالي + اللي اتصرف للمورد) - القديم
+                const diff = ((curr + vendor) - prev).toFixed(2);
+                document.getElementById(`diff_${id}`).innerText = diff;
+            }
+        });
 
-        if (!item) {
-            alert("من فضلك اكتب اسم الصنف");
-            return;
-        }
+        document.getElementById('submit_btn').onclick = () => {
+            const resultData = {
+                timestamp: new Date().toLocaleString('ar-EG'),
+                report_type: "Wallet Matching with Vendor Payouts",
+                details: {}
+            };
 
-        // تحضير الواجهة للحالة "جاري الإرسال"
-        btn.disabled = true;
-        btn.innerText = "جاري الحفظ...";
-        statusDiv.style.display = "none";
-
-        try {
-            // ضع رابط الـ Webhook الخاص بـ n8n هنا
-            const webhookUrl = 'https://YOUR_N8N_URL/webhook-test/shortage-test';
-
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    itemName: item,
-                    branch: branch,
-                    quantity: qty,
-                    employee: "Staff", // يمكنك تطويرها لاحقاً لإضافة اسم الموظف
-                    date: new Date().toLocaleString('ar-EG')
-                })
+            wallets.forEach(w => {
+                const p = parseFloat(document.getElementById(`prev_${w.id}`).value) || 0;
+                const v = parseFloat(document.getElementById(`vendor_${w.id}`).value) || 0;
+                const c = parseFloat(document.getElementById(`curr_${w.id}`).value) || 0;
+                resultData.details[w.id] = {
+                    name: w.name,
+                    opening: p,
+                    vendor_payout: v,
+                    closing: c,
+                    net_sales: ((c + v) - p).toFixed(2)
+                };
             });
 
-            if (response.ok) {
-                const resData = await response.json();
-                statusDiv.className = "success-msg";
-                statusDiv.innerText = resData.message || "تم تسجيل الناقص بنجاح ✅";
-                document.getElementById('itemName').value = ""; // مسح الخانة بعد النجاح
-            } else {
-                throw new Error();
-            }
-        } catch (error) {
-            statusDiv.className = "error-msg";
-            statusDiv.innerText = "حدث خطأ في الاتصال بالسيرفر ❌";
-        } finally {
-            statusDiv.style.display = "block";
-            btn.disabled = false;
-            btn.innerText = "تسجيل الطلب";
-        }
-    }
-</script>
-
+            tg.sendData(JSON.stringify(resultData)); 
+            tg.close();
+        };
+    </script>
 </body>
 </html>
