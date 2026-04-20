@@ -18,18 +18,45 @@
         <button onclick="handleLogin()">دخول</button>
     </div>
 
-    <script>
-        function handleLogin() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+<script>
+    async function handleLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
 
-            if(user && pass === "1234") { // يمكنك تغيير كلمة المرور هنا
-                localStorage.setItem('activeUser', user); // حفظ الاسم
-                window.location.href = "main.html"; // التوجه لصفحة الطلبات
-            } else {
-                alert("برجاء إدخال اسم المستخدم وكلمة مرور صحيحة");
-            }
+        if (!user || !pass) {
+            alert("برجاء إدخال اسم المستخدم وكلمة المرور");
+            return;
         }
-    </script>
-</body>
-</html>
+
+        // استدعاء دالة الدخول الجديدة
+        const result = await login(user, pass);
+
+        if(result.success) {
+            // التوجه لصفحة الطلبات بعد نجاح الدخول
+            window.location.href = "main.html"; 
+        } else {
+            // إظهار رسالة الخطأ التي أرسلها الـ n8n
+            alert(result.message);
+        }
+    }
+<script>
+    async function handleLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+
+        if (!user || !pass) {
+            alert("برجاء إدخال اسم المستخدم وكلمة المرور");
+            return;
+        }
+
+        // استدعاء دالة الدخول الجديدة
+        const result = await login(user, pass);
+
+        if(result.success) {
+            // التوجه لصفحة الطلبات بعد نجاح الدخول
+            window.location.href = "main.html"; 
+        } else {
+            // إظهار رسالة الخطأ التي أرسلها الـ n8n
+            alert(result.message);
+        }
+    }
