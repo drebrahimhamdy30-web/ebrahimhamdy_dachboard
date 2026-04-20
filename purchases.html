@@ -26,7 +26,7 @@
                     <option value="new" selected>طلبات جديدة (انتظار)</option>
                     <option value="ordered">تم الطلب ✅</option>
                     <option value="unavailable">غير متوفر ❌</option>
-                    <option value="all">الكل (سجل المشتريات)</option>
+                    <option value="all">عرض الكل (السجل بالكامل)</option>
                 </select>
                 <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات ↻</button>
             </div>
@@ -58,36 +58,40 @@
 
         async function loadPurchases() {
             const tbody = document.querySelector('#purchasesTable tbody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري الجلب...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات من السيرفر...</td></tr>';
             try {
                 allData = await fetchData();
+                console.log("البيانات القادمة:", allData); // للتأكد من وصول كل الصفوف في الكونسول
                 renderTable();
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
 
         function renderTable() {
             const tbody = document.querySelector('#purchasesTable tbody');
-            const filter = document.getElementById('statusFilter').value;
+            const filterValue = document.getElementById('statusFilter').value;
             
-            // 1. تصفية أولية لنوع "شراء" فقط
-            let filtered = allData.filter(o => o.type === 'شراء');
+            // 1. استخراج كافة صفوف "شراء" فقط وتجاوز أي مسافات زائدة في النص
+            let filtered = allData.filter(item => item.type && item.type.trim() === 'شراء');
 
-            // 2. تطبيق التصفية المختارة من القائمة (الافتراضي عند الفتح هو new)
-            if (filter === 'new') {
-                filtered = filtered.filter(o => !o.status || o.status === '' || o.status === 'انتظار');
-            } else if (filter !== 'all') {
-                filtered = filtered.filter(o => o.status === filter);
+            // 2. تطبيق منطق التصفية بناءً على الاختيار
+            if (filterValue === 'new') {
+                // يعرض فقط الصفوف التي ليس لها حالة أو حالتها فارغة (الانتظار)
+                filtered = filtered.filter(item => !item.status || item.status.trim() === '' || item.status === 'انتظار');
+            } else if (filterValue !== 'all') {
+                // يعرض الحالة المختارة فقط (ordered أو unavailable)
+                filtered = filtered.filter(item => item.status === filterValue);
             }
 
-            // 3. فرز البيانات زمنياً (الأحدث يظهر أولاً)
+            // 3. ترتيب البيانات (الأحدث تاريخاً يظهر في الأعلى)
             filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+            // 4. مسح الجدول ورسم كافة الصفوف المفلترة
             tbody.innerHTML = '';
             
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد طلبات حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد سجلات مطابقة لهذا الفلتر</td></tr>';
                 return;
             }
 
@@ -99,12 +103,12 @@
                     <td>${o.qty}</td>
                     <td>
                         <select id="status-${o.id}">
-                            <option value="" ${(!o.status || o.status === '') ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="" ${(!o.status || o.status.trim() === '') ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
                             <option value="unavailable" ${o.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td><input type="text" id="company-${o.id}" value="${o.company || ''}" placeholder="اسم الشركة" style="width:100px; padding:4px;"></td>
+                    <td><input type="text" id="company-${o.id}" value="${o.company || ''}" style="width:90px"></td>
                     <td><button class="btn btn-success" onclick="updateStatus('${o.id}')">حفظ</button></td>
                 </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
@@ -112,29 +116,20 @@
         }
 
         async function updateStatus(id) {
-            const saveBtn = event.target;
-            const originalText = saveBtn.innerText;
-            
             const data = {
                 id: id,
                 status: document.getElementById(`status-${id}`).value,
                 company: document.getElementById(`company-${id}`).value,
                 action: 'update_status'
             };
-            
             try {
-                saveBtn.innerText = "جاري...";
-                saveBtn.disabled = true;
                 await postData(data);
-                alert("تم تحديث حالة الطلب بنجاح");
-                await loadPurchases(); // إعادة الجلب لتحديث الجدول واختفاء الطلب من فلتر "الجديد"
+                alert("تم التحديث بنجاح");
+                loadPurchases(); // تحديث تلقائي للجدول بعد الحفظ
             } catch (e) { 
-                alert("فشل الحفظ، يرجى المحاولة مرة أخرى");
-                saveBtn.innerText = originalText;
-                saveBtn.disabled = false;
+                alert("حدث خطأ أثناء الحفظ"); 
             }
         }
-
         window.onload = loadPurchases;
     </script>
 </body>
