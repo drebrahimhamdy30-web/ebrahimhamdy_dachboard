@@ -72,50 +72,53 @@ function renderTable() {
     const tbody = document.querySelector('#purchasesTable tbody');
     const filterValue = document.getElementById('statusFilter').value;
     
-    // 1. تصفية "شراء" مع تنظيف النص من المسافات
+    // 1. تنظيف البيانات وفلترة نوع "شراء" فقط
     let filtered = allData.filter(item => {
-        return item.type && item.type.toString().trim() === 'شراء';
+        // التأكد من وجود الحقل وتحويله لنص قبل عمل trim
+        const type = String(item.type || "").trim();
+        return type === 'شراء';
     });
 
-    console.log("إجمالي طلبات الشراء المكتشفة:", filtered.length);
-
-    // 2. منطق التصفية حسب الحالة
+    // 2. تطبيق التصفية حسب الحالة (إلا إذا اخترنا "الكل")
     if (filterValue !== 'all') {
         filtered = filtered.filter(item => {
-            const currentStatus = (item.status || item.state || "").toString().trim().toLowerCase();
+            // ملاحظة هامة: n8n يستخدم 'state' في جدولك
+            const currentStatus = String(item.state || item.status || "").trim().toLowerCase();
             
             if (filterValue === 'new') {
-                return currentStatus === "" || currentStatus === "انتظار" || currentStatus.includes('{'); 
+                return currentStatus === "" || currentStatus === "null" || currentStatus === "undefined" || currentStatus === "انتظار";
             }
             return currentStatus === filterValue.toLowerCase();
         });
     }
 
-    // 3. مسح ورسم الجدول
+    // 3. مسح الجدول
     tbody.innerHTML = '';
     
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات مطابقة (تأكد من تحديث البيانات ↻)</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات مطابقة</td></tr>';
         return;
     }
 
-    // رسم كل الصفوف المفلترة بدون استثناء
+    // 4. رسم الصفوف (تأكدنا هنا من قراءة الـ id والبيانات بشكل صحيح)
     filtered.forEach(o => {
-        const currentStatus = (o.status || o.state || "").toString().trim().toLowerCase();
+        const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
+        const rowID = o.id || o.ID; // n8n أحياناً يغير حالة أحرف المعرف
+
         const row = `<tr>
             <td>${formatDate(o.createdAt)}</td>
             <td>${o.branch || ''}</td>
             <td>${o.item || ''}</td>
             <td>${o.qty || ''}</td>
             <td>
-                <select id="status-${o.id}">
-                    <option value="" ${currentStatus === "" || currentStatus.includes('{') ? 'selected' : ''}>انتظار ⏳</option>
+                <select id="status-${rowID}">
+                    <option value="" ${currentStatus === "" || currentStatus === "null" ? 'selected' : ''}>انتظار ⏳</option>
                     <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
                     <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                 </select>
             </td>
-            <td><input type="text" id="company-${o.id}" value="${o.company || ''}" style="width:90px"></td>
-            <td><button class="btn btn-success" onclick="updateStatus('${o.id}')">حفظ</button></td>
+            <td><input type="text" id="company-${rowID}" value="${o.company || ''}" style="width:90px"></td>
+            <td><button class="btn btn-success" onclick="updateStatus('${rowID}')">حفظ</button></td>
         </tr>`;
         tbody.insertAdjacentHTML('beforeend', row);
     });
