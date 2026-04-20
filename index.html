@@ -5,7 +5,7 @@
     <title>دخول نظام الصيدليات</title>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .login-box { background: white; padding: 30px; border-radius: 12px; shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
     </style>
@@ -13,50 +13,38 @@
 <body>
     <div class="login-box">
         <h2>تسجيل الدخول</h2>
-        <input type="text" id="username" placeholder="اسم المستخدم (مثلاً: د. إبراهيم)">
+        <input type="text" id="username" placeholder="اسم المستخدم">
         <input type="password" id="password" placeholder="كلمة المرور">
         <button onclick="handleLogin()">دخول</button>
     </div>
 
-<script>
-    async function handleLogin() {
-        const user = document.getElementById('username').value;
-        const pass = document.getElementById('password').value;
+    <script src="api.js"></script>
 
-        if (!user || !pass) {
-            alert("برجاء إدخال اسم المستخدم وكلمة المرور");
-            return;
+    <script>
+        async function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            if (!user || !pass) {
+                alert("برجاء إدخال اسم المستخدم وكلمة المرور");
+                return;
+            }
+
+            try {
+                // استدعاء دالة الدخول من ملف api.js
+                const result = await login(user, pass);
+
+                if(result.success) {
+                    // التوجه لصفحة الطلبات (تأكد من اسم الملف purchases.html أو main.html)
+                    window.location.href = "purchases.html"; 
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error("خطأ:", error);
+                alert("تعذر الاتصال بالسيرفر، تأكد من تشغيل الـ Workflow");
+            }
         }
-
-        // استدعاء دالة الدخول الجديدة
-        const result = await login(user, pass);
-
-        if(result.success) {
-            // التوجه لصفحة الطلبات بعد نجاح الدخول
-            window.location.href = "main.html"; 
-        } else {
-            // إظهار رسالة الخطأ التي أرسلها الـ n8n
-            alert(result.message);
-        }
-    }
-<script>
-    async function handleLogin() {
-        const user = document.getElementById('username').value;
-        const pass = document.getElementById('password').value;
-
-        if (!user || !pass) {
-            alert("برجاء إدخال اسم المستخدم وكلمة المرور");
-            return;
-        }
-
-        // استدعاء دالة الدخول الجديدة
-        const result = await login(user, pass);
-
-        if(result.success) {
-            // التوجه لصفحة الطلبات بعد نجاح الدخول
-            window.location.href = "main.html"; 
-        } else {
-            // إظهار رسالة الخطأ التي أرسلها الـ n8n
-            alert(result.message);
-        }
-    }
+    </script>
+</body>
+</html>
