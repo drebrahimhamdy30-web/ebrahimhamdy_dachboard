@@ -49,17 +49,34 @@
         document.getElementById('displayUser').innerText = user;
         let allData = [];
 
-        async function loadPurchases() {
-            const tbody = document.querySelector('#purchasesTable tbody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-            try {
-                allData = await fetchData();
-                console.log("البيانات المستلمة بالكامل:", allData); // تفقد الكونسول هنا لترى كل البيانات
-                renderTable();
-            } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في جلب البيانات</td></tr>';
-            }
+async function loadPurchases() {
+    const tbody = document.querySelector('#purchasesTable tbody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+    
+    try {
+        const response = await fetchData();
+        console.log("البيانات الأصلية من السيرفر:", response);
+
+        // التعديل الجوهري هنا لفك تغليف البيانات
+        if (Array.isArray(response) && response[0] && response[0].data) {
+            // الحالة الظاهرة في الصورة: المصفوفة داخل حقل data في أول عنصر
+            allData = response[0].data;
+        } else if (response.data) {
+            // حالة احتياطية إذا جاء الكائن مباشرة
+            allData = response.data;
+        } else {
+            // الحالة القديمة إذا كانت مصفوفة مباشرة
+            allData = Array.isArray(response) ? response : [response];
         }
+
+        console.log("البيانات بعد التجهيز للعرض:", allData);
+        renderTable();
+        
+    } catch (error) {
+        console.error("Error:", error);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
+    }
+}
 
         function renderTable() {
             const tbody = document.querySelector('#purchasesTable tbody');
