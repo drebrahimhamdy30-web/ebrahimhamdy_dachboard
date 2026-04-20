@@ -23,12 +23,12 @@
             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
                 <label>تصفية حسب الحالة:</label>
                 <select id="statusFilter" onchange="renderTable()" style="padding: 5px;">
-                    <option value="new">طلبات جديدة (انتظار)</option>
+                    <option value="new" selected>طلبات جديدة (انتظار)</option>
                     <option value="ordered">تم الطلب ✅</option>
                     <option value="unavailable">غير متوفر ❌</option>
-                    <option value="all">الكل</option>
+                    <option value="all">الكل (سجل المشتريات)</option>
                 </select>
-                <button class="btn btn-success" onclick="loadPurchases()">تحديث ↻</button>
+                <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات ↻</button>
             </div>
             
             <div style="overflow-x: auto;">
@@ -70,12 +70,27 @@
         function renderTable() {
             const tbody = document.querySelector('#purchasesTable tbody');
             const filter = document.getElementById('statusFilter').value;
+            
+            // 1. تصفية أولية لنوع "شراء" فقط
             let filtered = allData.filter(o => o.type === 'شراء');
 
-            if (filter === 'new') filtered = filtered.filter(o => !o.status || o.status === '');
-            else if (filter !== 'all') filtered = filtered.filter(o => o.status === filter);
+            // 2. تطبيق التصفية المختارة من القائمة (الافتراضي عند الفتح هو new)
+            if (filter === 'new') {
+                filtered = filtered.filter(o => !o.status || o.status === '' || o.status === 'انتظار');
+            } else if (filter !== 'all') {
+                filtered = filtered.filter(o => o.status === filter);
+            }
+
+            // 3. فرز البيانات زمنياً (الأحدث يظهر أولاً)
+            filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
             tbody.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد طلبات حالياً</td></tr>';
+                return;
+            }
+
             filtered.forEach(o => {
                 const row = `<tr>
                     <td>${formatDate(o.createdAt)}</td>
@@ -84,12 +99,12 @@
                     <td>${o.qty}</td>
                     <td>
                         <select id="status-${o.id}">
-                            <option value="" ${!o.status ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="" ${(!o.status || o.status === '') ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
                             <option value="unavailable" ${o.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td><input type="text" id="company-${o.id}" value="${o.company || ''}" style="width:80px"></td>
+                    <td><input type="text" id="company-${o.id}" value="${o.company || ''}" placeholder="اسم الشركة" style="width:100px; padding:4px;"></td>
                     <td><button class="btn btn-success" onclick="updateStatus('${o.id}')">حفظ</button></td>
                 </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
@@ -97,18 +112,29 @@
         }
 
         async function updateStatus(id) {
+            const saveBtn = event.target;
+            const originalText = saveBtn.innerText;
+            
             const data = {
                 id: id,
                 status: document.getElementById(`status-${id}`).value,
                 company: document.getElementById(`company-${id}`).value,
                 action: 'update_status'
             };
+            
             try {
+                saveBtn.innerText = "جاري...";
+                saveBtn.disabled = true;
                 await postData(data);
-                alert("تم التحديث");
-                loadPurchases();
-            } catch (e) { alert("فشل الحفظ"); }
+                alert("تم تحديث حالة الطلب بنجاح");
+                await loadPurchases(); // إعادة الجلب لتحديث الجدول واختفاء الطلب من فلتر "الجديد"
+            } catch (e) { 
+                alert("فشل الحفظ، يرجى المحاولة مرة أخرى");
+                saveBtn.innerText = originalText;
+                saveBtn.disabled = false;
+            }
         }
+
         window.onload = loadPurchases;
     </script>
 </body>
