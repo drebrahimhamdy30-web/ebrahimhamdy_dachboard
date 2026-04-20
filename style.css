@@ -106,3 +106,32 @@ input, select, textarea {
 
 .btn-success { background-color: var(--success-color); color: white; }
 .btn-success:hover { opacity: 0.9; }
+/* --- ألوان حالات المشتريات --- */
+
+/* في الانتظار - أزرق */
+.status-waiting { 
+    background-color: #e3f2fd !important; 
+    color: #0d47a1 !important; 
+    border: 1px solid #0d47a1 !important;
+}
+
+/* تم الطلب - أخضر */
+.status-ordered { 
+    background-color: #e8f5e9 !important; 
+    color: #1b5e20 !important; 
+    border: 1px solid #1b5e20 !important;
+}
+
+/* غير متوفر - أحمر */
+.status-unavailable { 
+    background-color: #ffebee !important; 
+    color: #b71c1c !important; 
+    border: 1px solid #b71c1c !important;
+}
+
+/* تنسيق إضافي لجعل القائمة المنسدلة أوضح */
+.form-select {
+    padding: 5px;
+    border-radius: 5px;
+    font-weight: bold;
+}
