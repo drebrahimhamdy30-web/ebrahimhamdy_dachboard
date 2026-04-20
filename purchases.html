@@ -3,8 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المشتريات - اختبار شامل</title>
+    <title>إدارة المشتريات - نظام التتبع</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* تنسيقات الألوان الخاصة بالحالات */
+        .status-waiting { 
+            background-color: #e3f2fd !important; 
+            color: #0d47a1 !important; 
+            border: 1px solid #0d47a1 !important;
+            font-weight: bold;
+        }
+        .status-ordered { 
+            background-color: #e8f5e9 !important; 
+            color: #1b5e20 !important; 
+            border: 1px solid #1b5e20 !important;
+            font-weight: bold;
+        }
+        .status-unavailable { 
+            background-color: #ffebee !important; 
+            color: #b71c1c !important; 
+            border: 1px solid #b71c1c !important;
+            font-weight: bold;
+        }
+        .form-select { padding: 5px; border-radius: 4px; width: 100%; cursor: pointer; }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -16,10 +38,12 @@
     <div class="container">
         <div class="card">
             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba;">
-                <label>تصفية الحالة:</label>
-                <select id="statusFilter" onchange="renderTable()" style="padding: 5px;">
-                    <option value="all" selected>عرض كل البيانات (بدون استثناء)</option>
-                    <option value="new">انتظار فقط</option>
+                <label>تصفية حسب الحالة:</label>
+                <select id="statusFilter" class="form-select" onchange="renderTable()" style="width: auto;">
+                    <option value="all">عرض كل البيانات (بدون استثناء)</option>
+                    <option value="waiting" selected>في الانتظار ⏳</option>
+                    <option value="ordered">تم الطلب ✅</option>
+                    <option value="unavailable">غير متوفر ❌</option>
                 </select>
                 <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات من السيرفر ↻</button>
             </div>
@@ -49,135 +73,100 @@
         document.getElementById('displayUser').innerText = user;
         let allData = [];
 
-// دالة جلب البيانات مع فك التغليف البرمجي
-async function loadPurchases() {
-    const tbody = document.querySelector('#purchasesTable tbody');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-    
-    try {
-        const response = await fetchData();
-        
-        // فك تغليف البيانات بناءً على صورة الـ Network الأخيرة
-        if (Array.isArray(response) && response[0] && response[0].data) {
-            allData = response[0].data; // الوصول للمصفوفة داخل حقل data
-        } else {
-            allData = Array.isArray(response) ? response : (response.data || []);
+        // 1. دالة جلب البيانات مع فك التغليف (حسب صورة الـ Network)
+        async function loadPurchases() {
+            const tbody = document.querySelector('#purchasesTable tbody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+            
+            try {
+                const response = await fetchData();
+                
+                // فك تغليف المصفوفة من حقل data
+                if (Array.isArray(response) && response[0] && response[0].data) {
+                    allData = response[0].data; 
+                } else {
+                    allData = Array.isArray(response) ? response : (response.data || []);
+                }
+
+                renderTable();
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
+            }
         }
 
-        renderTable();
-    } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
-    }
-}
-
-// دالة العرض مع الألوان والفلترة
-function renderTable() {
-    const tbody = document.querySelector('#purchasesTable tbody');
-    const filterValue = document.getElementById('statusFilter').value;
-    
-    // تصفية البيانات حسب الحالة المختارة
-    let filtered = allData.filter(o => {
-        const status = String(o.state || o.status || "").trim().toLowerCase();
-        if (filterValue === 'all') return true;
-        if (filterValue === 'waiting') return status === "" || status === "null" || status.includes('{');
-        return status === filterValue;
-    });
-
-    tbody.innerHTML = '';
-
-    filtered.forEach(o => {
-        const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
-        const rowID = o.id || o.ID || "بدون ID";
-        
-        // تحديد لون الخانة بناءً على الحالة
-        let statusClass = "status-waiting"; // افتراضي أزرق
-        if (currentStatus === 'ordered') statusClass = "status-ordered"; // أخضر
-        if (currentStatus === 'unavailable') statusClass = "status-unavailable"; // أحمر
-
-        const row = `<tr>
-            <td>${rowID}</td>
-            <td>${o.type || 'شراء'}</td>
-            <td>${o.branch || ''}</td>
-            <td>${o.item || ''}</td>
-            <td>${o.qty || ''}</td>
-            <td>
-                <select id="status-${rowID}" class="form-select ${statusClass}" onchange="this.className='form-select ' + getStatusClass(this.value)">
-                    <option value="" ${statusClass === 'status-waiting' ? 'selected' : ''}>انتظار ⏳</option>
-                    <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                    <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                </select>
-            </td>
-            <td><button class="btn btn-success btn-sm" onclick="updateStatus('${rowID}')">حفظ</button></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('beforeend', row);
-    });
-}
-
-// دالة مساعدة لتغيير اللون فوراً عند اختيار حالة جديدة
-function getStatusClass(val) {
-    if (val === 'ordered') return 'status-ordered';
-    if (val === 'unavailable') return 'status-unavailable';
-    return 'status-waiting';
-}
-
+        // 2. دالة العرض النهائية (نسخة واحدة فقط)
         function renderTable() {
             const tbody = document.querySelector('#purchasesTable tbody');
             const filterValue = document.getElementById('statusFilter').value;
             
-            // تم إلغاء فلترة الـ type بناءً على طلبك ليعرض كل شيء
-            let filtered = [...allData]; 
-
-            // تصفية بسيطة فقط لو اخترت "انتظار"
-            if (filterValue === 'new') {
-                filtered = filtered.filter(item => {
-                    const s = String(item.state || item.status || "").trim().toLowerCase();
-                    return s === "" || s === "null" || s === "undefined";
-                });
-            }
+            // الفلترة الذكية
+            let filtered = allData.filter(o => {
+                const s = String(o.state || o.status || "").trim().toLowerCase();
+                if (filterValue === 'all') return true;
+                if (filterValue === 'waiting') return s === "" || s === "null" || s === "undefined" || s.includes('{');
+                return s === filterValue;
+            });
 
             tbody.innerHTML = '';
             
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد بيانات في الجدول حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات تطابق هذا الفلتر</td></tr>';
                 return;
             }
 
             filtered.forEach(o => {
-                // n8n يستخدم state في جدولك
                 const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
-                const rowID = o.id || "بدون ID";
+                const rowID = o.id || o.ID || "بدون ID";
+                
+                // تحديد الكلاس اللوني
+                let statusClass = "status-waiting";
+                if (currentStatus === 'ordered') statusClass = "status-ordered";
+                if (currentStatus === 'unavailable') statusClass = "status-unavailable";
 
                 const row = `<tr>
                     <td>${rowID}</td>
-                    <td>${o.type || 'غير محدد'}</td>
+                    <td>${o.type || 'شراء'}</td>
                     <td>${o.branch || ''}</td>
                     <td>${o.item || ''}</td>
                     <td>${o.qty || ''}</td>
                     <td>
-                        <select id="status-${rowID}">
-                            <option value="" ${currentStatus === "" || currentStatus === "null" ? 'selected' : ''}>انتظار</option>
-                            <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب</option>
-                            <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر</option>
+                        <select id="status-${rowID}" class="form-select ${statusClass}" onchange="this.className='form-select ' + getStatusClass(this.value)">
+                            <option value="" ${currentStatus === "" || currentStatus === "null" || currentStatus.includes('{') ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td><button class="btn btn-success" onclick="updateStatus('${rowID}')">حفظ</button></td>
+                    <td><button class="btn btn-success btn-sm" onclick="updateStatus('${rowID}')">حفظ</button></td>
                 </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
             });
         }
 
+        // 3. دالة تغيير اللون الفوري
+        function getStatusClass(val) {
+            if (val === 'ordered') return 'status-ordered';
+            if (val === 'unavailable') return 'status-unavailable';
+            return 'status-waiting';
+        }
+
+        // 4. دالة تحديث الحالة للسيرفر
         async function updateStatus(id) {
             if (id === "بدون ID") { alert("لا يمكن تحديث سطر بدون ID"); return; }
+            const statusValue = document.getElementById(`status-${id}`).value;
+            
             const data = {
                 id: id,
-                status: document.getElementById(`status-${id}`).value,
+                status: statusValue,
                 action: 'update_status'
             };
+            
             try {
                 await postData(data);
-                alert("تم الحفظ");
-                loadPurchases();
-            } catch (e) { alert("خطأ في الحفظ"); }
+                alert("تم تحديث الحالة بنجاح");
+                loadPurchases(); // إعادة تحميل البيانات للتأكد من المزامنة
+            } catch (e) { 
+                alert("حدث خطأ أثناء الحفظ"); 
+            }
         }
 
         window.onload = loadPurchases;
