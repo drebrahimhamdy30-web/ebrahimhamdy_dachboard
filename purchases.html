@@ -3,44 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المشتريات - نظام الصيدلية</title>
+    <title>إدارة المشتريات - اختبار شامل</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header class="main-header">
         <div class="user-info">المستخدم: <span id="displayUser">...</span></div>
-        <div class="logo"><b>إدارة المشتريات المركزي</b></div>
+        <div class="logo"><b>فحص سجل البيانات الشامل</b></div>
         <button class="btn btn-danger" onclick="logout()">خروج</button>
     </header>
 
-    <nav class="nav-menu">
-        <a href="main.html" class="nav-link">إضافة طلب</a>
-        <a href="purchases.html" class="nav-link active">المشتريات</a>
-    </nav>
-
     <div class="container">
         <div class="card">
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: #f9f9f9; padding: 10px; border-radius: 8px;">
-                <label>تصفية حسب الحالة:</label>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba;">
+                <label>تصفية الحالة:</label>
                 <select id="statusFilter" onchange="renderTable()" style="padding: 5px;">
-                    <option value="new" selected>طلبات جديدة (انتظار)</option>
-                    <option value="ordered">تم الطلب ✅</option>
-                    <option value="unavailable">غير متوفر ❌</option>
-                    <option value="all">عرض الكل (السجل بالكامل)</option>
+                    <option value="all" selected>عرض كل البيانات (بدون استثناء)</option>
+                    <option value="new">انتظار فقط</option>
                 </select>
-                <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات ↻</button>
+                <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات من السيرفر ↻</button>
             </div>
             
             <div style="overflow-x: auto;">
                 <table id="purchasesTable">
                     <thead>
                         <tr>
-                            <th>التاريخ</th>
+                            <th>ID</th>
+                            <th>النوع</th>
                             <th>الفرع</th>
                             <th>المنتج</th>
                             <th>الكمية</th>
                             <th>الحالة</th>
-                            <th>الشركة</th>
                             <th>إجراء</th>
                         </tr>
                     </thead>
@@ -58,87 +51,76 @@
 
         async function loadPurchases() {
             const tbody = document.querySelector('#purchasesTable tbody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات من السيرفر...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
             try {
                 allData = await fetchData();
-                console.log("البيانات القادمة:", allData); // للتأكد من وصول كل الصفوف في الكونسول
+                console.log("البيانات المستلمة بالكامل:", allData); // تفقد الكونسول هنا لترى كل البيانات
                 renderTable();
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في جلب البيانات</td></tr>';
             }
         }
 
-function renderTable() {
-    const tbody = document.querySelector('#purchasesTable tbody');
-    const filterValue = document.getElementById('statusFilter').value;
-    
-    // 1. تنظيف البيانات وفلترة نوع "شراء" فقط
-    let filtered = allData.filter(item => {
-        // التأكد من وجود الحقل وتحويله لنص قبل عمل trim
-        const type = String(item.type || "").trim();
-        return type === 'شراء';
-    });
-
-    // 2. تطبيق التصفية حسب الحالة (إلا إذا اخترنا "الكل")
-    if (filterValue !== 'all') {
-        filtered = filtered.filter(item => {
-            // ملاحظة هامة: n8n يستخدم 'state' في جدولك
-            const currentStatus = String(item.state || item.status || "").trim().toLowerCase();
+        function renderTable() {
+            const tbody = document.querySelector('#purchasesTable tbody');
+            const filterValue = document.getElementById('statusFilter').value;
             
+            // تم إلغاء فلترة الـ type بناءً على طلبك ليعرض كل شيء
+            let filtered = [...allData]; 
+
+            // تصفية بسيطة فقط لو اخترت "انتظار"
             if (filterValue === 'new') {
-                return currentStatus === "" || currentStatus === "null" || currentStatus === "undefined" || currentStatus === "انتظار";
+                filtered = filtered.filter(item => {
+                    const s = String(item.state || item.status || "").trim().toLowerCase();
+                    return s === "" || s === "null" || s === "undefined";
+                });
             }
-            return currentStatus === filterValue.toLowerCase();
-        });
-    }
 
-    // 3. مسح الجدول
-    tbody.innerHTML = '';
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات مطابقة</td></tr>';
-        return;
-    }
+            tbody.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد بيانات في الجدول حالياً</td></tr>';
+                return;
+            }
 
-    // 4. رسم الصفوف (تأكدنا هنا من قراءة الـ id والبيانات بشكل صحيح)
-    filtered.forEach(o => {
-        const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
-        const rowID = o.id || o.ID; // n8n أحياناً يغير حالة أحرف المعرف
+            filtered.forEach(o => {
+                // n8n يستخدم state في جدولك
+                const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
+                const rowID = o.id || "بدون ID";
 
-        const row = `<tr>
-            <td>${formatDate(o.createdAt)}</td>
-            <td>${o.branch || ''}</td>
-            <td>${o.item || ''}</td>
-            <td>${o.qty || ''}</td>
-            <td>
-                <select id="status-${rowID}">
-                    <option value="" ${currentStatus === "" || currentStatus === "null" ? 'selected' : ''}>انتظار ⏳</option>
-                    <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                    <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                </select>
-            </td>
-            <td><input type="text" id="company-${rowID}" value="${o.company || ''}" style="width:90px"></td>
-            <td><button class="btn btn-success" onclick="updateStatus('${rowID}')">حفظ</button></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('beforeend', row);
-    });
-}
+                const row = `<tr>
+                    <td>${rowID}</td>
+                    <td>${o.type || 'غير محدد'}</td>
+                    <td>${o.branch || ''}</td>
+                    <td>${o.item || ''}</td>
+                    <td>${o.qty || ''}</td>
+                    <td>
+                        <select id="status-${rowID}">
+                            <option value="" ${currentStatus === "" || currentStatus === "null" ? 'selected' : ''}>انتظار</option>
+                            <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب</option>
+                            <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر</option>
+                        </select>
+                    </td>
+                    <td><button class="btn btn-success" onclick="updateStatus('${rowID}')">حفظ</button></td>
+                </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
 
         async function updateStatus(id) {
+            if (id === "بدون ID") { alert("لا يمكن تحديث سطر بدون ID"); return; }
             const data = {
                 id: id,
                 status: document.getElementById(`status-${id}`).value,
-                company: document.getElementById(`company-${id}`).value,
                 action: 'update_status'
             };
             try {
                 await postData(data);
-                alert("تم التحديث بنجاح");
-                loadPurchases(); // تحديث تلقائي للجدول بعد الحفظ
-            } catch (e) { 
-                alert("حدث خطأ أثناء الحفظ"); 
-            }
+                alert("تم الحفظ");
+                loadPurchases();
+            } catch (e) { alert("خطأ في الحفظ"); }
         }
+
         window.onload = loadPurchases;
     </script>
 </body>
