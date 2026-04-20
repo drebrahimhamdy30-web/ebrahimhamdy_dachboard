@@ -68,52 +68,58 @@
             }
         }
 
-        function renderTable() {
-            const tbody = document.querySelector('#purchasesTable tbody');
-            const filterValue = document.getElementById('statusFilter').value;
-            
-            // 1. استخراج كافة صفوف "شراء" فقط وتجاوز أي مسافات زائدة في النص
-            let filtered = allData.filter(item => item.type && item.type.trim() === 'شراء');
+function renderTable() {
+    const tbody = document.querySelector('#purchasesTable tbody');
+    const filterValue = document.getElementById('statusFilter').value;
+    
+    // 1. تصفية "شراء" مع تنظيف النص من المسافات
+    let filtered = allData.filter(item => {
+        return item.type && item.type.toString().trim() === 'شراء';
+    });
 
-            // 2. تطبيق منطق التصفية بناءً على الاختيار
+    console.log("إجمالي طلبات الشراء المكتشفة:", filtered.length);
+
+    // 2. منطق التصفية حسب الحالة
+    if (filterValue !== 'all') {
+        filtered = filtered.filter(item => {
+            const currentStatus = (item.status || item.state || "").toString().trim().toLowerCase();
+            
             if (filterValue === 'new') {
-                // يعرض فقط الصفوف التي ليس لها حالة أو حالتها فارغة (الانتظار)
-                filtered = filtered.filter(item => !item.status || item.status.trim() === '' || item.status === 'انتظار');
-            } else if (filterValue !== 'all') {
-                // يعرض الحالة المختارة فقط (ordered أو unavailable)
-                filtered = filtered.filter(item => item.status === filterValue);
+                return currentStatus === "" || currentStatus === "انتظار" || currentStatus.includes('{'); 
             }
+            return currentStatus === filterValue.toLowerCase();
+        });
+    }
 
-            // 3. ترتيب البيانات (الأحدث تاريخاً يظهر في الأعلى)
-            filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // 3. مسح ورسم الجدول
+    tbody.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات مطابقة (تأكد من تحديث البيانات ↻)</td></tr>';
+        return;
+    }
 
-            // 4. مسح الجدول ورسم كافة الصفوف المفلترة
-            tbody.innerHTML = '';
-            
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد سجلات مطابقة لهذا الفلتر</td></tr>';
-                return;
-            }
-
-            filtered.forEach(o => {
-                const row = `<tr>
-                    <td>${formatDate(o.createdAt)}</td>
-                    <td>${o.branch}</td>
-                    <td>${o.item}</td>
-                    <td>${o.qty}</td>
-                    <td>
-                        <select id="status-${o.id}">
-                            <option value="" ${(!o.status || o.status.trim() === '') ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${o.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${o.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                        </select>
-                    </td>
-                    <td><input type="text" id="company-${o.id}" value="${o.company || ''}" style="width:90px"></td>
-                    <td><button class="btn btn-success" onclick="updateStatus('${o.id}')">حفظ</button></td>
-                </tr>`;
-                tbody.insertAdjacentHTML('beforeend', row);
-            });
-        }
+    // رسم كل الصفوف المفلترة بدون استثناء
+    filtered.forEach(o => {
+        const currentStatus = (o.status || o.state || "").toString().trim().toLowerCase();
+        const row = `<tr>
+            <td>${formatDate(o.createdAt)}</td>
+            <td>${o.branch || ''}</td>
+            <td>${o.item || ''}</td>
+            <td>${o.qty || ''}</td>
+            <td>
+                <select id="status-${o.id}">
+                    <option value="" ${currentStatus === "" || currentStatus.includes('{') ? 'selected' : ''}>انتظار ⏳</option>
+                    <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                    <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                </select>
+            </td>
+            <td><input type="text" id="company-${o.id}" value="${o.company || ''}" style="width:90px"></td>
+            <td><button class="btn btn-success" onclick="updateStatus('${o.id}')">حفظ</button></td>
+        </tr>`;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
 
         async function updateStatus(id) {
             const data = {
