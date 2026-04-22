@@ -61,7 +61,8 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userRole = localStorage.getItem('userRole');
+        // تحسين قراءة الصلاحية (تحويلها لنص صغير لضمان المطابقة)
+        const userRole = (localStorage.getItem('userRole') || '').toLowerCase();
         const userBranch = localStorage.getItem('userBranch');
         let rawData = []; 
 
@@ -73,12 +74,9 @@
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>';
-            
             const response = await fetchData(); 
-            
             if (response && response[0] && response[0].data) {
                 rawData = response[0].data; 
-                // عند التحميل الأول، طبق الفلتر الافتراضي (pending)
                 applyFilter();
             } else {
                 document.getElementById('status-message').innerText = "لا توجد بيانات متاحة";
@@ -90,14 +88,16 @@
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
 
+            // شرط السماح بالتعديل: إذا كان الأدمن أو إذا كان اسم المستخدم "ebrahim"
+            const canEdit = (userRole === 'admin' || userRole === 'manager' || activeUser === 'ebrahim' || activeUser === 'Ebrahim');
+
             items.forEach(order => {
                 const row = document.createElement('tr');
-                const isAdmin = (userRole === 'admin' || userRole === 'manager');
-                const isDisabled = !isAdmin ? 'disabled' : '';
+                const isDisabled = !canEdit ? 'disabled' : '';
                 
                 const item = order.item || '-';
                 const qty = order.qty || '0';
-                const company = order.company || ''; // جلب اسم الشركة من n8n
+                const company = order.company || '';
                 const currentState = order.state || 'pending';
 
                 let statusClass = '';
@@ -123,25 +123,24 @@
                         </select>
                     </td>
                     <td class="action-cell">
-                        ${isAdmin ? `<button class="btn-success" style="padding: 5px 12px; font-size: 0.8rem; width: auto;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
+                        ${canEdit ? `<button class="btn-success" style="padding: 5px 12px; font-size: 0.8rem; width: auto;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
                     </td>
                 `;
                 tbody.appendChild(row);
             });
 
-            if (userRole === 'employee') {
+            // إخفاء عمود الإجراءات فقط إذا لم يكن لديه صلاحية
+            if (!canEdit) {
                 document.getElementById('action-header').style.display = 'none';
                 document.querySelectorAll('.action-cell').forEach(c => c.style.display = 'none');
+            } else {
+                document.getElementById('action-header').style.display = 'table-cell';
             }
         }
 
         function applyFilter() {
             const val = document.getElementById('statusFilter').value;
-            if (val === 'all') {
-                renderTable(rawData);
-            } else {
-                renderTable(rawData.filter(o => (o.state || 'pending') === val));
-            }
+            renderTable(val === 'all' ? rawData : rawData.filter(o => (o.state || 'pending') === val));
         }
 
         function updateStatusColor(select) {
@@ -154,20 +153,14 @@
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
             const newState = row.querySelector('select').value;
-            const newCompany = row.querySelector('.company-input').value; // التقاط اسم الشركة
+            const newCompany = row.querySelector('.company-input').value;
             
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            // إرسال التحديث لـ n8n متضمناً الحالة والشركة
-            const success = await updateData({ 
-                id: id, 
-                state: newState, 
-                company: newCompany 
-            });
-
+            const success = await updateData({ id: id, state: newState, company: newCompany });
             if (success) {
-                alert("تم تحديث البيانات بنجاح ✅");
+                alert("تم التحديث ✅");
                 loadOrders(); 
             } else {
                 alert("فشل الحفظ ❌");
