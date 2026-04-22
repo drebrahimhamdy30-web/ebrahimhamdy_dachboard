@@ -2,45 +2,58 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>سجل المشتريات - الصيدلية</title>
-    <link rel="stylesheet" href="style.css"> </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل المشتريات - نظام الصيدلية</title>
+    <link rel="stylesheet" href="style.css">
+</head>
 <body>
-    <div class="header">
-        <span>المستخدم: <strong id="display-user"></strong></span>
-        <button onclick="logout()">خروج</button>
+    <div class="nav-bar">
+        <div class="nav-links">
+            <a href="main.html" id="link-main">➕ مدخلات جديدة</a>
+            <a href="purchases.html" id="link-purchases" class="active">🛒 سجل المشتريات</a>
+            <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
+            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a>
+        </div>
+        <div class="user-info">
+            <span id="nav-user"></span>
+            <button onclick="logout()" class="logout-btn">خروج</button>
+        </div>
     </div>
 
     <div class="container">
-        <h2>فحص سجل البيانات الشامل</h2>
-        
-        <div id="status-message" style="color: red; text-align: center;"></div>
+        <div class="card">
+            <h2 style="text-align: center; margin-bottom: 20px;">فحص سجل البيانات الشامل</h2>
+            
+            <div id="status-message" style="color: red; text-align: center; margin-bottom: 10px;"></div>
 
-        <table id="orders-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>النوع</th>
-                    <th>الفرع</th>
-                    <th>المنتج</th>
-                    <th>الكمية</th>
-                    <th>الحالة</th>
-                    <th id="action-header">إجراء</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                </tbody>
-        </table>
+            <div style="overflow-x: auto;">
+                <table id="orders-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>النوع</th>
+                            <th>الفرع</th>
+                            <th>المنتج</th>
+                            <th>الكمية</th>
+                            <th>الحالة</th>
+                            <th id="action-header">إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script src="api.js"></script>
     <script>
-        // 1. التأكد من هوية المستخدم
         const activeUser = checkAuth();
         const userRole = localStorage.getItem('userRole');
         const userBranch = localStorage.getItem('userBranch');
 
         if (activeUser) {
-            document.getElementById('display-user').innerText = activeUser + " (" + userBranch + ")";
+            document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
             loadOrders();
         }
 
@@ -48,20 +61,27 @@
             const tbody = document.getElementById('table-body');
             const msg = document.getElementById('status-message');
             
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري تحميل البيانات...</td></tr>';
+            
             const data = await fetchData();
             
             if (!data) {
                 msg.innerText = "خطأ في الاتصال بالسيرفر أو تفعيل CORS";
+                tbody.innerHTML = '';
                 return;
             }
 
             tbody.innerHTML = '';
             data.forEach(order => {
                 const row = document.createElement('tr');
-                
-                // تحديد ما إذا كان المستخدم يملك صلاحية التعديل
                 const isDisabled = (userRole === 'employee') ? 'disabled' : '';
                 
+                // تطبيق لون الحالة تلقائياً بناءً على كود الـ CSS
+                let statusClass = '';
+                if (order.status === 'pending') statusClass = 'status-waiting';
+                else if (order.status === 'ordered') statusClass = 'status-ordered';
+                else if (order.status === 'unavailable') statusClass = 'status-unavailable';
+
                 row.innerHTML = `
                     <td>${order.id}</td>
                     <td>${order.type}</td>
@@ -69,32 +89,52 @@
                     <td>${order.product}</td>
                     <td>${order.quantity}</td>
                     <td>
-                        <select onchange="updateStatus('${order.id}', this.value)" ${isDisabled}>
-                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار</option>
-                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب</option>
-                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر</option>
+                        <select class="form-select ${statusClass}" onchange="updateStatusLocal('${order.id}', this)" ${isDisabled}>
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار ⏳</option>
+                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td>
-                        <button onclick="saveChanges('${order.id}')" ${isDisabled}>حفظ</button>
+                    <td class="action-cell">
+                        <button class="btn-success" style="padding: 5px 15px; font-size: 0.8rem;" onclick="saveChanges('${order.id}', this)" ${isDisabled}>حفظ</button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
 
-            // إخفاء عمود الإجراءات بالكامل للموظف لزيادة الأمان
+            // إخفاء عمود الإجراءات للموظفين
             if (userRole === 'employee') {
                 document.getElementById('action-header').style.display = 'none';
+                document.querySelectorAll('.action-cell').forEach(cell => cell.style.display = 'none');
             }
         }
 
-        async function updateStatus(id, newStatus) {
-            console.log(`تحديث الطلب ${id} إلى ${newStatus}`);
+        // تحديث لون القائمة فور تغيير الاختيار (قبل الحفظ)
+        function updateStatusLocal(id, selectElement) {
+            selectElement.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
+            if (selectElement.value === 'pending') selectElement.classList.add('status-waiting');
+            else if (selectElement.value === 'ordered') selectElement.classList.add('status-ordered');
+            else if (selectElement.value === 'unavailable') selectElement.classList.add('status-unavailable');
         }
 
-        async function saveChanges(id) {
-            // كود الحفظ المرتبط بنود n8n التحديث
-            alert("جاري حفظ التعديلات للطلب رقم: " + id);
+        async function saveChanges(id, btn) {
+            const row = btn.closest('tr');
+            const newStatus = row.querySelector('select').value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳";
+
+            // استدعاء دالة التحديث من api.js (يجب أن ترتبط بـ n8n PUT/PATCH node)
+            const success = await updateData({ id: id, status: newStatus });
+
+            if (success) {
+                alert(`تم تحديث الطلب رقم ${id} بنجاح`);
+                loadOrders(); // إعادة تحميل الجدول لتأكيد البيانات
+            } else {
+                alert("فشل تحديث البيانات");
+                btn.disabled = false;
+                btn.innerText = "حفظ";
+            }
         }
     </script>
 </body>
