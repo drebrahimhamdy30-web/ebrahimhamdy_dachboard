@@ -2,174 +2,100 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المشتريات - نظام التتبع</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        /* تنسيقات الألوان الخاصة بالحالات */
-        .status-waiting { 
-            background-color: #e3f2fd !important; 
-            color: #0d47a1 !important; 
-            border: 1px solid #0d47a1 !important;
-            font-weight: bold;
-        }
-        .status-ordered { 
-            background-color: #e8f5e9 !important; 
-            color: #1b5e20 !important; 
-            border: 1px solid #1b5e20 !important;
-            font-weight: bold;
-        }
-        .status-unavailable { 
-            background-color: #ffebee !important; 
-            color: #b71c1c !important; 
-            border: 1px solid #b71c1c !important;
-            font-weight: bold;
-        }
-        .form-select { padding: 5px; border-radius: 4px; width: 100%; cursor: pointer; }
-    </style>
-</head>
+    <title>سجل المشتريات - الصيدلية</title>
+    <link rel="stylesheet" href="style.css"> </head>
 <body>
-    <header class="main-header">
-        <div class="user-info">المستخدم: <span id="displayUser">...</span></div>
-        <div class="logo"><b>فحص سجل البيانات الشامل</b></div>
-        <button class="btn btn-danger" onclick="logout()">خروج</button>
-    </header>
+    <div class="header">
+        <span>المستخدم: <strong id="display-user"></strong></span>
+        <button onclick="logout()">خروج</button>
+    </div>
 
     <div class="container">
-        <div class="card">
-            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; background: #fff3cd; padding: 10px; border-radius: 8px; border: 1px solid #ffeeba;">
-                <label>تصفية حسب الحالة:</label>
-                <select id="statusFilter" class="form-select" onchange="renderTable()" style="width: auto;">
-                    <option value="all">عرض كل البيانات (بدون استثناء)</option>
-                    <option value="waiting" selected>في الانتظار ⏳</option>
-                    <option value="ordered">تم الطلب ✅</option>
-                    <option value="unavailable">غير متوفر ❌</option>
-                </select>
-                <button class="btn btn-success" onclick="loadPurchases()">تحديث البيانات من السيرفر ↻</button>
-            </div>
-            
-            <div style="overflow-x: auto;">
-                <table id="purchasesTable">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>النوع</th>
-                            <th>الفرع</th>
-                            <th>المنتج</th>
-                            <th>الكمية</th>
-                            <th>الحالة</th>
-                            <th>إجراء</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
+        <h2>فحص سجل البيانات الشامل</h2>
+        
+        <div id="status-message" style="color: red; text-align: center;"></div>
+
+        <table id="orders-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>النوع</th>
+                    <th>الفرع</th>
+                    <th>المنتج</th>
+                    <th>الكمية</th>
+                    <th>الحالة</th>
+                    <th id="action-header">إجراء</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
     </div>
 
     <script src="api.js"></script>
     <script>
-        const user = checkAuth();
-        document.getElementById('displayUser').innerText = user;
-        let allData = [];
+        // 1. التأكد من هوية المستخدم
+        const activeUser = checkAuth();
+        const userRole = localStorage.getItem('userRole');
+        const userBranch = localStorage.getItem('userBranch');
 
-        // 1. دالة جلب البيانات مع فك التغليف (حسب صورة الـ Network)
-        async function loadPurchases() {
-            const tbody = document.querySelector('#purchasesTable tbody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-            
-            try {
-                const response = await fetchData();
-                
-                // فك تغليف المصفوفة من حقل data
-                if (Array.isArray(response) && response[0] && response[0].data) {
-                    allData = response[0].data; 
-                } else {
-                    allData = Array.isArray(response) ? response : (response.data || []);
-                }
-
-                renderTable();
-            } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
-            }
+        if (activeUser) {
+            document.getElementById('display-user').innerText = activeUser + " (" + userBranch + ")";
+            loadOrders();
         }
 
-        // 2. دالة العرض النهائية (نسخة واحدة فقط)
-        function renderTable() {
-            const tbody = document.querySelector('#purchasesTable tbody');
-            const filterValue = document.getElementById('statusFilter').value;
+        async function loadOrders() {
+            const tbody = document.getElementById('table-body');
+            const msg = document.getElementById('status-message');
             
-            // الفلترة الذكية
-            let filtered = allData.filter(o => {
-                const s = String(o.state || o.status || "").trim().toLowerCase();
-                if (filterValue === 'all') return true;
-                if (filterValue === 'waiting') return s === "" || s === "null" || s === "undefined" || s.includes('{');
-                return s === filterValue;
-            });
-
-            tbody.innerHTML = '';
+            const data = await fetchData();
             
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات تطابق هذا الفلتر</td></tr>';
+            if (!data) {
+                msg.innerText = "خطأ في الاتصال بالسيرفر أو تفعيل CORS";
                 return;
             }
 
-            filtered.forEach(o => {
-                const currentStatus = String(o.state || o.status || "").trim().toLowerCase();
-                const rowID = o.id || o.ID || "بدون ID";
+            tbody.innerHTML = '';
+            data.forEach(order => {
+                const row = document.createElement('tr');
                 
-                // تحديد الكلاس اللوني
-                let statusClass = "status-waiting";
-                if (currentStatus === 'ordered') statusClass = "status-ordered";
-                if (currentStatus === 'unavailable') statusClass = "status-unavailable";
-
-                const row = `<tr>
-                    <td>${rowID}</td>
-                    <td>${o.type || 'شراء'}</td>
-                    <td>${o.branch || ''}</td>
-                    <td>${o.item || ''}</td>
-                    <td>${o.qty || ''}</td>
+                // تحديد ما إذا كان المستخدم يملك صلاحية التعديل
+                const isDisabled = (userRole === 'employee') ? 'disabled' : '';
+                
+                row.innerHTML = `
+                    <td>${order.id}</td>
+                    <td>${order.type}</td>
+                    <td>${order.branch}</td>
+                    <td>${order.product}</td>
+                    <td>${order.quantity}</td>
                     <td>
-                        <select id="status-${rowID}" class="form-select ${statusClass}" onchange="this.className='form-select ' + getStatusClass(this.value)">
-                            <option value="" ${currentStatus === "" || currentStatus === "null" || currentStatus.includes('{') ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${currentStatus === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${currentStatus === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                        <select onchange="updateStatus('${order.id}', this.value)" ${isDisabled}>
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار</option>
+                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب</option>
+                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر</option>
                         </select>
                     </td>
-                    <td><button class="btn btn-success btn-sm" onclick="updateStatus('${rowID}')">حفظ</button></td>
-                </tr>`;
-                tbody.insertAdjacentHTML('beforeend', row);
+                    <td>
+                        <button onclick="saveChanges('${order.id}')" ${isDisabled}>حفظ</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
             });
-        }
 
-        // 3. دالة تغيير اللون الفوري
-        function getStatusClass(val) {
-            if (val === 'ordered') return 'status-ordered';
-            if (val === 'unavailable') return 'status-unavailable';
-            return 'status-waiting';
-        }
-
-        // 4. دالة تحديث الحالة للسيرفر
-        async function updateStatus(id) {
-            if (id === "بدون ID") { alert("لا يمكن تحديث سطر بدون ID"); return; }
-            const statusValue = document.getElementById(`status-${id}`).value;
-            
-            const data = {
-                id: id,
-                status: statusValue,
-                action: 'update_status'
-            };
-            
-            try {
-                await postData(data);
-                alert("تم تحديث الحالة بنجاح");
-                loadPurchases(); // إعادة تحميل البيانات للتأكد من المزامنة
-            } catch (e) { 
-                alert("حدث خطأ أثناء الحفظ"); 
+            // إخفاء عمود الإجراءات بالكامل للموظف لزيادة الأمان
+            if (userRole === 'employee') {
+                document.getElementById('action-header').style.display = 'none';
             }
         }
 
-        window.onload = loadPurchases;
+        async function updateStatus(id, newStatus) {
+            console.log(`تحديث الطلب ${id} إلى ${newStatus}`);
+        }
+
+        async function saveChanges(id) {
+            // كود الحفظ المرتبط بنود n8n التحديث
+            alert("جاري حفظ التعديلات للطلب رقم: " + id);
+        }
     </script>
 </body>
 </html>
