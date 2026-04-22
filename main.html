@@ -8,32 +8,21 @@
 </head>
 <body>
     <div class="nav-bar">
-    <div class="nav-links">
-        <a href="main.html" id="link-main">➕ مدخلات جديدة</a>
-        <a href="purchases.html" id="link-purchases">🛒 سجل المشتريات</a>
-        <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
-        <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a>
+        <div class="nav-links">
+            <a href="main.html" id="link-main" class="active">➕ مدخلات جديدة</a>
+            <a href="purchases.html" id="link-purchases">🛒 سجل المشتريات</a>
+            <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
+            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a>
+        </div>
+        <div class="user-info">
+            <span id="nav-user"></span>
+            <button onclick="logout()" class="logout-btn">خروج</button>
+        </div>
     </div>
-    <div class="user-info">
-        <span id="nav-user"></span>
-        <button onclick="logout()" class="logout-btn">خروج</button>
-    </div>
-</div>
-
-    <header class="main-header">
-        <div class="user-info">المستخدم: <span id="displayUser">...</span></div>
-        <div class="logo"><b>نظام تسجيل الطلبات</b></div>
-        <button class="btn btn-danger" onclick="logout()">خروج</button>
-    </header>
-
-    <nav class="nav-menu">
-        <a href="main.html" class="nav-link active">إضافة طلب</a>
-        <a href="purchases.html" class="nav-link">المشتريات</a>
-    </nav>
 
     <div class="container">
         <div class="card" style="max-width: 600px; margin: auto;">
-            <h2>أضف طلب جديد للفرع</h2>
+            <h2 style="text-align: center; margin-bottom: 20px;">أضف طلب جديد للفرع</h2>
             <form id="orderForm">
                 <div class="form-group">
                     <label>نوع الطلب</label>
@@ -45,12 +34,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label>الفرع المستهدف</label>
+                    <label>الفرع الطالب</label>
                     <select id="branch" required>
-                        <option>فرع المعمورة</option>
-                        <option>فرع سان ستيفانو</option>
-                        <option>فرع سيدى بشر</option>
-                    </nav>
+                        <option value="فرع المعمورة">فرع المعمورة</option>
+                        <option value="فرع سان ستيفانو">فرع سان ستيفانو</option>
+                        <option value="فرع سيدى بشر">فرع سيدى بشر</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -63,7 +52,7 @@
                     <input type="number" id="qty" placeholder="0" required>
                 </div>
 
-                <button type="button" id="submitBtn" class="btn btn-success" style="width: 100%;" onclick="submitOrder()">
+                <button type="button" id="submitBtn" class="btn btn-success" style="width: 100%; margin-top: 15px;" onclick="submitOrder()">
                     إرسال الطلب الآن
                 </button>
             </form>
@@ -72,41 +61,62 @@
 
     <script src="api.js"></script>
     <script>
-        // التأكد من الهوية فور التحميل
-        const user = checkAuth();
-        document.getElementById('displayUser').innerText = user;
+        // 1. التأكد من الهوية وتجهيز البيانات
+        const activeUser = checkAuth();
+        const userBranch = localStorage.getItem('userBranch');
 
-async function submitOrder() {
-    const user = checkAuth();
-    const btn = document.getElementById('submitBtn');
-    const formData = {
-        user: user,
-        type: document.getElementById('type').value,
-        branch: document.getElementById('branch').value,
-        item: document.getElementById('item').value,
-        qty: document.getElementById('qty').value,
-        status: '',   // حقل فارغ للطلب الجديد
-        company: '',  // حقل فارغ للطلب الجديد
-        createdAt: new Date().toISOString()
-    };
+        if (activeUser) {
+            // تحديث اسم المستخدم في الشريط
+            document.getElementById('nav-user').innerText = activeUser;
+            
+            // اختيار فرع المستخدم تلقائياً في القائمة (اختياري لتسهيل الإدخال)
+            if (userBranch) {
+                const branchSelect = document.getElementById('branch');
+                // محاولة مطابقة الفرع المخزن مع خيارات القائمة
+                for (let option of branchSelect.options) {
+                    if (option.value.includes(userBranch)) {
+                        option.selected = true;
+                        break;
+                    }
+                }
+            }
+        }
 
-    try {
-        btn.disabled = true;
-        btn.innerText = "جاري الإرسال...";
-        await postData(formData);
-        alert("تم إرسال الطلب بنجاح");
-        document.getElementById('orderForm').reset();
-    } catch (error) {
-        alert("خطأ في الإرسال");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "إرسال الطلب الآن";
-    }
-}
+        // 2. دالة إرسال الطلب لـ n8n
+        async function submitOrder() {
+            const user = checkAuth();
+            if (!user) return;
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
+            const btn = document.getElementById('submitBtn');
+            const formData = {
+                user: user,
+                type: document.getElementById('type').value,
+                branch: document.getElementById('branch').value,
+                product: document.getElementById('item').value, // تأكد من مطابقة المسمى في n8n (product)
+                quantity: document.getElementById('qty').value,
+                status: 'pending', // حالة افتراضية للطلبات الجديدة
+                createdAt: new Date().toLocaleString('ar-EG') // تاريخ بتنسيق عربي
+            };
+
+            try {
+                btn.disabled = true;
+                btn.innerText = "جاري الإرسال...";
+                
+                const success = await postData(formData);
+                
+                if (success) {
+                    alert("تم إرسال الطلب بنجاح ✅");
+                    document.getElementById('orderForm').reset();
+                } else {
+                    alert("فشل الإرسال، تأكد من اتصال n8n");
+                }
+            } catch (error) {
+                console.error("Submit Error:", error);
+                alert("حدث خطأ غير متوقع");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "إرسال الطلب الآن";
+            }
         }
     </script>
 </body>
