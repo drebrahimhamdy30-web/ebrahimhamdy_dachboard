@@ -36,8 +36,6 @@
                     </select>
                 </div>
             </div>
-            
-            <div id="status-message" style="color: red; text-align: center; margin-bottom: 10px;"></div>
 
             <div style="overflow-x: auto;">
                 <table id="orders-table">
@@ -49,7 +47,7 @@
                             <th>الكمية</th>
                             <th>الشركة الموردة</th>
                             <th>الحالة</th>
-                            <th id="action-header">إجراء</th>
+                            <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="table-body"></tbody>
@@ -61,26 +59,26 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        // تحسين قراءة الصلاحية (تحويلها لنص صغير لضمان المطابقة)
         const userRole = (localStorage.getItem('userRole') || '').toLowerCase();
-        const userBranch = localStorage.getItem('userBranch');
-        let rawData = []; 
+        
+        // تعديل جوهري: السماح لليوزر الظاهر في صورتك (sanstefano) بالتحكم الكامل
+        const privilegedUsers = ['ebrahim', 'sanstefano', 'admin', 'manager'];
+        const canEdit = privilegedUsers.includes(activeUser?.toLowerCase()) || userRole === 'admin';
 
         if (activeUser) {
-            document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
+            document.getElementById('nav-user').innerText = activeUser;
             loadOrders();
         }
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
             const response = await fetchData(); 
             if (response && response[0] && response[0].data) {
                 rawData = response[0].data; 
                 applyFilter();
             } else {
-                document.getElementById('status-message').innerText = "لا توجد بيانات متاحة";
-                tbody.innerHTML = '';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات</td></tr>';
             }
         }
 
@@ -88,22 +86,18 @@
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
 
-            // شرط السماح بالتعديل: إذا كان الأدمن أو إذا كان اسم المستخدم "ebrahim"
-            const canEdit = (userRole === 'admin' || userRole === 'manager' || activeUser === 'ebrahim' || activeUser === 'Ebrahim');
-
             items.forEach(order => {
                 const row = document.createElement('tr');
-                const isDisabled = !canEdit ? 'disabled' : '';
+                // إذا كان المستخدم مسموح له، اترك isDisabled فارغة
+                const isDisabled = canEdit ? '' : 'disabled';
                 
                 const item = order.item || '-';
                 const qty = order.qty || '0';
                 const company = order.company || '';
                 const currentState = order.state || 'pending';
 
-                let statusClass = '';
-                if (currentState === 'pending' || currentState === null) statusClass = 'status-waiting';
-                else if (currentState === 'ordered') statusClass = 'status-ordered';
-                else if (currentState === 'unavailable') statusClass = 'status-unavailable';
+                let statusClass = (currentState === 'ordered') ? 'status-ordered' : 
+                                 (currentState === 'unavailable') ? 'status-unavailable' : 'status-waiting';
 
                 row.innerHTML = `
                     <td>${order.id}</td>
@@ -112,30 +106,22 @@
                     <td>${qty}</td>
                     <td>
                         <input type="text" class="company-input" value="${company}" 
-                               placeholder="اسم الشركة..." ${isDisabled} 
-                               style="width: 120px; padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
+                               placeholder="اسم الشركة..." ${isDisabled}
+                               style="width: 130px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
                     </td>
                     <td>
                         <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
-                            <option value="pending" ${currentState === 'pending' || currentState === null ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
                             <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td class="action-cell">
-                        ${canEdit ? `<button class="btn-success" style="padding: 5px 12px; font-size: 0.8rem; width: auto;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
+                    <td>
+                        ${canEdit ? `<button class="btn-success" style="width:auto; padding:5px 15px;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
                     </td>
                 `;
                 tbody.appendChild(row);
             });
-
-            // إخفاء عمود الإجراءات فقط إذا لم يكن لديه صلاحية
-            if (!canEdit) {
-                document.getElementById('action-header').style.display = 'none';
-                document.querySelectorAll('.action-cell').forEach(c => c.style.display = 'none');
-            } else {
-                document.getElementById('action-header').style.display = 'table-cell';
-            }
         }
 
         function applyFilter() {
@@ -156,22 +142,17 @@
             const newCompany = row.querySelector('.company-input').value;
             
             btn.disabled = true;
-            btn.innerText = "⏳";
+            btn.innerText = "...";
 
             const success = await updateData({ id: id, state: newState, company: newCompany });
             if (success) {
-                alert("تم التحديث ✅");
+                alert("تم الحفظ");
                 loadOrders(); 
             } else {
-                alert("فشل الحفظ ❌");
+                alert("فشل الحفظ");
                 btn.disabled = false;
                 btn.innerText = "حفظ";
             }
-        }
-
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
         }
     </script>
 </body>
