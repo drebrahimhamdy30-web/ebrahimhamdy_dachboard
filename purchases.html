@@ -136,24 +136,29 @@
             else if (select.value === 'unavailable') select.classList.add('status-unavailable');
         }
 
-        async function saveChanges(id, btn) {
-            const row = btn.closest('tr');
-            const newState = row.querySelector('select').value;
-            const newCompany = row.querySelector('.company-input').value;
-            
-            btn.disabled = true;
-            btn.innerText = "...";
+async function saveChanges(id, btn) {
+    const row = btn.closest('tr');
+    const newState = row.querySelector('select').value;
+    const newCompany = row.querySelector('.company-input').value;
+    
+    btn.disabled = true;
+    btn.innerText = "⏳";
 
-            const success = await updateData({ id: id, state: newState, company: newCompany });
-            if (success) {
-                alert("تم الحفظ");
-                loadOrders(); 
-            } else {
-                alert("فشل الحفظ");
-                btn.disabled = false;
-                btn.innerText = "حفظ";
-            }
-        }
-    </script>
-</body>
-</html>
+    // التعديل هنا: نرسل 'status' بدلاً من 'state' ليقرأها n8n بشكل صحيح
+    // ونضيف 'action' ليدخل في مسار الـ Update داخل الـ IF node
+    const success = await updateData({ 
+        id: id, 
+        status: newState, // تغيير المسمى هنا ليطابق $json.body.status في n8n
+        company: newCompany,
+        action: "update_status" // لضمان مرورها من عقدة الـ IF في n8n
+    });
+
+    if (success) {
+        alert("تم الحفظ في السيرفر ✅");
+        loadOrders(); 
+    } else {
+        alert("فشل الحفظ ❌");
+        btn.disabled = false;
+        btn.innerText = "حفظ";
+    }
+}
