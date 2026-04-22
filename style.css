@@ -135,3 +135,52 @@ input, select, textarea {
     border-radius: 5px;
     font-weight: bold;
 }
+/* تنسيق شريط التنقل العلوي */
+.nav-bar {
+    background-color: #f8f9fa;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between; /* يضع الروابط في جهة والمعلومات في جهة */
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    direction: rtl;
+}
+
+.nav-links {
+    display: flex;
+    gap: 15px; /* مسافة بين الأزرار */
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.nav-links a:hover {
+    background-color: #e9ecef;
+}
+
+.nav-links a.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.user-info {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logout-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
