@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام التحويلات بين الفروع</title>
+    <title>نظام التحويلات - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
             <h2 style="text-align: center; margin-bottom: 20px;">إدارة تحويلات الفروع 🔄</h2>
 
             <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #2196f3; display: flex; justify-content: space-between; align-items: center;">
-                <button onclick="loadTransfers()" class="btn-success" style="width: auto;">تحديث القائمة 🔄</button>
+                <button onclick="loadTransfers()" class="btn-success" style="width: auto; padding: 10px 20px;">تحديث القائمة 🔄</button>
                 <div id="branch-tag" style="font-weight: bold; color: #1565c0;"></div>
             </div>
 
@@ -42,105 +42,65 @@
                             <th>إجراء</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body"></tbody>
+                    <tbody id="table-body">
+                        <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
 
     <script src="api.js"></script>
-    <script>
-        const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch'); // نفترض أننا نخزن فرع اليوزر عند اللوجن
-        let rawData = [];
 
+    <script>
+        // تعريف المتغيرات العامة لضمان الوصول إليها من كل الدوال
+        let rawData = [];
+        const activeUser = checkAuth();
+        const userBranch = localStorage.getItem('userBranch');
+
+        // تنفيذ الإجراءات الأولية عند تحميل الصفحة
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
-            document.getElementById('branch-tag').innerText = "فرعك الحالي: " + (userBranch || activeUser);
-            loadTransfers();
+            const branchTag = document.getElementById('branch-tag');
+            if (branchTag) {
+                branchTag.innerText = "فرعك الحالي: " + (userBranch || activeUser);
+            }
+            // تشغيل جلب البيانات فور تحميل الصفحة
+            window.onload = loadTransfers;
         }
 
         async function loadTransfers() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات...</td></tr>';
+            if (!tbody) return;
+
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات من السيرفر...</td></tr>';
             
-            const response = await fetchData(); 
-            if (response && response[0] && response[0].data) {
-                // فلترة البيانات لتشمل التحويلات الخاصة بهذا المستخدم فقط (طالب أو مطلوب منه)
-                rawData = response[0].data.filter(item => {
-                    const isTransfer = item.type === 'transfer';
-                    const involvesMe = item.user === activeUser || item.branch === userBranch || item.branch === activeUser;
-                    return isTransfer && involvesMe;
-                });
-                renderTable(rawData);
-            } else {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات حالية</td></tr>';
-            }
-        }
-
-        function renderTable(items) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-
-            items.forEach(order => {
-                const row = document.createElement('tr');
-                // السماح بالتعديل فقط للفرع "المطلوب منه" التحويل
-                const isTargetBranch = order.branch === userBranch || order.branch === activeUser;
-                const isDisabled = isTargetBranch ? '' : 'disabled';
+            try {
+                const response = await fetchData(); // استدعاء الدالة من api.js
                 
-                const currentState = order.state || 'pending';
-                const note = order.company || ''; // نستخدم حقل company كمكان للملاحظات مؤقتاً
+                if (response && response[0] && response[0].data) {
+                    rawData = response[0].data;
+                    
+                    // فلترة ذكية تدعم المسميات العربية والإنجليزية
+                    const filteredData = rawData.filter(item => {
+                        const typeVal = (item.type || '').toString();
+                        const isTransfer = (typeVal === 'transfer' || typeVal === 'تحويل');
+                        // تصفية الطلبات التي يكون المستخدم طرفاً فيها (طالب أو مطلوب منه)
+                        const involvesMe = (item.user === activeUser || item.branch === userBranch || item.branch === activeUser);
+                        return isTransfer && involvesMe;
+                    });
 
-                row.innerHTML = `
-                    <td>${order.id}</td>
-                    <td style="color: blue;">${order.user}</td>
-                    <td style="font-weight: bold;">${order.branch}</td>
-                    <td>${order.item}</td>
-                    <td>${order.qty}</td>
-                    <td>
-                        <input type="text" class="note-input" value="${note}" 
-                               placeholder="أضف ملاحظة..." ${isDisabled}
-                               style="width: 120px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
-                    </td>
-                    <td>
-                        <select class="form-select" ${isDisabled}>
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>تم التحويل ✅</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر بالفرع ❌</option>
-                        </select>
-                    </td>
-                    <td>
-                        ${isTargetBranch ? `<button class="btn-success" onclick="saveTransfer('${order.id}', this)">رد</button>` : '<span style="font-size:12px; color:gray;">انتظار الرد</span>'}
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-async function loadTransfers() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات...</td></tr>';
-            
-            const response = await fetchData(); 
-            // الوصول الصحيح للبيانات بناءً على الصورة التي أرفقتها
-            if (response && response[0] && response[0].data) {
-                rawData = response[0].data;
-                
-                // الفلترة مع دعم المسميات العربية (تحويل) والإنجليزية (transfer)
-                const filteredData = rawData.filter(item => {
-                    const isTransfer = (item.type === 'transfer' || item.type === 'تحويل');
-                    // التحقق من أن المستخدم الحالي هو الطالب أو هو الفرع المطلوب منه
-                    const involvesMe = (item.user === activeUser || item.branch === userBranch || item.branch === activeUser);
-                    return isTransfer && involvesMe;
-                });
-
-                if (filteredData.length > 0) {
-                    renderTable(filteredData);
+                    if (filteredData.length > 0) {
+                        renderTable(filteredData);
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات تخص فرعك حالياً</td></tr>';
+                    }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات تخص فرعك حالياً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات متاحة حالياً</td></tr>';
                 }
-            } else {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">تعذر جلب البيانات من السيرفر</td></tr>';
+            } catch (error) {
+                console.error("Load Error:", error);
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">حدث خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
 
@@ -150,37 +110,69 @@ async function loadTransfers() {
 
             items.forEach((order, index) => {
                 const row = document.createElement('tr');
+                
+                // تحديد ما إذا كان المستخدم الحالي هو "الفرع الموجه إليه الطلب" للرد عليه
                 const isTargetBranch = (order.branch === userBranch || order.branch === activeUser);
                 const isDisabled = isTargetBranch ? '' : 'disabled';
                 
-                const currentState = order.state || 'pending';
+                const currentState = (order.state || 'pending').toString();
                 const note = order.company || ''; 
-                
-                // حل مشكلة الـ undefined: إذا لم يوجد id نستخدم رقم الصف (index + 1)
+                // حل مشكلة الـ undefined في الـ ID
                 const displayId = order.id || (index + 1);
 
                 row.innerHTML = `
                     <td>${displayId}</td>
-                    <td style="color: blue;">${order.user || '-'}</td>
+                    <td style="color: #1976d2;">${order.user || '-'}</td>
                     <td style="font-weight: bold;">${order.branch || '-'}</td>
                     <td>${order.item || '-'}</td>
                     <td>${order.qty || '0'}</td>
                     <td>
                         <input type="text" class="note-input" value="${note}" 
                                placeholder="أضف ملاحظة..." ${isDisabled}
-                               style="width: 120px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                               style="width: 130px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
                     </td>
                     <td>
-                        <select class="form-select" ${isDisabled}>
+                        <select class="form-select" ${isDisabled} style="padding: 5px; border-radius: 4px;">
                             <option value="pending" ${currentState === 'pending' || currentState === 'null' ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>تم التحويل ✅</option>
                             <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
                     <td>
-                        ${isTargetBranch ? `<button class="btn-success" onclick="saveTransfer('${displayId}', this)">رد</button>` : '<span style="font-size:12px; color:gray;">بانتظار الرد</span>'}
+                        ${isTargetBranch ? 
+                            `<button class="btn-success" style="width:auto; padding:5px 15px;" onclick="saveTransfer('${displayId}', this)">رد</button>` : 
+                            '<span style="font-size:12px; color:gray;">بانتظار الرد</span>'}
                     </td>
                 `;
                 tbody.appendChild(row);
             });
         }
+
+        async function saveTransfer(id, btn) {
+            const row = btn.closest('tr');
+            const newState = row.querySelector('select').value;
+            const newNote = row.querySelector('.note-input').value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳";
+
+            // إرسال التحديث للـ Webhook الموحد في n8n
+            const success = await updateData({ 
+                id: id, 
+                status: newState, 
+                company: newNote, // نرسل الملاحظة في حقل المورد كما هو مبرمج في n8n
+                action: "update_status" 
+            });
+
+            if (success) {
+                alert("تم تحديث حالة التحويل في السيرفر ✅");
+                loadTransfers(); 
+            } else {
+                alert("فشل التحديث، يرجى المحاولة مرة أخرى ❌");
+                btn.disabled = false;
+                btn.innerText = "رد";
+            }
+        }
+    </script>
+</body>
+</html>
