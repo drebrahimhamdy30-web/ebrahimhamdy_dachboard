@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل المشتريات الشامل - نظام الصيدلية</title>
+    <title>سجل المشتريات - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html" id="link-main">➕ مدخلات جديدة</a>
-            <a href="purchases.html" id="link-purchases" class="active">🛒 سجل المشتريات</a>
-            <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
-            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a>
+            <a href="main.html">➕ مدخلات جديدة</a>
+            <a href="purchases.html" class="active">🛒 سجل المشتريات</a>
+            <a href="transfers.html">🔄 التحويلات</a>
+            <a href="notifications.html">🔔 الإشعارات</a>
         </div>
         <div class="user-info">
             <span id="nav-user"></span>
@@ -23,8 +23,21 @@
     <div class="container">
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">فحص سجل البيانات الشامل</h2>
-            
-            <div id="status-message" style="text-align: center; margin-bottom: 10px; font-weight: bold;"></div>
+
+            <div style="background: #fff9c4; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #fbc02d;">
+                <div>
+                    <label style="display: inline; margin-left: 10px;">تصفية حسب الحالة:</label>
+                    <select id="statusFilter" onchange="filterTable()" style="width: 200px; display: inline-block;">
+                        <option value="all">عرض كل البيانات (بدون استثناء)</option>
+                        <option value="pending">في الانتظار ⏳</option>
+                        <option value="ordered">تم الطلب ✅</option>
+                        <option value="unavailable">غير متوفر ❌</option>
+                    </select>
+                </div>
+                <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px; background-color: #2ecc71;">تحديث البيانات من السيرفر 🔄</button>
+            </div>
+
+            <div id="status-message" style="text-align: center; margin-bottom: 10px;"></div>
 
             <div style="overflow-x: auto;">
                 <table id="orders-table">
@@ -39,8 +52,7 @@
                             <th id="action-header">إجراء</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
-                        </tbody>
+                    <tbody id="table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -48,100 +60,90 @@
 
     <script src="api.js"></script>
     <script>
-        // 1. التحقق من الهوية عند تحميل الصفحة
         const activeUser = checkAuth();
         const userRole = localStorage.getItem('userRole');
         const userBranch = localStorage.getItem('userBranch');
+        let allOrders = []; // لتخزين البيانات محلياً للتصفية السريعة
 
         if (activeUser) {
-            // عرض اسم المستخدم والفرع في الهيدر
             document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
             loadOrders();
         }
 
-        // 2. دالة جلب وعرض البيانات
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            const msg = document.getElementById('status-message');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>';
             
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات من السيرفر...</td></tr>';
-            
-            try {
-                const data = await fetchData();
-                
-                if (!data || data.length === 0) {
-                    msg.style.color = "orange";
-                    msg.innerText = "لا توجد بيانات لعرضها حالياً";
-                    tbody.innerHTML = '';
-                    return;
-                }
-
-                msg.innerText = "";
-                tbody.innerHTML = '';
-
-                data.forEach(order => {
-                    const row = document.createElement('tr');
-                    const isDisabled = (userRole === 'employee') ? 'disabled' : '';
-                    
-                    // حل مشكلة الـ undefined عن طريق فحص كل المسميات المحتملة
-                    const id = order.id || '-';
-                    const type = order.type || '-';
-                    const branch = order.branch || '-';
-                    const product = order.product || order.item || 'غير محدد';
-                    const quantity = order.quantity || order.qty || '0';
-                    const status = order.status || 'pending';
-
-                    // تحديد كلاس اللون بناءً على الحالة
-                    let statusClass = '';
-                    if (status === 'pending') statusClass = 'status-waiting';
-                    else if (status === 'ordered') statusClass = 'status-ordered';
-                    else if (status === 'unavailable') statusClass = 'status-unavailable';
-
-                    row.innerHTML = `
-                        <td>${id}</td>
-                        <td>${type}</td>
-                        <td>${branch}</td>
-                        <td>${product}</td>
-                        <td>${quantity}</td>
-                        <td>
-                            <select class="form-select ${statusClass}" onchange="updateStatusLocal(this)" ${isDisabled}>
-                                <option value="pending" ${status === 'pending' ? 'selected' : ''}>في الانتظار ⏳</option>
-                                <option value="ordered" ${status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                                <option value="unavailable" ${status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                            </select>
-                        </td>
-                        <td class="action-cell">
-                            <button class="btn-success" style="padding: 5px 15px; font-size: 0.8rem; width: auto;" 
-                                    onclick="saveChanges('${id}', this)" ${isDisabled}>
-                                حفظ
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
-                // إخفاء عمود الإجراءات بالكامل للموظف لزيادة الأمان
-                if (userRole === 'employee') {
-                    document.getElementById('action-header').style.display = 'none';
-                    document.querySelectorAll('.action-cell').forEach(cell => cell.style.display = 'none');
-                }
-
-            } catch (error) {
-                msg.style.color = "red";
-                msg.innerText = "خطأ في الاتصال بالسيرفر";
-                tbody.innerHTML = '';
+            const data = await fetchData();
+            if (data) {
+                allOrders = data;
+                renderTable(allOrders);
             }
         }
 
-        // تحديث لون الاختيار بصرياً قبل الحفظ
-        function updateStatusLocal(selectElement) {
-            selectElement.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
-            if (selectElement.value === 'pending') selectElement.classList.add('status-waiting');
-            else if (selectElement.value === 'ordered') selectElement.classList.add('status-ordered');
-            else if (selectElement.value === 'unavailable') selectElement.classList.add('status-unavailable');
+        // دالة رسم الجدول (Rendering)
+        function renderTable(dataList) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            
+            dataList.forEach(order => {
+                const row = document.createElement('tr');
+                const isAdmin = (userRole === 'admin' || userRole === 'manager');
+                const isDisabled = !isAdmin ? 'disabled' : '';
+                
+                const product = order.product || order.item || 'undefined';
+                const quantity = order.quantity || order.qty || '0';
+                
+                let statusClass = '';
+                if (order.status === 'pending') statusClass = 'status-waiting';
+                else if (order.status === 'ordered') statusClass = 'status-ordered';
+                else if (order.status === 'unavailable') statusClass = 'status-unavailable';
+
+                row.innerHTML = `
+                    <td>${order.id}</td>
+                    <td>${order.type}</td>
+                    <td>${order.branch}</td>
+                    <td>${product}</td>
+                    <td>${quantity}</td>
+                    <td>
+                        <select class="form-select ${statusClass}" onchange="updateStatusLocal(this)" ${isDisabled}>
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار ⏳</option>
+                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                        </select>
+                    </td>
+                    <td class="action-cell">
+                        ${isAdmin ? `<button class="btn-success" style="padding: 5px 10px; font-size: 0.8rem; width: auto;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (userRole === 'employee') {
+                document.getElementById('action-header').style.display = 'none';
+                document.querySelectorAll('.action-cell').forEach(c => c.style.display = 'none');
+            }
         }
 
-        // دالة حفظ التعديلات وإرسالها لـ n8n
+        // دالة التصفية (Filter logic)
+        function filterTable() {
+            const filterValue = document.getElementById('statusFilter').value;
+            if (filterValue === 'all') {
+                renderTable(allOrders);
+            } else {
+                const filtered = allOrders.filter(o => o.status === filterValue);
+                renderTable(filtered);
+            }
+        }
+
+        function updateStatusLocal(select) {
+            select.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
+            if (select.value === 'pending') select.classList.add('status-waiting');
+            else if (select.value === 'ordered') select.classList.add('status-ordered');
+            else if (select.value === 'unavailable') select.classList.add('status-unavailable');
+        }
+
+        // التعديل والحفظ (Update)
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
             const newStatus = row.querySelector('select').value;
@@ -149,28 +151,17 @@
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            try {
-                // استدعاء دالة التحديث من api.js
-                const success = await updateData({ id: id, status: newStatus });
+            // إرسال التحديث لـ n8n عبر api.js
+            const success = await updateData({ id: id, status: newStatus });
 
-                if (success) {
-                    alert(`تم تحديث الطلب رقم ${id} بنجاح`);
-                    loadOrders(); // تحديث الجدول
-                } else {
-                    alert("فشل التحديث، تأكد من إعدادات n8n");
-                    btn.disabled = false;
-                    btn.innerText = "حفظ";
-                }
-            } catch (error) {
-                alert("حدث خطأ أثناء الحفظ");
+            if (success) {
+                alert("تم التحديث ✅");
+                loadOrders();
+            } else {
+                alert("فشل التحديث ❌");
                 btn.disabled = false;
                 btn.innerText = "حفظ";
             }
-        }
-
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'index.html';
         }
     </script>
 </body>
