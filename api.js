@@ -16,9 +16,8 @@ async function login(username, password) {
         const data = await response.json();
         
         if (data.status === "success") {
-            // تخزين البيانات بنجاح
             localStorage.setItem('activeUser', data.user);
-            localStorage.setItem('userRole', data.role); // admin أو employee
+            localStorage.setItem('userRole', data.role); 
             localStorage.setItem('userBranch', data.branch);
             return { success: true };
         } else {
@@ -46,8 +45,8 @@ async function fetchData() {
     }
 }
 
-// دالة تحديث/إرسال البيانات
-async function postData(data) {
+// --- الدالة المضافة لحل المشكلة ---
+async function updateData(data) {
     try {
         const response = await fetch(CONFIG.SEND_ORDER_WEBHOOK, {
             method: 'POST',
@@ -56,9 +55,14 @@ async function postData(data) {
         });
         return response.ok;
     } catch (error) {
-        console.error("Post Error:", error);
+        console.error("Update Error:", error);
         return false;
     }
+}
+
+// دالة الإرسال القديمة (للحفاظ على توافق الصفحات الأخرى)
+async function postData(data) {
+    return await updateData(data);
 }
 
 // حماية الصفحة وتأكيد الدخول
