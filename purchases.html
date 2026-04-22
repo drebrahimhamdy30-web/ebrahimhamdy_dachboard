@@ -30,7 +30,7 @@
                     <label style="font-weight: bold; margin-left: 10px;">تصفية حسب الحالة:</label>
                     <select id="statusFilter" onchange="applyFilter()" style="width: 200px; padding: 5px; border-radius: 5px;">
                         <option value="all">عرض الكل</option>
-                        <option value="pending">في الانتظار ⏳</option>
+                        <option value="pending" selected>في الانتظار ⏳</option>
                         <option value="ordered">تم الطلب ✅</option>
                         <option value="unavailable">غير متوفر ❌</option>
                     </select>
@@ -44,10 +44,10 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>النوع</th>
                             <th>الفرع</th>
                             <th>المنتج</th>
                             <th>الكمية</th>
+                            <th>الشركة الموردة</th>
                             <th>الحالة</th>
                             <th id="action-header">إجراء</th>
                         </tr>
@@ -76,10 +76,10 @@
             
             const response = await fetchData(); 
             
-            // التعديل هنا: الوصول لمصفوفة data داخل أول عنصر في الرد
             if (response && response[0] && response[0].data) {
                 rawData = response[0].data; 
-                renderTable(rawData);
+                // عند التحميل الأول، طبق الفلتر الافتراضي (pending)
+                applyFilter();
             } else {
                 document.getElementById('status-message').innerText = "لا توجد بيانات متاحة";
                 tbody.innerHTML = '';
@@ -95,10 +95,10 @@
                 const isAdmin = (userRole === 'admin' || userRole === 'manager');
                 const isDisabled = !isAdmin ? 'disabled' : '';
                 
-                // مطابقة المسميات مع مخرجات n8n الجديدة
                 const item = order.item || '-';
                 const qty = order.qty || '0';
-                const currentState = order.state || 'pending'; // n8n يرسلها null أحياناً
+                const company = order.company || ''; // جلب اسم الشركة من n8n
+                const currentState = order.state || 'pending';
 
                 let statusClass = '';
                 if (currentState === 'pending' || currentState === null) statusClass = 'status-waiting';
@@ -107,10 +107,14 @@
 
                 row.innerHTML = `
                     <td>${order.id}</td>
-                    <td>${order.type}</td>
                     <td>${order.branch}</td>
                     <td>${item}</td>
                     <td>${qty}</td>
+                    <td>
+                        <input type="text" class="company-input" value="${company}" 
+                               placeholder="اسم الشركة..." ${isDisabled} 
+                               style="width: 120px; padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
+                    </td>
                     <td>
                         <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
                             <option value="pending" ${currentState === 'pending' || currentState === null ? 'selected' : ''}>انتظار ⏳</option>
@@ -136,7 +140,6 @@
             if (val === 'all') {
                 renderTable(rawData);
             } else {
-                // الفلترة بناءً على حقل state الجديد
                 renderTable(rawData.filter(o => (o.state || 'pending') === val));
             }
         }
@@ -151,13 +154,20 @@
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
             const newState = row.querySelector('select').value;
+            const newCompany = row.querySelector('.company-input').value; // التقاط اسم الشركة
+            
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            // إرسال التحديث لـ n8n (تأكد من إرسال "state" بدلاً من "status")
-            const success = await updateData({ id: id, state: newState });
+            // إرسال التحديث لـ n8n متضمناً الحالة والشركة
+            const success = await updateData({ 
+                id: id, 
+                state: newState, 
+                company: newCompany 
+            });
+
             if (success) {
-                alert("تم الحفظ ✅");
+                alert("تم تحديث البيانات بنجاح ✅");
                 loadOrders(); 
             } else {
                 alert("فشل الحفظ ❌");
