@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام التحويلات - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .filter-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            border: 1px solid #dee2e6;
+        }
+        .filter-group { display: flex; align-items: center; gap: 8px; }
+        .filter-group label { font-weight: bold; color: #333; }
+        .filter-control { padding: 8px; border-radius: 5px; border: 1px solid #ccc; min-width: 150px; }
+    </style>
 </head>
 <body>
     <div class="nav-bar">
@@ -23,10 +39,26 @@
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">إدارة تحويلات الفروع 🔄</h2>
 
-            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #2196f3; display: flex; justify-content: space-between; align-items: center;">
-                <button onclick="loadTransfers()" class="btn-success" style="width: auto; padding: 10px 20px;">تحديث القائمة 🔄</button>
-                <div id="branch-tag" style="font-weight: bold; color: #1565c0;"></div>
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label>الحالة:</label>
+                    <select id="status-filter" class="filter-control" onchange="applyFilters()">
+                        <option value="all">الكل</option>
+                        <option value="pending" selected>قيد الانتظار ⏳</option>
+                        <option value="transferred">تم التحويل ✅</option>
+                        <option value="unavailable">غير متوفر ❌</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>الفرع الطالب:</label>
+                    <select id="branch-filter" class="filter-control" onchange="applyFilters()">
+                        <option value="all">كل الفروع</option>
+                    </select>
+                </div>
+                <button onclick="loadTransfers()" class="btn-success" style="width: auto; margin-right: auto;">تحديث البيانات 🔄</button>
             </div>
+
+            <div id="branch-tag" style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #1565c0;"></div>
 
             <div style="overflow-x: auto;">
                 <table id="transfers-table">
@@ -53,71 +85,83 @@
     <script src="api.js"></script>
 
     <script>
-        // تعريف المتغيرات العامة لضمان الوصول إليها من كل الدوال
         let rawData = [];
         const activeUser = checkAuth();
         const userBranch = localStorage.getItem('userBranch');
 
-        // تنفيذ الإجراءات الأولية عند تحميل الصفحة
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
             const branchTag = document.getElementById('branch-tag');
-            if (branchTag) {
-                branchTag.innerText = "فرعك الحالي: " + (userBranch || activeUser);
-            }
-            // تشغيل جلب البيانات فور تحميل الصفحة
+            if (branchTag) branchTag.innerText = "فرعك الحالي: " + (userBranch || activeUser);
             window.onload = loadTransfers;
         }
 
         async function loadTransfers() {
             const tbody = document.getElementById('table-body');
-            if (!tbody) return;
-
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات من السيرفر...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات...</td></tr>';
             
             try {
-                const response = await fetchData(); // استدعاء الدالة من api.js
-                
+                const response = await fetchData(); 
                 if (response && response[0] && response[0].data) {
-                    rawData = response[0].data;
-                    
-                    // فلترة ذكية تدعم المسميات العربية والإنجليزية
-                    const filteredData = rawData.filter(item => {
+                    // تصفية البيانات الأساسية (التحويلات التي تخصني فقط)
+                    rawData = response[0].data.filter(item => {
                         const typeVal = (item.type || '').toString();
                         const isTransfer = (typeVal === 'transfer' || typeVal === 'تحويل');
-                        // تصفية الطلبات التي يكون المستخدم طرفاً فيها (طالب أو مطلوب منه)
-                        const involvesMe = (item.user === activeUser || item.branch === userBranch || item.branch === activeUser);
+                        // مطابقة مرنة للفرع واليوزر
+                        const involvesMe = (item.user === activeUser || 
+                                            (item.branch && item.branch.includes(userBranch || activeUser)) ||
+                                            (userBranch && item.branch.includes(userBranch)));
                         return isTransfer && involvesMe;
                     });
-
-                    if (filteredData.length > 0) {
-                        renderTable(filteredData);
-                    } else {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات تخص فرعك حالياً</td></tr>';
-                    }
+                    
+                    populateBranchFilter(rawData);
+                    applyFilters();
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات متاحة حالياً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات</td></tr>';
                 }
             } catch (error) {
-                console.error("Load Error:", error);
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">حدث خطأ في الاتصال بالسيرفر</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال</td></tr>';
             }
+        }
+
+        function populateBranchFilter(data) {
+            const branchFilter = document.getElementById('branch-filter');
+            const branches = [...new Set(data.map(item => item.user))]; // جلب الفروع الطالبة الفريدة
+            
+            branchFilter.innerHTML = '<option value="all">كل الفروع</option>';
+            branches.forEach(br => {
+                if(br) branchFilter.innerHTML += `<option value="${br}">${br}</option>`;
+            });
+        }
+
+        function applyFilters() {
+            const statusVal = document.getElementById('status-filter').value;
+            const branchVal = document.getElementById('branch-filter').value;
+
+            const filtered = rawData.filter(item => {
+                const itemStatus = (item.state || 'pending').toString();
+                const statusMatch = (statusVal === 'all') || (itemStatus === statusVal);
+                const branchMatch = (branchVal === 'all') || (item.user === branchVal);
+                return statusMatch && branchMatch;
+            });
+
+            renderTable(filtered);
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
 
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد نتائج تطابق الفلتر</td></tr>';
+                return;
+            }
+
             items.forEach((order, index) => {
                 const row = document.createElement('tr');
-                
-                // تحديد ما إذا كان المستخدم الحالي هو "الفرع الموجه إليه الطلب" للرد عليه
-                const isTargetBranch = (order.branch === userBranch || order.branch === activeUser);
+                const isTargetBranch = (order.branch && order.branch.includes(userBranch || activeUser));
                 const isDisabled = isTargetBranch ? '' : 'disabled';
-                
                 const currentState = (order.state || 'pending').toString();
-                const note = order.company || ''; 
-                // حل مشكلة الـ undefined في الـ ID
                 const displayId = order.id || (index + 1);
 
                 row.innerHTML = `
@@ -127,9 +171,9 @@
                     <td>${order.item || '-'}</td>
                     <td>${order.qty || '0'}</td>
                     <td>
-                        <input type="text" class="note-input" value="${note}" 
-                               placeholder="أضف ملاحظة..." ${isDisabled}
-                               style="width: 130px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                        <input type="text" class="note-input" value="${order.company || ''}" 
+                               placeholder="ملاحظة..." ${isDisabled}
+                               style="width: 110px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
                     </td>
                     <td>
                         <select class="form-select" ${isDisabled} style="padding: 5px; border-radius: 4px;">
@@ -140,7 +184,7 @@
                     </td>
                     <td>
                         ${isTargetBranch ? 
-                            `<button class="btn-success" style="width:auto; padding:5px 15px;" onclick="saveTransfer('${displayId}', this)">رد</button>` : 
+                            `<button class="btn-success" style="width:auto; padding:5px 10px;" onclick="saveTransfer('${displayId}', this)">رد</button>` : 
                             '<span style="font-size:12px; color:gray;">بانتظار الرد</span>'}
                     </td>
                 `;
@@ -156,19 +200,18 @@
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            // إرسال التحديث للـ Webhook الموحد في n8n
             const success = await updateData({ 
                 id: id, 
                 status: newState, 
-                company: newNote, // نرسل الملاحظة في حقل المورد كما هو مبرمج في n8n
+                company: newNote, 
                 action: "update_status" 
             });
 
             if (success) {
-                alert("تم تحديث حالة التحويل في السيرفر ✅");
+                alert("تم التحديث ✅");
                 loadTransfers(); 
             } else {
-                alert("فشل التحديث، يرجى المحاولة مرة أخرى ❌");
+                alert("فشل التحديث ❌");
                 btn.disabled = false;
                 btn.innerText = "رد";
             }
