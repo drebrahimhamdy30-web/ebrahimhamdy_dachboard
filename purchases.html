@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل المشتريات - نظام الصيدلية</title>
+    <title>سجل المشتريات الشامل - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">فحص سجل البيانات الشامل</h2>
             
-            <div id="status-message" style="color: red; text-align: center; margin-bottom: 10px;"></div>
+            <div id="status-message" style="text-align: center; margin-bottom: 10px; font-weight: bold;"></div>
 
             <div style="overflow-x: auto;">
                 <table id="orders-table">
@@ -48,75 +48,100 @@
 
     <script src="api.js"></script>
     <script>
+        // 1. التحقق من الهوية عند تحميل الصفحة
         const activeUser = checkAuth();
         const userRole = localStorage.getItem('userRole');
         const userBranch = localStorage.getItem('userBranch');
 
         if (activeUser) {
+            // عرض اسم المستخدم والفرع في الهيدر
             document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
             loadOrders();
         }
 
+        // 2. دالة جلب وعرض البيانات
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
             const msg = document.getElementById('status-message');
             
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري تحميل البيانات...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات من السيرفر...</td></tr>';
             
-            const data = await fetchData();
-            
-            if (!data) {
-                msg.innerText = "خطأ في الاتصال بالسيرفر أو تفعيل CORS";
-                tbody.innerHTML = '';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            data.forEach(order => {
-                const row = document.createElement('tr');
-                const isDisabled = (userRole === 'employee') ? 'disabled' : '';
+            try {
+                const data = await fetchData();
                 
-                // تطبيق لون الحالة تلقائياً بناءً على كود الـ CSS
-                let statusClass = '';
-                if (order.status === 'pending') statusClass = 'status-waiting';
-                else if (order.status === 'ordered') statusClass = 'status-ordered';
-                else if (order.status === 'unavailable') statusClass = 'status-unavailable';
+                if (!data || data.length === 0) {
+                    msg.style.color = "orange";
+                    msg.innerText = "لا توجد بيانات لعرضها حالياً";
+                    tbody.innerHTML = '';
+                    return;
+                }
 
-                row.innerHTML = `
-                    <td>${order.id}</td>
-                    <td>${order.type}</td>
-                    <td>${order.branch}</td>
-                    <td>${order.product}</td>
-                    <td>${order.quantity}</td>
-                    <td>
-                        <select class="form-select ${statusClass}" onchange="updateStatusLocal('${order.id}', this)" ${isDisabled}>
-                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار ⏳</option>
-                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                        </select>
-                    </td>
-                    <td class="action-cell">
-                        <button class="btn-success" style="padding: 5px 15px; font-size: 0.8rem;" onclick="saveChanges('${order.id}', this)" ${isDisabled}>حفظ</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
+                msg.innerText = "";
+                tbody.innerHTML = '';
 
-            // إخفاء عمود الإجراءات للموظفين
-            if (userRole === 'employee') {
-                document.getElementById('action-header').style.display = 'none';
-                document.querySelectorAll('.action-cell').forEach(cell => cell.style.display = 'none');
+                data.forEach(order => {
+                    const row = document.createElement('tr');
+                    const isDisabled = (userRole === 'employee') ? 'disabled' : '';
+                    
+                    // حل مشكلة الـ undefined عن طريق فحص كل المسميات المحتملة
+                    const id = order.id || '-';
+                    const type = order.type || '-';
+                    const branch = order.branch || '-';
+                    const product = order.product || order.item || 'غير محدد';
+                    const quantity = order.quantity || order.qty || '0';
+                    const status = order.status || 'pending';
+
+                    // تحديد كلاس اللون بناءً على الحالة
+                    let statusClass = '';
+                    if (status === 'pending') statusClass = 'status-waiting';
+                    else if (status === 'ordered') statusClass = 'status-ordered';
+                    else if (status === 'unavailable') statusClass = 'status-unavailable';
+
+                    row.innerHTML = `
+                        <td>${id}</td>
+                        <td>${type}</td>
+                        <td>${branch}</td>
+                        <td>${product}</td>
+                        <td>${quantity}</td>
+                        <td>
+                            <select class="form-select ${statusClass}" onchange="updateStatusLocal(this)" ${isDisabled}>
+                                <option value="pending" ${status === 'pending' ? 'selected' : ''}>في الانتظار ⏳</option>
+                                <option value="ordered" ${status === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                                <option value="unavailable" ${status === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                            </select>
+                        </td>
+                        <td class="action-cell">
+                            <button class="btn-success" style="padding: 5px 15px; font-size: 0.8rem; width: auto;" 
+                                    onclick="saveChanges('${id}', this)" ${isDisabled}>
+                                حفظ
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // إخفاء عمود الإجراءات بالكامل للموظف لزيادة الأمان
+                if (userRole === 'employee') {
+                    document.getElementById('action-header').style.display = 'none';
+                    document.querySelectorAll('.action-cell').forEach(cell => cell.style.display = 'none');
+                }
+
+            } catch (error) {
+                msg.style.color = "red";
+                msg.innerText = "خطأ في الاتصال بالسيرفر";
+                tbody.innerHTML = '';
             }
         }
 
-        // تحديث لون القائمة فور تغيير الاختيار (قبل الحفظ)
-        function updateStatusLocal(id, selectElement) {
+        // تحديث لون الاختيار بصرياً قبل الحفظ
+        function updateStatusLocal(selectElement) {
             selectElement.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
             if (selectElement.value === 'pending') selectElement.classList.add('status-waiting');
             else if (selectElement.value === 'ordered') selectElement.classList.add('status-ordered');
             else if (selectElement.value === 'unavailable') selectElement.classList.add('status-unavailable');
         }
 
+        // دالة حفظ التعديلات وإرسالها لـ n8n
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
             const newStatus = row.querySelector('select').value;
@@ -124,17 +149,28 @@
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            // استدعاء دالة التحديث من api.js (يجب أن ترتبط بـ n8n PUT/PATCH node)
-            const success = await updateData({ id: id, status: newStatus });
+            try {
+                // استدعاء دالة التحديث من api.js
+                const success = await updateData({ id: id, status: newStatus });
 
-            if (success) {
-                alert(`تم تحديث الطلب رقم ${id} بنجاح`);
-                loadOrders(); // إعادة تحميل الجدول لتأكيد البيانات
-            } else {
-                alert("فشل تحديث البيانات");
+                if (success) {
+                    alert(`تم تحديث الطلب رقم ${id} بنجاح`);
+                    loadOrders(); // تحديث الجدول
+                } else {
+                    alert("فشل التحديث، تأكد من إعدادات n8n");
+                    btn.disabled = false;
+                    btn.innerText = "حفظ";
+                }
+            } catch (error) {
+                alert("حدث خطأ أثناء الحفظ");
                 btn.disabled = false;
                 btn.innerText = "حفظ";
             }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
         }
     </script>
 </body>
