@@ -57,108 +57,109 @@
     </div>
 
     <script src="api.js"></script>
-    <script>
-        const activeUser = checkAuth();
-        const userRole = (localStorage.getItem('userRole') || '').toLowerCase();
-        
-        // تعديل جوهري: السماح لليوزر الظاهر في صورتك (sanstefano) بالتحكم الكامل
-        const privilegedUsers = ['ebrahim', 'sanstefano', 'admin', 'manager'];
-        const canEdit = privilegedUsers.includes(activeUser?.toLowerCase()) || userRole === 'admin';
-
-        if (activeUser) {
-            document.getElementById('nav-user').innerText = activeUser;
-            loadOrders();
-        }
-
-        async function loadOrders() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-            const response = await fetchData(); 
-            if (response && response[0] && response[0].data) {
-                rawData = response[0].data; 
-                applyFilter();
-            } else {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات</td></tr>';
-            }
-        }
-
-        function renderTable(items) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-
-            items.forEach(order => {
-                const row = document.createElement('tr');
-                // إذا كان المستخدم مسموح له، اترك isDisabled فارغة
-                const isDisabled = canEdit ? '' : 'disabled';
-                
-                const item = order.item || '-';
-                const qty = order.qty || '0';
-                const company = order.company || '';
-                const currentState = order.state || 'pending';
-
-                let statusClass = (currentState === 'ordered') ? 'status-ordered' : 
-                                 (currentState === 'unavailable') ? 'status-unavailable' : 'status-waiting';
-
-                row.innerHTML = `
-                    <td>${order.id}</td>
-                    <td>${order.branch}</td>
-                    <td>${item}</td>
-                    <td>${qty}</td>
-                    <td>
-                        <input type="text" class="company-input" value="${company}" 
-                               placeholder="اسم الشركة..." ${isDisabled}
-                               style="width: 130px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
-                    </td>
-                    <td>
-                        <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                        </select>
-                    </td>
-                    <td>
-                        ${canEdit ? `<button class="btn-success" style="width:auto; padding:5px 15px;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function applyFilter() {
-            const val = document.getElementById('statusFilter').value;
-            renderTable(val === 'all' ? rawData : rawData.filter(o => (o.state || 'pending') === val));
-        }
-
-        function updateStatusColor(select) {
-            select.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
-            if (select.value === 'pending') select.classList.add('status-waiting');
-            else if (select.value === 'ordered') select.classList.add('status-ordered');
-            else if (select.value === 'unavailable') select.classList.add('status-unavailable');
-        }
-
-async function saveChanges(id, btn) {
-    const row = btn.closest('tr');
-    const newState = row.querySelector('select').value;
-    const newCompany = row.querySelector('.company-input').value;
+  <script>
+    const activeUser = checkAuth();
+    const userRole = (localStorage.getItem('userRole') || '').toLowerCase();
     
-    btn.disabled = true;
-    btn.innerText = "⏳";
+    // تعريف المتغير عالمياً لضمان الوصول إليه من كل الدوال
+    let rawData = []; 
 
-    // التعديل هنا: نرسل 'status' بدلاً من 'state' ليقرأها n8n بشكل صحيح
-    // ونضيف 'action' ليدخل في مسار الـ Update داخل الـ IF node
-    const success = await updateData({ 
-        id: id, 
-        status: newState, // تغيير المسمى هنا ليطابق $json.body.status في n8n
-        company: newCompany,
-        action: "update_status" // لضمان مرورها من عقدة الـ IF في n8n
-    });
+    const privilegedUsers = ['ebrahim', 'sanstefano', 'admin', 'manager'];
+    const canEdit = privilegedUsers.includes(activeUser?.toLowerCase()) || userRole === 'admin';
 
-    if (success) {
-        alert("تم الحفظ في السيرفر ✅");
-        loadOrders(); 
-    } else {
-        alert("فشل الحفظ ❌");
-        btn.disabled = false;
-        btn.innerText = "حفظ";
+    if (activeUser) {
+        document.getElementById('nav-user').innerText = activeUser;
+        loadOrders();
     }
-}
+
+    async function loadOrders() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+        const response = await fetchData(); 
+        if (response && response[0] && response[0].data) {
+            rawData = response[0].data; // تخزين البيانات هنا
+            applyFilter();
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد بيانات</td></tr>';
+        }
+    }
+
+    function renderTable(items) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        items.forEach(order => {
+            const row = document.createElement('tr');
+            const isDisabled = canEdit ? '' : 'disabled';
+            
+            const item = order.item || '-';
+            const qty = order.qty || '0';
+            const company = order.company || '';
+            const currentState = order.state || 'pending';
+
+            let statusClass = (currentState === 'ordered') ? 'status-ordered' : 
+                             (currentState === 'unavailable') ? 'status-unavailable' : 'status-waiting';
+
+            row.innerHTML = `
+                <td>${order.id}</td>
+                <td>${order.branch}</td>
+                <td>${item}</td>
+                <td>${qty}</td>
+                <td>
+                    <input type="text" class="company-input" value="${company}" 
+                           placeholder="اسم الشركة..." ${isDisabled}
+                           style="width: 130px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                </td>
+                <td>
+                    <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
+                        <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
+                        <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                        <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                    </select>
+                </td>
+                <td>
+                    ${canEdit ? `<button class="btn-success" style="width:auto; padding:5px 15px;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function applyFilter() {
+        const val = document.getElementById('statusFilter').value;
+        renderTable(val === 'all' ? rawData : rawData.filter(o => (o.state || 'pending') === val));
+    }
+
+    function updateStatusColor(select) {
+        select.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
+        if (select.value === 'pending') select.classList.add('status-waiting');
+        else if (select.value === 'ordered') select.classList.add('status-ordered');
+        else if (select.value === 'unavailable') select.classList.add('status-unavailable');
+    }
+
+    async function saveChanges(id, btn) {
+        const row = btn.closest('tr');
+        const newState = row.querySelector('select').value;
+        const newCompany = row.querySelector('.company-input').value;
+        
+        btn.disabled = true;
+        btn.innerText = "⏳";
+
+        // إرسال البيانات بما يتوافق مع الـ Update Row في n8n
+        const success = await updateData({ 
+            id: id, 
+            status: newState, 
+            company: newCompany,
+            action: "update_status" 
+        });
+
+        if (success) {
+            alert("تم الحفظ في السيرفر ✅");
+            loadOrders(); 
+        } else {
+            alert("فشل الحفظ ❌");
+            btn.disabled = false;
+            btn.innerText = "حفظ";
+        }
+    }
+</script>
