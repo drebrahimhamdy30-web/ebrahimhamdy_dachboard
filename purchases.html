@@ -25,6 +25,7 @@
             <h2 style="text-align: center; margin-bottom: 20px;">فحص سجل البيانات الشامل</h2>
 
             <div style="background: #fff9c4; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #fbc02d; gap: 10px;">
+                <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث البيانات من السيرفر 🔄</button>
                 <div>
                     <label style="font-weight: bold; margin-left: 10px;">تصفية حسب الحالة:</label>
                     <select id="statusFilter" onchange="applyFilter()" style="width: 200px; padding: 5px; border-radius: 5px;">
@@ -34,7 +35,6 @@
                         <option value="unavailable">غير متوفر ❌</option>
                     </select>
                 </div>
-                <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث البيانات من السيرفر 🔄</button>
             </div>
             
             <div id="status-message" style="color: red; text-align: center; margin-bottom: 10px;"></div>
@@ -61,11 +61,10 @@
 
     <script src="api.js"></script>
     <script>
-        // المتغيرات الأساسية
         const activeUser = checkAuth();
         const userRole = localStorage.getItem('userRole');
         const userBranch = localStorage.getItem('userBranch');
-        let rawData = []; // لتخزين البيانات الأصلية من أجل التصفية
+        let rawData = []; 
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
@@ -74,22 +73,20 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            const msg = document.getElementById('status-message');
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>';
             
-            const data = await fetchData();
+            const data = await fetchData(); // استدعاء الدالة من api.js
             
             if (!data) {
-                msg.innerText = "خطأ في الاتصال بالسيرفر أو تفعيل CORS";
+                document.getElementById('status-message').innerText = "خطأ في الاتصال بالسيرفر";
                 tbody.innerHTML = '';
                 return;
             }
 
-            rawData = data; // حفظ نسخة للفلترة
+            rawData = data; 
             renderTable(rawData);
         }
 
-        // دالة رسم الجدول (التي تجعل الكود منظم)
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -98,7 +95,11 @@
                 const row = document.createElement('tr');
                 const isDisabled = (userRole === 'employee') ? 'disabled' : '';
                 
-                // تحديد لون الحالة بصرياً
+                // حل مشكلة الـ undefined بفحص المسميات المختلفة
+                const product = order.product || order.item || 'undefined';
+                const quantity = order.quantity || order.qty || '0';
+
+                // تنسيق لون الحالة
                 let statusClass = '';
                 if (order.status === 'pending') statusClass = 'status-waiting';
                 else if (order.status === 'ordered') statusClass = 'status-ordered';
@@ -108,8 +109,8 @@
                     <td>${order.id}</td>
                     <td>${order.type}</td>
                     <td>${order.branch}</td>
-                    <td>${order.product || order.item}</td>
-                    <td>${order.quantity || order.qty}</td>
+                    <td>${product}</td>
+                    <td>${quantity}</td>
                     <td>
                         <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
                             <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار</option>
@@ -125,25 +126,17 @@
                 tbody.appendChild(row);
             });
 
-            // إخفاء الأزرار للموظفين
             if (userRole === 'employee') {
                 document.getElementById('action-header').style.display = 'none';
                 document.querySelectorAll('.action-cell').forEach(c => c.style.display = 'none');
             }
         }
 
-        // دالة التصفية
         function applyFilter() {
             const val = document.getElementById('statusFilter').value;
-            if (val === 'all') {
-                renderTable(rawData);
-            } else {
-                const filtered = rawData.filter(o => o.status === val);
-                renderTable(filtered);
-            }
+            renderTable(val === 'all' ? rawData : rawData.filter(o => o.status === val));
         }
 
-        // تغيير اللون فوراً عند اختيار حالة جديدة
         function updateStatusColor(select) {
             select.classList.remove('status-waiting', 'status-ordered', 'status-unavailable');
             if (select.value === 'pending') select.classList.add('status-waiting');
@@ -154,18 +147,15 @@
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
             const newStatus = row.querySelector('select').value;
-            
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            // إرسال لـ n8n
             const success = await updateData({ id: id, status: newStatus });
-
             if (success) {
-                alert("تم حفظ التعديل بنجاح ✅");
+                alert("تم الحفظ ✅");
                 loadOrders(); 
             } else {
-                alert("فشل الحفظ، حاول مرة أخرى ❌");
+                alert("فشل الحفظ ❌");
                 btn.disabled = false;
                 btn.innerText = "حفظ";
             }
