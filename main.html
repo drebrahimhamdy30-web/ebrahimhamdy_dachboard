@@ -26,7 +26,7 @@
             <form id="orderForm">
                 <div class="form-group">
                     <label>نوع الطلب</label>
-                    <select id="type" required>
+                    <select id="type" onchange="toggleBranchLock()" required>
                         <option value="شراء">طلب شراء (نقص)</option>
                         <option value="تحويل">تحويل بين الفروع</option>
                         <option value="جرد">إشعار جرد</option>
@@ -39,12 +39,32 @@
                         <option value="فرع المعمورة">فرع المعمورة</option>
                         <option value="فرع سان ستيفانو">فرع سان ستيفانو</option>
                         <option value="فرع سيدى بشر">فرع سيدى بشر</option>
+                        <option value="فرع ميامي">فرع ميامي</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label>اسم المنتج / الكود</label>
-                    <input type="text" id="item" placeholder="مثلاً: بانتوجار كبسول" required>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>كود الصنف</label>
+                        <input type="text" id="item_code" placeholder="اختياري">
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label>اسم الصنف</label>
+                        <input type="text" id="item_name" placeholder="اسم المنتج" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>كود العميل</label>
+                        <input type="text" id="customer_code" placeholder="اختياري">
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label>اسم العميل</label>
+                        <input type="text" id="customer_name" placeholder="اسم العميل">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -61,58 +81,73 @@
 
     <script src="api.js"></script>
     <script>
-        // 1. التأكد من الهوية وتجهيز البيانات
         const activeUser = checkAuth();
         const userBranch = localStorage.getItem('userBranch');
 
         if (activeUser) {
-            // تحديث اسم المستخدم في الشريط
-            document.getElementById('nav-user').innerText = activeUser;
+            document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
+            // تنفيذ القفل الأولي عند التحميل
+            toggleBranchLock();
+        }
+
+        // دالة قفل الفرع بناءً على نوع الطلب
+        function toggleBranchLock() {
+            const typeSelect = document.getElementById('type');
+            const branchSelect = document.getElementById('branch');
             
-            // اختيار فرع المستخدم تلقائياً في القائمة (اختياري لتسهيل الإدخال)
-            if (userBranch) {
-                const branchSelect = document.getElementById('branch');
-                // محاولة مطابقة الفرع المخزن مع خيارات القائمة
-                for (let option of branchSelect.options) {
-                    if (option.value.includes(userBranch)) {
-                        option.selected = true;
-                        break;
+            if (typeSelect.value === "شراء") {
+                // ضبط الفرع لفرع المستخدم وقفل الاختيار
+                if (userBranch) {
+                    for (let option of branchSelect.options) {
+                        if (option.value.includes(userBranch)) {
+                            option.selected = true;
+                            break;
+                        }
                     }
                 }
+                branchSelect.disabled = true;
+            } else {
+                // فتح الاختيار لأنواع الطلبات الأخرى
+                branchSelect.disabled = false;
             }
         }
 
-        // 2. دالة إرسال الطلب لـ n8n
         async function submitOrder() {
             const user = checkAuth();
             if (!user) return;
 
             const btn = document.getElementById('submitBtn');
+            const branchSelect = document.getElementById('branch');
+            
+            // تجميع البيانات للحقول الجديدة
             const formData = {
                 user: user,
                 type: document.getElementById('type').value,
-                branch: document.getElementById('branch').value,
-                product: document.getElementById('item').value, // تأكد من مطابقة المسمى في n8n (product)
-                quantity: document.getElementById('qty').value,
-                status: 'pending', // حالة افتراضية للطلبات الجديدة
-                createdAt: new Date().toLocaleString('ar-EG') // تاريخ بتنسيق عربي
+                branch: branchSelect.value, // حتى لو disabled سيأخذ القيمة المختارة
+                item_code: document.getElementById('item_code').value,
+                item: document.getElementById('item_name').value, 
+                customer_code: document.getElementById('customer_code').value,
+                customer_name: document.getElementById('customer_name').value,
+                qty: document.getElementById('qty').value,
+                state: 'pending',
+                createdAt: new Date().toISOString()
             };
 
             try {
                 btn.disabled = true;
-                btn.innerText = "جاري الإرسال...";
+                btn.innerText = "⏳ جاري الإرسال...";
                 
                 const success = await postData(formData);
                 
                 if (success) {
                     alert("تم إرسال الطلب بنجاح ✅");
                     document.getElementById('orderForm').reset();
+                    toggleBranchLock(); // إعادة القفل بعد مسح النموذج
                 } else {
-                    alert("فشل الإرسال، تأكد من اتصال n8n");
+                    alert("فشل الإرسال ❌");
                 }
             } catch (error) {
-                console.error("Submit Error:", error);
-                alert("حدث خطأ غير متوقع");
+                alert("حدث خطأ في الاتصال");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "إرسال الطلب الآن";
