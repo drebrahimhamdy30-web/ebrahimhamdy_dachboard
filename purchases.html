@@ -25,11 +25,11 @@
             <h2 style="text-align: center; margin-bottom: 20px;">فحص سجل البيانات الشامل</h2>
 
             <div style="background: #fff9c4; padding: 15px; border-radius: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #fbc02d; gap: 10px;">
-                <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث البيانات من السيرفر 🔄</button>
+                <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث البيانات 🔄</button>
                 <div>
                     <label style="font-weight: bold; margin-left: 10px;">تصفية حسب الحالة:</label>
                     <select id="statusFilter" onchange="applyFilter()" style="width: 200px; padding: 5px; border-radius: 5px;">
-                        <option value="all">عرض الكل (بدون استثناء)</option>
+                        <option value="all">عرض الكل</option>
                         <option value="pending">في الانتظار ⏳</option>
                         <option value="ordered">تم الطلب ✅</option>
                         <option value="unavailable">غير متوفر ❌</option>
@@ -52,8 +52,7 @@
                             <th id="action-header">إجراء</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
-                        </tbody>
+                    <tbody id="table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -75,16 +74,16 @@
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>';
             
-            const data = await fetchData(); // استدعاء الدالة من api.js
+            const response = await fetchData(); 
             
-            if (!data) {
-                document.getElementById('status-message').innerText = "خطأ في الاتصال بالسيرفر";
+            // التعديل هنا: الوصول لمصفوفة data داخل أول عنصر في الرد
+            if (response && response[0] && response[0].data) {
+                rawData = response[0].data; 
+                renderTable(rawData);
+            } else {
+                document.getElementById('status-message').innerText = "لا توجد بيانات متاحة";
                 tbody.innerHTML = '';
-                return;
             }
-
-            rawData = data; 
-            renderTable(rawData);
         }
 
         function renderTable(items) {
@@ -93,34 +92,34 @@
 
             items.forEach(order => {
                 const row = document.createElement('tr');
-                const isDisabled = (userRole === 'employee') ? 'disabled' : '';
+                const isAdmin = (userRole === 'admin' || userRole === 'manager');
+                const isDisabled = !isAdmin ? 'disabled' : '';
                 
-                // حل مشكلة الـ undefined بفحص المسميات المختلفة
-                const product = order.product || order.item || 'undefined';
-                const quantity = order.quantity || order.qty || '0';
+                // مطابقة المسميات مع مخرجات n8n الجديدة
+                const item = order.item || '-';
+                const qty = order.qty || '0';
+                const currentState = order.state || 'pending'; // n8n يرسلها null أحياناً
 
-                // تنسيق لون الحالة
                 let statusClass = '';
-                if (order.status === 'pending') statusClass = 'status-waiting';
-                else if (order.status === 'ordered') statusClass = 'status-ordered';
-                else if (order.status === 'unavailable') statusClass = 'status-unavailable';
+                if (currentState === 'pending' || currentState === null) statusClass = 'status-waiting';
+                else if (currentState === 'ordered') statusClass = 'status-ordered';
+                else if (currentState === 'unavailable') statusClass = 'status-unavailable';
 
                 row.innerHTML = `
                     <td>${order.id}</td>
                     <td>${order.type}</td>
                     <td>${order.branch}</td>
-                    <td>${product}</td>
-                    <td>${quantity}</td>
+                    <td>${item}</td>
+                    <td>${qty}</td>
                     <td>
                         <select class="form-select ${statusClass}" onchange="updateStatusColor(this)" ${isDisabled}>
-                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>في الانتظار</option>
-                            <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>تم الطلب</option>
-                            <option value="unavailable" ${order.status === 'unavailable' ? 'selected' : ''}>غير متوفر</option>
+                            <option value="pending" ${currentState === 'pending' || currentState === null ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
                     <td class="action-cell">
-                        <button class="btn-success" style="padding: 5px 12px; font-size: 0.8rem; width: auto;" 
-                                onclick="saveChanges('${order.id}', this)" ${isDisabled}>حفظ</button>
+                        ${isAdmin ? `<button class="btn-success" style="padding: 5px 12px; font-size: 0.8rem; width: auto;" onclick="saveChanges('${order.id}', this)">حفظ</button>` : '-'}
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -134,7 +133,12 @@
 
         function applyFilter() {
             const val = document.getElementById('statusFilter').value;
-            renderTable(val === 'all' ? rawData : rawData.filter(o => o.status === val));
+            if (val === 'all') {
+                renderTable(rawData);
+            } else {
+                // الفلترة بناءً على حقل state الجديد
+                renderTable(rawData.filter(o => (o.state || 'pending') === val));
+            }
         }
 
         function updateStatusColor(select) {
@@ -146,11 +150,12 @@
 
         async function saveChanges(id, btn) {
             const row = btn.closest('tr');
-            const newStatus = row.querySelector('select').value;
+            const newState = row.querySelector('select').value;
             btn.disabled = true;
             btn.innerText = "⏳";
 
-            const success = await updateData({ id: id, status: newStatus });
+            // إرسال التحديث لـ n8n (تأكد من إرسال "state" بدلاً من "status")
+            const success = await updateData({ id: id, state: newState });
             if (success) {
                 alert("تم الحفظ ✅");
                 loadOrders(); 
