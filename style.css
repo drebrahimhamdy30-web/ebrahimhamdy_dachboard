@@ -1,186 +1,199 @@
-/* الألوان والخطوط الأساسية */
+/* 1. الألوان والمتغيرات الأساسية */
 :root {
-    --primary-color: #1a73e8; /* أزرق احترافي */
-    --secondary-color: #f8f9fa;
+    --primary-color: #1a73e8;    /* أزرق جوجل الاحترافي */
+    --nav-bg: #2c3e50;          /* لون الشريط العلوي الداكن */
     --success-color: #28a745;
     --danger-color: #dc3545;
-    --text-dark: #333;
-    --border-color: #ddd;
+    --bg-light: #f4f7f6;
+    --text-main: #333;
+    --border-color: #e0e0e0;
 }
 
+/* 2. التنسيق العام للجسم */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--secondary-color);
+    background-color: var(--bg-light);
     margin: 0;
     padding: 0;
     direction: rtl;
+    color: var(--text-main);
 }
 
-/* الهيدر (رأس الصفحة) */
-.main-header {
-    background-color: white;
-    padding: 1rem 2rem;
+/* 3. شريط التنقل العلوي (Nav-bar) - النسخة النهائية */
+.nav-bar {
+    background-color: var(--nav-bg);
+    color: white;
+    padding: 12px 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
-/* القائمة الجانبية أو العلوية */
-.nav-menu {
-    background: #fff;
+.nav-links {
     display: flex;
-    justify-content: center;
-    gap: 20px;
-    padding: 10px;
-    border-bottom: 1px solid var(--border-color);
+    gap: 12px;
 }
 
-.nav-link {
+.nav-links a {
+    color: #ecf0f1;
     text-decoration: none;
-    color: #666;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.nav-links a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-links a.active {
+    background-color: var(--primary-color);
+    color: white;
     font-weight: bold;
-    padding: 8px 15px;
-    border-radius: 5px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#nav-user {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #bdc3c7;
+}
+
+.logout-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
     transition: 0.3s;
 }
 
-.nav-link:hover, .nav-link.active {
-    background-color: var(--primary-color);
-    color: white;
+.logout-btn:hover {
+    background-color: #c82333;
 }
 
-/* الكروت والحاويات */
+/* 4. الحاويات والكروت */
 .container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 0 15px;
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 20px;
 }
 
 .card {
     background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+}
+
+/* 5. النماذج (Forms) - لصفحة الإدخال */
+.form-group {
     margin-bottom: 20px;
 }
 
-/* الجداول الاحترافية */
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+input, select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.1rem;
+    transition: 0.3s;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+}
+
+/* 6. الجداول - لصفحة سجل المشتريات */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
+    margin-top: 20px;
+    background: white;
 }
 
 th {
-    background-color: #f1f3f4;
-    padding: 12px;
+    background-color: #f8f9fa;
+    color: #555;
+    padding: 15px;
     text-align: right;
     border-bottom: 2px solid var(--border-color);
 }
 
 td {
-    padding: 12px;
+    padding: 15px;
     border-bottom: 1px solid #eee;
 }
 
-/* الفورم (النماذج) */
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; }
-input, select, textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.3s;
-}
-
-.btn-success { background-color: var(--success-color); color: white; }
-.btn-success:hover { opacity: 0.9; }
-/* --- ألوان حالات المشتريات --- */
-
-/* في الانتظار - أزرق */
+/* 7. ألوان حالات المشتريات */
 .status-waiting { 
     background-color: #e3f2fd !important; 
     color: #0d47a1 !important; 
     border: 1px solid #0d47a1 !important;
 }
 
-/* تم الطلب - أخضر */
 .status-ordered { 
     background-color: #e8f5e9 !important; 
     color: #1b5e20 !important; 
     border: 1px solid #1b5e20 !important;
 }
 
-/* غير متوفر - أحمر */
 .status-unavailable { 
     background-color: #ffebee !important; 
     color: #b71c1c !important; 
     border: 1px solid #b71c1c !important;
 }
 
-/* تنسيق إضافي لجعل القائمة المنسدلة أوضح */
-.form-select {
-    padding: 5px;
-    border-radius: 5px;
-    font-weight: bold;
-}
-/* تنسيق شريط التنقل العلوي */
-.nav-bar {
-    background-color: #f8f9fa;
-    padding: 10px 20px;
-    display: flex;
-    justify-content: space-between; /* يضع الروابط في جهة والمعلومات في جهة */
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    direction: rtl;
-}
-
-.nav-links {
-    display: flex;
-    gap: 15px; /* مسافة بين الأزرار */
-}
-
-.nav-links a {
-    text-decoration: none;
-    color: #333;
-    padding: 8px 12px;
-    border-radius: 5px;
-    font-size: 14px;
-    transition: 0.3s;
-}
-
-.nav-links a:hover {
-    background-color: #e9ecef;
-}
-
-.nav-links a.active {
-    background-color: #007bff;
-    color: white;
-}
-
-.user-info {
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.logout-btn {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
+/* تحسين شكل الموبايل */
+@media (max-width: 768px) {
+    .nav-bar {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
 }
