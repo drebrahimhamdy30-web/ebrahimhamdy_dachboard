@@ -1,239 +1,136 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل المشتريات - صيدلية د. إبراهيم</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .filter-box {
-            background: #fff9c4;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #fbc02d;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .branch-filters-container {
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dotted #fbc02d;
-        }
-        .branch-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 8px;
-        }
-        .branch-item {
-            background: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            border: 1px solid #fbc02d;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .branch-item:hover { background: #fffde7; }
-        .branch-item input { cursor: pointer; }
-        
-        .status-waiting { background-color: #fff3e0 !important; color: #e65100; }
-        .status-ordered { background-color: #e8f5e9 !important; color: #2e7d32; }
-        .status-unavailable { background-color: #ffebee !important; color: #c62828; }
-    </style>
-</head>
-<body>
-    <div class="nav-bar">
-        <div class="nav-links">
-            <a href="main.html">➕ مدخلات جديدة</a>
-            <a href="purchases.html" class="active">🛒 سجل المشتريات</a>
-            <a href="transfers.html">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> 
-            <a href="notifications.html">🔔 الإشعارات</a> 
-        </div>
-        <div class="user-info">
-            <span id="nav-user"></span>
-            <button onclick="logout()" class="logout-btn">خروج</button>
-        </div>
-    </div>
+<script src="api.js"></script>
+<script>
+    const activeUser = checkAuth();
+    let rawData = []; 
 
-    <div class="container">
-        <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات والطلبيات 🛒</h2>
+    // نظام الصلاحيات: جعل canEdit متاحاً دائماً طالما سجلت الدخول
+    const canEdit = true; 
 
-            <div class="filter-box">
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-                    <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث 🔄</button>
-                    <div>
-                        <label style="font-weight: bold;">الحالة:</label>
-                        <select id="statusFilter" onchange="applyFilter()" style="padding: 6px; border-radius: 5px; border: 1px solid #ccc;">
-                            <option value="all">عرض الكل</option>
-                            <option value="pending" selected>في الانتظار ⏳</option>
-                            <option value="ordered">تم الطلب ✅</option>
-                            <option value="unavailable">غير متوفر ❌</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="branch-filters-container">
-                    <label style="font-weight: bold; font-size: 14px;">تصفية حسب الفرع:</label>
-                    <div id="branchList" class="branch-list"></div>
-                </div>
-            </div>
-
-            <div style="overflow-x: auto;">
-                <table id="orders-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>الفرع</th>
-                            <th>كود الصنف</th>
-                            <th>اسم الصنف</th>
-                            <th>الكمية</th>
-                            <th>المورد / ملاحظات</th>
-                            <th>الحالة</th>
-                            <th>حفظ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <script src="api.js"></script>
-    <script>
-        const activeUser = checkAuth();
-        let rawData = []; 
-
-        // التعديل هنا: جعل canEdit دائماً true طالما المستخدم مسجل دخول
-        const canEdit = true; 
-
-        if (activeUser) {
-            document.getElementById('nav-user').innerText = activeUser;
-            window.onload = loadOrders;
-        }
-
-async function loadOrders() {
-    const tbody = document.getElementById('table-body');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-    
-    try {
-        const data = await fetchOrders(); // استخدام الدالة الموحدة
-        
-        if (data && data.length > 0) {
-            // تصفية البيانات للتأكد من أنها "شراء" فقط
-            rawData = data.filter(item => item.type === "شراء");
-            generateBranchCheckboxes(rawData);
-            applyFilter();
-        } else {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد طلبات شراء متاحة</td></tr>';
-        }
-    } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في جلب البيانات من السيرفر</td></tr>';
+    if (activeUser) {
+        document.getElementById('nav-user').innerText = activeUser;
+        window.onload = loadOrders;
     }
-}
-        function generateBranchCheckboxes(data) {
-            const container = document.getElementById('branchList');
-            const branches = [...new Set(data.map(item => item.branch))]
-                             .filter(b => b && b.trim() !== '')
-                             .sort();
+
+    async function loadOrders() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+        
+        try {
+            // نستخدم fetchOrders() الموحدة في api.js التي ترسل ?type=orders
+            const response = await fetchOrders(); 
             
-            container.innerHTML = '';
-            branches.forEach(br => {
-                const label = document.createElement('label');
-                label.className = 'branch-item';
-                label.innerHTML = `
-                    <input type="checkbox" class="branch-cb" value="${br}" checked onchange="applyFilter()">
-                    ${br}
-                `;
-                container.appendChild(label);
-            });
-        }
-
-        function applyFilter() {
-            const statusVal = document.getElementById('statusFilter').value;
-            const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked'))
-                                          .map(cb => cb.value);
-
-            const filtered = rawData.filter(order => {
-                const stateMatch = (statusVal === 'all') || (order.state || 'pending') === statusVal;
-                const branchMatch = selectedBranches.includes(order.branch);
-                return stateMatch && branchMatch;
-            });
-
-            renderTable(filtered);
-        }
-
-        function renderTable(items) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-
-            if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">لا توجد بيانات تطابق الفلاتر</td></tr>';
-                return;
-            }
-
-            items.forEach((order) => {
-                const row = document.createElement('tr');
-                const currentState = order.state || 'pending';
-                const displayId = order.id;
-
-                row.innerHTML = `
-                    <td>${displayId}</td>
-                    <td style="font-weight:bold;">${order.branch || '-'}</td>
-                    <td style="color: #666;">${order.item_code || '-'}</td>
-                    <td>${order.item_name || '-'}</td>
-                    <td>${order.qty || '0'}</td>
-                    <td>
-                        <input type="text" class="company-in" value="${order.company || ''}" 
-                               style="width:110px; padding:4px;">
-                    </td>
-                    <td>
-                        <select class="form-select" style="padding: 4px; border-radius: 4px;">
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
-                        </select>
-                    </td>
-                    <td>
-                        <button class="btn-success" onclick="saveRow('${displayId}', this)" style="padding:4px 10px;">حفظ</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        async function saveRow(id, btn) {
-            const row = btn.closest('tr');
-            const status = row.querySelector('select').value;
-            const company = row.querySelector('.company-in').value;
+            // التحقق من وصول البيانات (سواء مصفوفة مباشرة أو داخل كائن data)
+            let dataToProcess = Array.isArray(response) ? response : (response.data || []);
             
-            btn.disabled = true;
-            btn.innerText = "⏳";
-
-            const success = await updateData({ 
-                id: id, 
-                status: status, 
-                company: company, 
-                type: "شراء", 
-                action: "update_status" 
-            });
-
-            if (success) {
-                alert("تم التحديث بنجاح ✅");
-                loadOrders(); 
+            if (dataToProcess.length > 0) {
+                // تصفية البيانات لتشمل نوع "شراء" فقط
+                rawData = dataToProcess.filter(item => item.type === "شراء");
+                generateBranchCheckboxes(rawData);
+                applyFilter();
             } else {
-                alert("فشل التحديث ❌");
-                btn.disabled = false;
-                btn.innerText = "حفظ";
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات متاحة</td></tr>';
             }
+        } catch (error) {
+            console.error("Load Error:", error);
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
         }
-    </script>
-</body>
-</html>
+    }
+
+    function generateBranchCheckboxes(data) {
+        const container = document.getElementById('branchList');
+        const branches = [...new Set(data.map(item => item.branch))]
+                         .filter(b => b && b.trim() !== '')
+                         .sort();
+        
+        container.innerHTML = '';
+        branches.forEach(br => {
+            const label = document.createElement('label');
+            label.className = 'branch-item';
+            label.innerHTML = `
+                <input type="checkbox" class="branch-cb" value="${br}" checked onchange="applyFilter()">
+                ${br}
+            `;
+            container.appendChild(label);
+        });
+    }
+
+    function applyFilter() {
+        const statusVal = document.getElementById('statusFilter').value;
+        const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked'))
+                                      .map(cb => cb.value);
+
+        const filtered = rawData.filter(order => {
+            const stateMatch = (statusVal === 'all') || (order.state || 'pending') === statusVal;
+            const branchMatch = selectedBranches.includes(order.branch);
+            return stateMatch && branchMatch;
+        });
+
+        renderTable(filtered);
+    }
+
+    function renderTable(items) {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">لا توجد بيانات تطابق الفلاتر</td></tr>';
+            return;
+        }
+
+        items.forEach((order) => {
+            const row = document.createElement('tr');
+            const currentState = order.state || 'pending';
+            const displayId = order.id;
+
+            row.innerHTML = `
+                <td>${displayId}</td>
+                <td style="font-weight:bold;">${order.branch || '-'}</td>
+                <td style="color: #666;">${order.item_code || '-'}</td>
+                <td>${order.item_name || '-'}</td>
+                <td>${order.qty || '0'}</td>
+                <td>
+                    <input type="text" class="company-in" value="${order.company || ''}" 
+                           style="width:110px; padding:4px;">
+                </td>
+                <td>
+                    <select class="form-select" style="padding: 4px; border-radius: 4px;">
+                        <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
+                        <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                        <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-success" onclick="saveRow('${displayId}', this)" style="padding:4px 10px;">حفظ</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    async function saveRow(id, btn) {
+        const row = btn.closest('tr');
+        const status = row.querySelector('select').value;
+        const company = row.querySelector('.company-in').value;
+        
+        btn.disabled = true;
+        btn.innerText = "⏳";
+
+        // إرسال البيانات للويب هوك الموحد بنوع POST
+        const success = await updateData({ 
+            id: id, 
+            status: status, 
+            company: company, 
+            type: "شراء", 
+            action: "update_status" 
+        });
+
+        if (success) {
+            alert("تم التحديث بنجاح ✅");
+            loadOrders(); 
+        } else {
+            alert("فشل التحديث ❌");
+            btn.disabled = false;
+            btn.innerText = "حفظ";
+        }
+    }
+</script>
