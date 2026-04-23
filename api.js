@@ -1,21 +1,25 @@
-// الرابط الأساسي (للمشتريات، التحويلات، الجرد)
-const MAIN_API_URL = "https://agent.ebrahimhamdy.com/webhook/get_order"; // تأكد من وضع رابطك القديم هنا
+// الرابط الموحد لكل عمليات العرض
+const FETCH_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
 
-// الرابط الجديد (للإشعارات فقط)
-const NOTIF_API_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
-
-// دالة إرسال البيانات (للمشتريات والتحويلات والجرد)
-async function postData(data) {
+// 1. دالة جلب المشتريات والتحويلات (تأكد أن الشرط في n8n هو orders)
+async function fetchOrders() {
     try {
-        const response = await fetch(MAIN_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        return response.ok;
+        const response = await fetch(`${FETCH_URL}?type=orders`); // أضفنا type=orders
+        const data = await response.json();
+        return Array.isArray(data) ? data : (data.data || []);
     } catch (error) {
-        console.error("Error posting data:", error);
-        return false;
+        return [];
+    }
+}
+
+// 2. دالة جلب الإشعارات (تأكد أن الشرط في n8n هو notifications)
+async function fetchNotifications() {
+    try {
+        const response = await fetch(`${FETCH_URL}?type=notifications`); // أضفنا type=notifications
+        const data = await response.json();
+        return Array.isArray(data) ? data : (data.data || []);
+    } catch (error) {
+        return [];
     }
 }
 
