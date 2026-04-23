@@ -119,24 +119,25 @@
             window.onload = loadOrders;
         }
 
-        async function loadOrders() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
-            
-            try {
-                const response = await fetchData(); 
-                if (response && response[0] && response[0].data) {
-                    rawData = response[0].data.filter(item => item.type === "شراء");
-                    generateBranchCheckboxes(rawData);
-                    applyFilter();
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات متاحة</td></tr>';
-                }
-            } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
-            }
+async function loadOrders() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
+    
+    try {
+        const data = await fetchOrders(); // استخدام الدالة الموحدة
+        
+        if (data && data.length > 0) {
+            // تصفية البيانات للتأكد من أنها "شراء" فقط
+            rawData = data.filter(item => item.type === "شراء");
+            generateBranchCheckboxes(rawData);
+            applyFilter();
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد طلبات شراء متاحة</td></tr>';
         }
-
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في جلب البيانات من السيرفر</td></tr>';
+    }
+}
         function generateBranchCheckboxes(data) {
             const container = document.getElementById('branchList');
             const branches = [...new Set(data.map(item => item.branch))]
