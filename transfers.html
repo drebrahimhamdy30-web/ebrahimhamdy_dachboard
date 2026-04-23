@@ -51,7 +51,9 @@
             <a href="main.html">➕ مدخلات جديدة</a>
             <a href="purchases.html">🛒 سجل المشتريات</a>
             <a href="transfers.html" class="active">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> <a href="notifications.html">🔔 الإشعارات</a> </div>
+            <a href="inventory.html">📋 الجرد</a> 
+            <a href="notifications.html">🔔 الإشعارات</a> 
+        </div>
         <div class="user-info">
             <span id="nav-user"></span>
             <button onclick="logout()" class="logout-btn">خروج</button>
@@ -100,7 +102,7 @@
                             <th>إلى (الفرع)</th>
                             <th>الصنف</th>
                             <th>الكمية</th>
-                            <th>ملاحظة الفرع</th>
+                            <th>ملاحظة الرد</th>
                             <th>الحالة</th>
                             <th>إجراء</th>
                         </tr>
@@ -114,30 +116,30 @@
     </div>
 
     <script src="api.js"></script>
-
     <script>
         let rawData = [];
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch');
+        const userBranch = localStorage.getItem('userBranch') || activeUser;
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
             const branchTag = document.getElementById('branch-tag');
-            if (branchTag) branchTag.innerText = "فرعك الحالي في النظام: " + (userBranch || activeUser);
+            if (branchTag) branchTag.innerText = "فرعك الحالي: " + userBranch;
             window.onload = loadTransfers;
         }
 
         async function loadTransfers() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات من السيرفر...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب التحويلات...</td></tr>';
             
             try {
                 const response = await fetchData(); 
                 if (response && response[0] && response[0].data) {
+                    // تصفية البيانات لتشمل التحويلات فقط وتخص المستخدم الحالي (كطالب أو كمستقبل)
                     rawData = response[0].data.filter(item => {
                         const typeVal = (item.type || '').toString();
                         const isTransfer = (typeVal === 'transfer' || typeVal === 'تحويل');
-                        const isMyTask = (item.branch && item.branch.includes(userBranch || activeUser));
+                        const isMyTask = (item.branch && item.branch.includes(userBranch));
                         const isMyRequest = (item.user === activeUser);
                         return isTransfer && (isMyTask || isMyRequest);
                     });
@@ -148,7 +150,6 @@
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات مسجلة</td></tr>';
                 }
             } catch (error) {
-                console.error("Load Error:", error);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
@@ -156,7 +157,6 @@
         function populateBranchOptions(data) {
             const branchFilter = document.getElementById('branch-filter');
             const branches = [...new Set(data.map(item => item.user))]; 
-            
             branchFilter.innerHTML = '<option value="all">كل الفروع</option>';
             branches.forEach(br => {
                 if(br) branchFilter.innerHTML += `<option value="${br}">${br}</option>`;
@@ -169,8 +169,9 @@
             const branchVal = document.getElementById('branch-filter').value;
 
             const filtered = rawData.filter(item => {
-                const isTarget = (item.branch && item.branch.includes(userBranch || activeUser));
+                const isTarget = (item.branch && item.branch.includes(userBranch));
                 const isSource = (item.user === activeUser);
+                
                 let directionMatch = true;
                 if (directionVal === 'inbound') directionMatch = isTarget;
                 else if (directionVal === 'outbound') directionMatch = isSource;
@@ -190,72 +191,70 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #666;">لا توجد تحويلات تطابق الفلاتر المختارة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">لا توجد نتائج تطابق الفلاتر</td></tr>';
                 return;
             }
 
-            items.forEach((order, index) => {
+            items.forEach((order) => {
                 const row = document.createElement('tr');
-                const isTargetBranch = (order.branch && order.branch.includes(userBranch || activeUser));
+                const isTargetBranch = (order.branch && order.branch.includes(userBranch));
                 const isDisabled = isTargetBranch ? '' : 'disabled';
                 const currentState = (order.state || 'pending').toString();
-                const displayId = order.id || (index + 1);
+                const displayId = order.id;
 
                 row.innerHTML = `
                     <td>${displayId}</td>
                     <td style="color: #1976d2;">${order.user || '-'}</td>
                     <td style="font-weight: bold;">${order.branch || '-'}</td>
-                    <td>${order.item || '-'}</td>
+                    <td>${order.item_name || order.item || '-'}</td>
                     <td>${order.qty || '0'}</td>
                     <td>
                         <input type="text" class="note-input" value="${order.company || ''}" 
-                               placeholder="ملاحظة..." ${isDisabled}
+                               placeholder="ملاحظة الرد..." ${isDisabled}
                                style="width: 110px; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
                     </td>
                     <td>
-                        <select class="form-select" ${isDisabled} style="padding: 5px; border-radius: 4px; font-size: 13px;">
-                            <option value="pending" ${currentState === 'pending' || currentState === 'null' ? 'selected' : ''}>انتظار ⏳</option>
+                        <select class="form-select" ${isDisabled} style="padding: 5px; border-radius: 4px;">
+                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>تم التحويل ✅</option>
                             <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
                     <td>
                         ${isTargetBranch ? 
-                            `<button class="btn-success" style="width:auto; padding:5px 12px; font-size:13px;" onclick="saveTransfer('${displayId}', this)">رد</button>` : 
-                            '<span style="font-size:11px; color:#999; font-style:italic;">بانتظار رد الفرع</span>'}
+                            `<button class="btn-success" style="padding:5px 12px;" onclick="saveTransfer('${displayId}', this)">رد</button>` : 
+                            '<span style="font-size:11px; color:#999; font-style:italic;">بانتظار رد الطرف الآخر</span>'}
                     </td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-async function saveRow(id, btn) {
-    const row = btn.closest('tr');
-    const status = row.querySelector('select').value;
-    const company = row.querySelector('.company-in').value;
-    
-    btn.disabled = true;
-    btn.innerText = "⏳";
+        async function saveTransfer(id, btn) {
+            const row = btn.closest('tr');
+            const status = row.querySelector('select').value;
+            const notes = row.querySelector('.note-input').value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳";
 
-    // هنا تم التأكيد على إرسال type: "تحويل"
-    // لكي يستلمها الـ Switch في n8n ويوجهها لمسار تحديث جدول المشتريات
-    const success = await updateData({ 
-        id: id, 
-        status: status, 
-        company: company, 
-        type: "شراء", // هذا هو المفتاح لتشغيل الـ Switch
-        action: "update_status" 
-    });
+            const success = await updateData({ 
+                id: id, 
+                status: status, 
+                company: notes,   // الملاحظة ترسل في حقل company لتوحيد الـ API
+                type: "تحويل",    // هام جداً للـ Switch في n8n
+                action: "update_status" 
+            });
 
-    if (success) {
-        alert("تم التحديث ✅");
-        loadOrders(); 
-    } else {
-        alert("فشل التحديث ❌");
-        btn.disabled = false;
-        btn.innerText = "حفظ";
-    }
-}
+            if (success) {
+                alert("تم التحديث وإرسال الرد ✅");
+                loadTransfers(); 
+            } else {
+                alert("فشل في إرسال الرد ❌");
+                btn.disabled = false;
+                btn.innerText = "رد";
+            }
+        }
     </script>
 </body>
 </html>
