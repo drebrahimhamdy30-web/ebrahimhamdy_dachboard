@@ -12,8 +12,7 @@
             <a href="main.html" id="link-main" class="active">➕ مدخلات جديدة</a>
             <a href="purchases.html" id="link-purchases">🛒 سجل المشتريات</a>
             <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
-            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a>
-        </div>
+            <a href="inventory.html" id="link-inventory">📋 الجرد</a> <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a> </div>
         <div class="user-info">
             <span id="nav-user"></span>
             <button onclick="logout()" class="logout-btn">خروج</button>
@@ -94,7 +93,6 @@
             
             if (typeSelect.value === "شراء") {
                 if (userBranch) {
-                    // مطابقة دقيقة لاسم الفرع المخزن في المتصفح مع خيارات القائمة
                     for (let option of branchSelect.options) {
                         if (option.value === userBranch) {
                             option.selected = true;
