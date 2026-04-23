@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإشعارات - صيدلية د. إبراهيم</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .notif-item {
+            background: white;
+            border-right: 5px solid #ccc;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .type-شراء { border-right-color: #ffc107; }
+        .type-تحويل { border-right-color: #2196f3; }
+        .type-جرد { border-right-color: #9c27b0; }
+        .notif-time { font-size: 0.8em; color: #888; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <div class="nav-links">
+            <a href="main.html">➕ مدخلات جديدة</a>
+            <a href="purchases.html">🛒 المشتريات</a>
+            <a href="transfers.html">🔄 التحويلات</a>
+            <a href="inventory.html">📋 الجرد</a> 
+            <a href="notifications.html" class="active">🔔 الإشعارات</a> 
+        </div>
+        <div class="user-info">
+            <span id="nav-user"></span>
+            <button onclick="logout()" class="logout-btn">خروج</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2 style="text-align: center;">🔔 آخر التنبيهات والطلبات</h2>
+            <div id="notif-list" style="margin-top: 20px;">
+                <p style="text-align:center;">جاري تحميل التنبيهات...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        const activeUser = checkAuth();
+        
+        if (activeUser) {
+            document.getElementById('nav-user').innerText = activeUser;
+            window.onload = loadNotifications;
+        }
+
+        async function loadNotifications() {
+            const list = document.getElementById('notif-list');
+            
+            try {
+                const response = await fetchData();
+                if (response && response[0] && response[0].data) {
+                    // عرض آخر 15 عملية تمت إضافتها فقط (بناءً على الترتيب التلقائي)
+                    const latestData = response[0].data.reverse().slice(0, 15);
+                    renderNotifications(latestData);
+                }
+            } catch (error) {
+                list.innerHTML = '<p style="color:red; text-align:center;">فشل تحميل الإشعارات</p>';
+            }
+        }
+
+        function renderNotifications(data) {
+            const list = document.getElementById('notif-list');
+            list.innerHTML = '';
+
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `notif-item type-${item.type}`;
+                
+                let message = "";
+                if(item.type === "شراء") message = `طلب شراء جديد لفرع <b>${item.branch}</b>: ${item.item_name}`;
+                else if(item.type === "تحويل") message = `طلب تحويل من <b>${item.user}</b> إلى <b>${item.branch}</b>: ${item.item}`;
+                else if(item.type === "جرد") message = `عملية جرد مسجلة لفرع <b>${item.branch}</b> للصنف: ${item.item_name}`;
+
+                div.innerHTML = `
+                    <div>${message}</div>
+                    <div class="notif-time">الحالة الحالية: ${item.state || 'بانتظار الإجراء'}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
