@@ -12,11 +12,11 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s;
         }
-        .notif-card:hover { transform: scale(1.01); }
         .notif-card.completed { border-right-color: #6c757d; opacity: 0.7; background: #f8f9fa; }
         .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 5px; }
-        .note-content { font-weight: bold; color: #333; font-size: 1.1em; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }
+        .note-content { font-weight: bold; color: #333; font-size: 1.1em; margin-bottom: 5px; }
+        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; }
+        .time-stamp { float: left; color: #aaa; font-size: 0.85em; }
     </style>
 </head>
 <body>
@@ -38,9 +38,11 @@
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f1f8e9; padding: 10px; border-radius: 8px;">
                 <button onclick="loadNotifications()" class="btn-success" style="width: auto;">تحديث 🔄</button>
-                <div id="branch-info" style="font-weight: bold; color: #155724;"></div>
+                <div style="font-weight: bold;">
+                    عرض إشعارات فرع: <span id="current-branch-display" style="color: #2e7d32;">-</span>
+                </div>
             </div>
 
             <div id="notif-container">
@@ -52,25 +54,25 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        // جلب فرع المستخدم الحالي من localStorage
+        // جلب فرع المستخدم الحالي (المعمورة أو سان ستيفانو)
         const userBranch = localStorage.getItem('userBranch') || 'الكل';
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
-            document.getElementById('branch-info').innerText = `فرع: ${userBranch}`;
+            document.getElementById('current-branch-display').innerText = userBranch;
             window.onload = loadNotifications;
         }
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">⏳ جاري فحص الإشعارات من n8n...</p>';
+            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات من n8n...</p>';
 
             try {
-                // استدعاء الدالة من api.js وتمرير نوع 'notifications'
+                // استدعاء البيانات من n8n باستخدام التايب الصحيح
                 const response = await fetchFromN8N('notifications');
-                console.log("Notifications Raw Response:", response);
+                console.log("Full Response:", response);
 
-                // فك تغليف البيانات من n8n [0].data كما في صورة المشتريات السابقة
+                // معالجة مصفوفة n8n (الدخول لـ [0].data)
                 let items = [];
                 if (response && response[0] && response[0].data) {
                     items = response[0].data;
@@ -79,34 +81,38 @@
                 }
 
                 if (items.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مسجلة حالياً</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مسجلة</p>';
                     return;
                 }
 
                 container.innerHTML = '';
                 
-                // ترتيب الإشعارات من الأحدث للأقدم
+                // ترتيب تنازلي حسب التاريخ
                 items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
                 items.forEach(item => {
-                    // منطق العرض: عرض الإشعارات الموجهة لفرعي أو التي أرسلها فرعي
-                    const isForMe = (item.target_branch === userBranch || userBranch === 'الكل' || item.branch === userBranch);
-                    
-                    if (isForMe) {
+                    // منطق الفلترة: يظهر الإشعار لو المستخدم هو الراسل (branch) أو المستقبل (target_branch)
+                    const isSender = (item.branch === userBranch);
+                    const isReceiver = (item.target_branch === userBranch);
+                    const isAdmin = (userBranch === 'الكل' || userBranch === 'ادمن');
+
+                    if (isSender || isReceiver || isAdmin) {
                         const div = document.createElement('div');
-                        // التأكد من حالة null في done من صورة الـ data table
-                        const isDone = (item.done === true || item.done === "true");
+                        const isDone = (item.done === true || item.done === "true" || item.state === "تم");
                         
+                        // حل مشكلة "بدون نص": البحث في كل المفاتيح الممكنة للنص
+                        const messageText = item.note || item.message || item.text || item.comment || "إشعار جديد";
+
                         div.className = `notif-card ${isDone ? 'completed' : ''}`;
                         div.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items: flex-start;">
-                                <div class="note-content">${item.note || 'بدون نص'}</div>
+                                <div class="note-content">${messageText}</div>
                                 <span style="font-size: 1.2em;">${isDone ? '✅' : '⏳'}</span>
                             </div>
                             <div class="meta">
                                 من: <span class="branch-tag">${item.branch || '-'}</span> 
-                                إلى: <span class="branch-tag">${item.target_branch || '-'}</span>
-                                <span style="float:left; color:#aaa; font-size:0.9em;">
+                                ⬅️ إلى: <span class="branch-tag">${item.target_branch || '-'}</span>
+                                <span class="time-stamp">
                                     ${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}
                                 </span>
                             </div>
@@ -116,12 +122,12 @@
                 });
 
                 if (container.innerHTML === '') {
-                    container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات موجهة لفرعك</p>';
+                    container.innerHTML = `<p style="text-align:center; color:#999;">لا توجد إشعارات خاصة بفرع ${userBranch} حالياً</p>`;
                 }
 
             } catch (error) {
-                console.error("Notif Error:", error);
-                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في جلب الإشعارات</p>';
+                console.error("Error:", error);
+                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</p>';
             }
         }
     </script>
