@@ -13,15 +13,10 @@
         }
         .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; background: #f8f9fa; }
         .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; }
-        .note-content { font-weight: bold; color: #333; font-size: 1.1em; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; }
+        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
         .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
         .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .filter-section { 
-            display: flex; gap: 15px; margin-bottom: 15px; 
-            background: #fffde7; padding: 15px; border-radius: 8px; 
-            border: 1px solid #fbc02d; align-items: center;
-        }
+        .filter-box { display: flex; gap: 20px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -43,22 +38,25 @@
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
             
-            <div class="filter-section">
-                <span>تصفية: </span>
-                <label><input type="checkbox" id="myRequests" checked onchange="applyFilter()"> طلباتي 📤</label>
-                <label><input type="checkbox" id="incomingRequests" checked onchange="applyFilter()"> طلبات واردة 📥</label>
-                <button onclick="loadNotifications()" class="btn-success" style="width: auto; margin-right: auto;">تحديث 🔄</button>
+            <div class="filter-box">
+                <span>تصفية:</span>
+                <label><input type="checkbox" id="showSent" checked onchange="applyFilter()"> طلباتي 📤</label>
+                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> طلبات واردة 📥</label>
+                <button onclick="loadNotifications()" class="btn-success" style="width:auto; margin-right:auto; padding:5px 20px;">تحديث 🔄</button>
             </div>
 
-            <div id="notif-container"></div>
+            <div id="notif-container">
+                <p style="text-align:center;">جاري تحميل الإشعارات...</p>
+            </div>
         </div>
     </div>
 
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch'); // تأكد أنها مخزنة بـ "المعمورة" أو "سان سكيفانو"
-        let allData = [];
+        // جلب اسم الفرع الحالي (المعمورة / سان ستيفانو)
+        const userBranch = localStorage.getItem('userBranch') || '';
+        let rawData = [];
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -67,27 +65,42 @@
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">جاري التحميل...</p>';
+            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات من n8n...</p>';
+            
             try {
                 const response = await fetchFromN8N('notifications');
-                // الدخول للبيانات بناءً على الـ Aggregate في n8n
-                allData = (response && response[0] && response[0].data) ? response[0].data : (Array.isArray(response) ? response : []);
+                console.log("Response Received:", response);
+
+                // استخراج البيانات بناءً على هيكل الـ Response في صورتك (response[0].data)
+                if (response && response[0] && response[0].data) {
+                    rawData = response[0].data;
+                } else if (Array.isArray(response)) {
+                    rawData = response;
+                }
+
                 applyFilter();
             } catch (e) {
-                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في الاتصال</p>';
+                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في تحميل البيانات</p>';
             }
         }
 
         function applyFilter() {
-            const showMyReq = document.getElementById('myRequests').checked;
-            const showInbound = document.getElementById('incomingRequests').checked;
-            
-            const filtered = allData.filter(item => {
-                const amISender = String(item.branch).trim() === String(userBranch).trim();
-                const amIReceiver = String(item.target_branch).trim() === String(userBranch).trim();
-                
-                if (showMyReq && amISender) return true;
-                if (showInbound && amIReceiver) return true;
+            const container = document.getElementById('notif-container');
+            const sentChecked = document.getElementById('showSent').checked;
+            const receivedChecked = document.getElementById('showReceived').checked;
+
+            const filtered = rawData.filter(item => {
+                // تنظيف النصوص لضمان دقة المقارنة
+                const branch = String(item.branch || '').trim();
+                const target = String(item.target_branch || '').trim();
+                const current = String(userBranch).trim();
+
+                const isSent = (branch === current);
+                const isReceived = (target === current);
+
+                if (sentChecked && isSent) return true;
+                if (receivedChecked && isReceived) return true;
+                if (current === 'الكل' || current === 'ادمن') return true;
                 return false;
             });
 
@@ -96,45 +109,54 @@
 
         function render(items) {
             const container = document.getElementById('notif-container');
-            container.innerHTML = items.length === 0 ? '<p style="text-align:center;">لا توجد نتائج</p>' : '';
-            
-            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(item => {
-                const isDone = (item.done === true || item.done === "true" || item.done === "Null" ? false : item.done);
+            if (items.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد نتائج تطابق الفلتر</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            // ترتيب حسب التاريخ الأحدث (createdAt من جدول البيانات)
+            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            items.forEach(item => {
+                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
                 const div = document.createElement('div');
                 div.className = `notif-card ${isDone ? 'completed' : ''}`;
+                
                 div.innerHTML = `
-                    <div class="note-content">${item.note || 'بدون نص'}</div>
+                    <div style="font-weight:bold; font-size:1.1em; margin-bottom:5px;">${item.note || 'إشعار جديد'}</div>
                     <div class="meta">
                         <span>من: <b class="branch-tag">${item.branch}</b> إلى: <b class="branch-tag">${item.target_branch}</b></span>
-                        <span style="color:#999;">${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
+                        <span style="color:#aaa; font-size:0.9em;">${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
                     </div>
                     <div class="action-area">
-                        <input type="text" id="input-${item.id}" class="comment-input" placeholder="التعليق..." value="${item.comment !== 'Null' && item.comment ? item.comment : ''}">
-                        <button onclick="updateNotif('${item.id}', 'comment')" class="btn-primary" style="width:auto; padding:8px 15px; font-size:0.8em;">حفظ التعليق</button>
-                        ${!isDone ? `<button onclick="updateNotif('${item.id}', 'done')" class="btn-success" style="width:auto; padding:8px 15px; font-size:0.8em; background:#28a745;">تم ✔️</button>` : ''}
+                        <input type="text" id="comm-${item.id}" class="comment-input" placeholder="اكتب تعليقك هنا..." value="${item.comment && item.comment !== 'null' ? item.comment : ''}">
+                        <button onclick="sendUpdate('${item.id}', 'comment')" class="btn-primary" style="width:auto; padding:8px 15px;">حفظ</button>
+                        ${!isDone ? `<button onclick="sendUpdate('${item.id}', 'done')" class="btn-success" style="width:auto; padding:8px 15px; background:#28a745;">تم ✔️</button>` : ''}
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        async function updateNotif(id, actionType) {
-            const commentVal = document.getElementById(`input-${id}`).value;
+        async function sendUpdate(id, type) {
+            const commentVal = document.getElementById(`comm-${id}`).value;
+            
+            // تجهيز البيانات لإرسالها لـ n8n كعملية Update
             const payload = {
                 id: id,
                 type: "notifications",
-                action: "update",
+                action: "update_status", 
                 comment: commentVal,
-                done: (actionType === 'done') // إذا ضغط "تم" يرسل true، وإذا "حفظ تعليق" يرسل الحالة الحالية
+                done: (type === 'done' ? true : null) // إذا ضغط "تم" نرسل true، وإذا "حفظ" نرسل التعليق فقط
             };
 
-            // نستخدم نفس الدالة التي نجحت في المشتريات
-            const success = await updateData(payload); 
+            const success = await updateData(payload);
             if (success) {
-                alert("تم التحديث بنجاح ✅");
-                loadNotifications();
+                alert("تم التحديث في n8n بنجاح ✅");
+                loadNotifications(); // إعادة تحميل لإظهار التغييرات
             } else {
-                alert("حدث خطأ في التحديث ❌");
+                alert("فشل التحديث ❌ تأكد من اتصال n8n");
             }
         }
     </script>
