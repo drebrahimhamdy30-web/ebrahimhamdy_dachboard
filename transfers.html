@@ -229,30 +229,33 @@
             });
         }
 
-        async function saveTransfer(id, btn) {
-            const row = btn.closest('tr');
-            const newState = row.querySelector('select').value;
-            const newNote = row.querySelector('.note-input').value;
-            
-            btn.disabled = true;
-            btn.innerHTML = "⏳";
+async function saveRow(id, btn) {
+    const row = btn.closest('tr');
+    const status = row.querySelector('select').value;
+    const company = row.querySelector('.company-in').value;
+    
+    btn.disabled = true;
+    btn.innerText = "⏳";
 
-            const success = await updateData({ 
-                id: id, 
-                status: newState, 
-                company: newNote, 
-                action: "update_status" 
-            });
+    // هنا تم التأكيد على إرسال type: "تحويل"
+    // لكي يستلمها الـ Switch في n8n ويوجهها لمسار تحديث جدول المشتريات
+    const success = await updateData({ 
+        id: id, 
+        status: status, 
+        company: company, 
+        type: "شراء", // هذا هو المفتاح لتشغيل الـ Switch
+        action: "update_status" 
+    });
 
-            if (success) {
-                alert("تم تحديث حالة التحويل بنجاح ✅");
-                loadTransfers(); 
-            } else {
-                alert("حدث خطأ أثناء التحديث ❌");
-                btn.disabled = false;
-                btn.innerText = "رد";
-            }
-        }
+    if (success) {
+        alert("تم التحديث ✅");
+        loadOrders(); 
+    } else {
+        alert("فشل التحديث ❌");
+        btn.disabled = false;
+        btn.innerText = "حفظ";
+    }
+}
     </script>
 </body>
 </html>
