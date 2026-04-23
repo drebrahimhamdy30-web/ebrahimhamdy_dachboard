@@ -3,21 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إضافة طلب جديد - نظام الصيدلية</title>
+    <title>إضافة طلب جديد - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .hidden { display: none !important; }
-        hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        select, input, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-family: inherit;
+        }
+        .hidden { display: none; }
+        #send-btn { 
+            background-color: #28a745; 
+            color: white; 
+            border: none; 
+            padding: 12px; 
+            width: 100%; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #send-btn:disabled { background-color: #ccc; }
     </style>
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html" id="link-main" class="active">➕ مدخلات جديدة</a>
-            <a href="purchases.html" id="link-purchases">🛒 سجل المشتريات</a>
-            <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
-            <a href="inventory.html" id="link-inventory">📋 الجرد</a> 
-            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a> 
+            <a href="main.html" class="active">➕ مدخلات جديدة</a>
+            <a href="purchases.html">🛒 المشتريات</a>
+            <a href="transfers.html">🔄 التحويلات</a>
+            <a href="inventory.html">📋 الجرد</a> 
+            <a href="notifications.html">🔔 الإشعارات</a> 
         </div>
         <div class="user-info">
             <span id="nav-user"></span>
@@ -26,162 +46,121 @@
     </div>
 
     <div class="container">
-        <div class="card" style="max-width: 600px; margin: auto;">
-            <h2 style="text-align: center; margin-bottom: 20px;">أضف طلب جديد للفرع</h2>
-            <form id="orderForm">
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h2 style="text-align: center; margin-bottom: 25px;">أضف طلب جديد للفرع</h2>
+            
+            <div class="form-group">
+                <label>نوع العملية</label>
+                <select id="type" onchange="toggleFields()">
+                    <option value="شراء">شراء (نواقص)</option>
+                    <option value="تحويل">تحويل (بين الفروع)</option>
+                    <option value="جرد">جرد</option>
+                    <option value="إشعار">إشعار</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="target-label">توجيه إلى فرع</label>
+                <select id="target_branch">
+                    <option value="سان ستيفانو">سان ستيفانو</option>
+                    <option value="المعمورة">المعمورة</option>
+                    <option value="السيوف">السيوف</option>
+                </select>
+            </div>
+
+            <div id="product-fields">
                 <div class="form-group">
-                    <label>نوع العملية</label>
-                    <select id="type" onchange="handleTypeChange()" required>
-                        <option value="شراء">طلب شراء (نقص)</option>
-                        <option value="تحويل">تحويل بين الفروع</option>
-                        <option value="جرد">إشعار جرد</option>
-                        <option value="إشعار">إشعار عام / ملاحظة</option>
-                    </select>
+                    <label>اسم الصنف</label>
+                    <input type="text" id="item_name" placeholder="اكتب اسم الدواء هنا...">
                 </div>
-
                 <div class="form-group">
-                    <label id="branch-label">توجيه إلى فرع</label>
-                    <select id="branch" required>
-                        <option value="المعمورة">المعمورة</option>
-                        <option value="سان ستيفانو">سان ستيفانو</option>
-                        <option value="سيدى بشر">سيدى بشر</option>
-                    </select>
+                    <label>الكمية</label>
+                    <input type="number" id="qty" value="1">
                 </div>
+            </div>
 
-                <hr id="divider">
-
-                <div id="item-section">
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label>كود الصنف</label>
-                            <input type="text" id="item_code" placeholder="اختياري">
-                        </div>
-                        <div class="form-group" style="flex: 2;" id="item-name-div">
-                            <label>اسم الصنف</label>
-                            <input type="text" id="item_name" placeholder="اسم المنتج">
-                        </div>
-                    </div>
+            <div id="note-fields" class="hidden">
+                <div class="form-group">
+                    <label>نص الإشعار / الملاحظة</label>
+                    <textarea id="note_text" rows="4" placeholder="اكتب تفاصيل الإشعار هنا..."></textarea>
                 </div>
+            </div>
 
-                <div id="extra-section">
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label>كود العميل</label>
-                            <input type="text" id="customer_code" placeholder="اختياري">
-                        </div>
-                        <div class="form-group" style="flex: 2;">
-                            <label>اسم العميل</label>
-                            <input type="text" id="customer_name" placeholder="اسم العميل">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>الكمية المطلوبة</label>
-                        <input type="number" id="qty" placeholder="0">
-                    </div>
-                </div>
-
-                <div id="note-section" class="hidden">
-                    <div class="form-group">
-                        <label>نص الإشعار / الملاحظة</label>
-                        <textarea id="note_text" rows="4" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;" placeholder="اكتب تفاصيل الإشعار هنا..."></textarea>
-                    </div>
-                </div>
-
-                <button type="button" id="submitBtn" class="btn btn-success" style="width: 100%; margin-top: 15px;" onclick="submitOrder()">
-                    إرسال الآن
-                </button>
-            </form>
+            <button id="send-btn" onclick="sendData()">إرسال الآن</button>
         </div>
     </div>
 
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch');
+        const userBranch = localStorage.getItem('userBranch') || "غير محدد";
 
         if (activeUser) {
-            document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
-            handleTypeChange(); // ضبط الحالة الأولية
+            document.getElementById('nav-user').innerText = activeUser;
         }
 
-        function handleTypeChange() {
+        // التحكم في ظهور الحقول بناءً على الاختيار
+        function toggleFields() {
             const type = document.getElementById('type').value;
-            const branchSelect = document.getElementById('branch');
-            
-            // ضبط الحقول الظاهرة
-            const itemSection = document.getElementById('item-section');
-            const itemNameDiv = document.getElementById('item-name-div');
-            const extraSection = document.getElementById('extra-section');
-            const noteSection = document.getElementById('note-section');
+            const productFields = document.getElementById('product-fields');
+            const noteFields = document.getElementById('note-fields');
+            const targetLabel = document.getElementById('target-label');
 
-            // إعادة تعيين الفرع الافتراضي ليكون فرع اليوزر عند كل تغيير
-            if (userBranch) {
-                branchSelect.value = userBranch;
-            }
-
-            if (type === "جرد") {
-                itemSection.classList.remove('hidden');
-                itemNameDiv.classList.add('hidden'); // إخفاء اسم الصنف (نكتفي بالكود)
-                extraSection.classList.add('hidden');
-                noteSection.classList.add('hidden');
-                branchSelect.disabled = false; 
-            } 
-            else if (type === "إشعار") {
-                itemSection.classList.add('hidden');
-                extraSection.classList.add('hidden');
-                noteSection.classList.remove('hidden');
-                branchSelect.disabled = false;
-            }
-            else if (type === "شراء") {
-                itemSection.classList.remove('hidden');
-                itemNameDiv.classList.remove('hidden');
-                extraSection.classList.remove('hidden');
-                noteSection.classList.add('hidden');
-                branchSelect.disabled = true; // في الشراء الطلب لفرعي دائماً
-            }
-            else { // تحويل
-                itemSection.classList.remove('hidden');
-                itemNameDiv.classList.remove('hidden');
-                extraSection.classList.remove('hidden');
-                noteSection.classList.add('hidden');
-                branchSelect.disabled = false;
+            if (type === "إشعار") {
+                productFields.classList.add('hidden');
+                noteFields.classList.remove('hidden');
+                targetLabel.innerText = "توجيه الإشعار إلى فرع";
+            } else {
+                productFields.classList.remove('hidden');
+                noteFields.classList.add('hidden');
+                targetLabel.innerText = (type === "تحويل") ? "اطلب من فرع" : "فرع الطلب";
             }
         }
 
-        async function submitOrder() {
-            const user = checkAuth();
-            if (!user) return;
-
-            const btn = document.getElementById('submitBtn');
+        async function sendData() {
             const type = document.getElementById('type').value;
+            const targetBranch = document.getElementById('target_branch').value;
+            const btn = document.getElementById('send-btn');
             
-            const formData = {
-                user: user,
-                type: type,
-                branch: document.getElementById('branch').value,
-                item_code: document.getElementById('item_code').value,
-                item: type === "إشعار" ? "إشعار عام" : document.getElementById('item_name').value,
-                customer_code: document.getElementById('customer_code').value,
-                customer_name: document.getElementById('customer_name').value,
-                qty: document.getElementById('qty').value,
-                company: type === "إشعار" ? document.getElementById('note_text').value : "", // نستخدم خانة الشركة لتخزين نص الإشعار
-                state: 'pending',
-                createdAt: new Date().toISOString()
+            let payload = {
+                action: "insert",
+                user: activeUser,
+                branch: userBranch // الفرع الحالي للمستخدم
             };
 
+            if (type === "إشعار") {
+                const note = document.getElementById('note_text').value;
+                if (!note) return alert("يرجى كتابة نص الإشعار");
+                
+                payload.type = "إشعار";
+                payload.target_branch = targetBranch;
+                payload.note = note;
+                payload.done = false;
+            } else {
+                const itemName = document.getElementById('item_name').value;
+                if (!itemName) return alert("يرجى كتابة اسم الصنف");
+
+                payload.type = type; // شراء أو تحويل أو جرد
+                payload.target_branch = targetBranch; // في المشتريات والجرد يكون نفس الفرع غالباً
+                payload.item_name = itemName;
+                payload.qty = document.getElementById('qty').value;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "جاري الإرسال...";
+
             try {
-                btn.disabled = true;
-                btn.innerText = "⏳ جاري الإرسال...";
-                const success = await postData(formData);
+                const success = await updateData(payload);
                 if (success) {
                     alert("تم الإرسال بنجاح ✅");
-                    document.getElementById('orderForm').reset();
-                    handleTypeChange();
+                    // إعادة تصغير الحقول
+                    document.getElementById('item_name').value = "";
+                    document.getElementById('note_text').value = "";
                 } else {
-                    alert("فشل الإرسال ❌");
+                    alert("فشل في الإرسال ❌");
                 }
-            } catch (error) {
-                alert("حدث خطأ في الاتصال");
+            } catch (e) {
+                alert("خطأ في الاتصال");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "إرسال الآن";
