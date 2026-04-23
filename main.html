@@ -13,11 +13,11 @@
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html" id="link-main" class="active">➕ مدخلات جديدة</a>
-            <a href="purchases.html" id="link-purchases">🛒 سجل المشتريات</a>
-            <a href="transfers.html" id="link-transfers">🔄 التحويلات</a>
-            <a href="inventory.html" id="link-inventory">📋 الجرد</a> 
-            <a href="notifications.html" id="link-notifications">🔔 الإشعارات</a> 
+            <a href="main.html" class="active">➕ مدخلات جديدة</a>
+            <a href="purchases.html">🛒 سجل المشتريات</a>
+            <a href="transfers.html">🔄 التحويلات</a>
+            <a href="inventory.html">📋 الجرد</a> 
+            <a href="notifications.html">🔔 الإشعارات</a> 
         </div>
         <div class="user-info">
             <span id="nav-user"></span>
@@ -96,7 +96,7 @@
 
     <script src="api.js"></script>
     <script>
-        const activeUser = localStorage.getItem('activeUser');
+        const activeUser = checkAuth();
         const userBranch = localStorage.getItem('userBranch');
 
         if (activeUser) {
@@ -112,16 +112,14 @@
             const extraSection = document.getElementById('extra-section');
             const noteSection = document.getElementById('note-section');
 
-            if (userBranch) {
-                branchSelect.value = userBranch;
-            }
+            if (userBranch) branchSelect.value = userBranch;
 
             if (type === "جرد") {
                 itemSection.classList.remove('hidden');
                 itemNameDiv.classList.add('hidden');
                 extraSection.classList.add('hidden');
                 noteSection.classList.add('hidden');
-                branchSelect.disabled = false; 
+                branchSelect.disabled = false;
             } 
             else if (type === "إشعار") {
                 itemSection.classList.add('hidden');
@@ -134,7 +132,7 @@
                 itemNameDiv.classList.remove('hidden');
                 extraSection.classList.remove('hidden');
                 noteSection.classList.add('hidden');
-                branchSelect.disabled = true; 
+                branchSelect.disabled = true;
             }
             else { // تحويل
                 itemSection.classList.remove('hidden');
@@ -146,41 +144,49 @@
         }
 
         async function submitOrder() {
-            const user = localStorage.getItem('activeUser');
-            if (!user) return;
-
             const btn = document.getElementById('submitBtn');
             const type = document.getElementById('type').value;
+            const branchVal = document.getElementById('branch').value;
 
-            const formData = {
-                user: user,
-                type: type,
-                branch: document.getElementById('branch').value,
-                item_code: document.getElementById('item_code').value,
-                item: type === "إشعار" ? "إشعار عام" : document.getElementById('item_name').value,
-                customer_code: document.getElementById('customer_code').value,
-                customer_name: document.getElementById('customer_name').value,
-                qty: document.getElementById('qty').value || 0,
-                company: type === "إشعار" ? document.getElementById('note_text').value : "", 
-                state: 'pending',
-                createdAt: new Date().toISOString()
-            };
+            btn.disabled = true;
+            btn.innerText = "⏳ جاري الإرسال...";
 
             try {
-                btn.disabled = true;
-                btn.innerText = "⏳ جاري الإرسال...";
-                
-                const success = await postData(formData);
-                
+                let success = false;
+                if (type === "إشعار") {
+                    const notifData = {
+                        action: "insert",
+                        branch: userBranch,
+                        target_branch: branchVal,
+                        note: document.getElementById('note_text').value,
+                        done: false,
+                        user: activeUser,
+                        createdAt: new Date().toISOString()
+                    };
+                    success = await postNotification(notifData);
+                } else {
+                    const formData = {
+                        user: activeUser,
+                        type: type,
+                        branch: branchVal,
+                        item_code: document.getElementById('item_code').value,
+                        item: document.getElementById('item_name').value,
+                        qty: document.getElementById('qty').value || 0,
+                        state: 'pending',
+                        createdAt: new Date().toISOString()
+                    };
+                    success = await postData(formData);
+                }
+
                 if (success) {
                     alert("تم الإرسال بنجاح ✅");
                     document.getElementById('orderForm').reset();
-                    handleTypeChange(); // لإعادة ضبط الحقول المخفية والظاهرة والفرع الافتراضي
+                    handleTypeChange();
                 } else {
                     alert("فشل الإرسال ❌");
                 }
-            } catch (error) {
-                alert("حدث خطأ في الاتصال");
+            } catch (e) {
+                alert("خطأ في الاتصال");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "إرسال الآن";
