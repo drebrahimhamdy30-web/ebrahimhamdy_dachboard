@@ -209,32 +209,33 @@
             });
         }
 
-        async function saveRow(id, btn) {
-            const row = btn.closest('tr');
-            const status = row.querySelector('select').value;
-            const company = row.querySelector('.company-in').value;
-            
-            btn.disabled = true;
-            btn.innerText = "⏳";
+async function saveRow(id, btn) {
+    const row = btn.closest('tr');
+    const status = row.querySelector('select').value;
+    const company = row.querySelector('.company-in').value;
+    
+    btn.disabled = true;
+    btn.innerText = "⏳";
 
-            // نرسل الـ type مع التحديث للتأكد من وصولها للجدول الصحيح في n8n Switch
-            const success = await updateData({ 
-                id: id, 
-                status: status, 
-                company: company, 
-                type: "شراء",
-                action: "update_status" 
-            });
+    // هنا تم التأكيد على إرسال type: "شراء"
+    // لكي يستلمها الـ Switch في n8n ويوجهها لمسار تحديث جدول المشتريات
+    const success = await updateData({ 
+        id: id, 
+        status: status, 
+        company: company, 
+        type: "شراء", // هذا هو المفتاح لتشغيل الـ Switch
+        action: "update_status" 
+    });
 
-            if (success) {
-                alert("تم التحديث ✅");
-                loadOrders(); 
-            } else {
-                alert("فشل التحديث ❌");
-                btn.disabled = false;
-                btn.innerText = "حفظ";
-            }
-        }
+    if (success) {
+        alert("تم التحديث ✅");
+        loadOrders(); 
+    } else {
+        alert("فشل التحديث ❌");
+        btn.disabled = false;
+        btn.innerText = "حفظ";
+    }
+}
     </script>
 </body>
 </html>
