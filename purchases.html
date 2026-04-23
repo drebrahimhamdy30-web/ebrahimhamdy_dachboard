@@ -52,7 +52,7 @@
             <a href="main.html">➕ مدخلات جديدة</a>
             <a href="purchases.html" class="active">🛒 سجل المشتريات</a>
             <a href="transfers.html">🔄 التحويلات</a>
-        </div>
+            <a href="inventory.html">📋 الجرد</a> <a href="notifications.html">🔔 الإشعارات</a> </div>
         <div class="user-info">
             <span id="nav-user"></span>
             <button onclick="logout()" class="logout-btn">خروج</button>
@@ -110,7 +110,6 @@
         const activeUser = checkAuth();
         let rawData = []; 
 
-        // الصلاحيات (نفس منطقك السابق)
         const privilegedUsers = ['ebrahim', 'sanstefano', 'admin'];
         const canEdit = privilegedUsers.includes(activeUser?.toLowerCase());
 
@@ -127,8 +126,6 @@
                 const response = await fetchData(); 
                 if (response && response[0] && response[0].data) {
                     rawData = response[0].data;
-                    
-                    // توليد الفروع ديناميكياً من عمود branch
                     generateBranchCheckboxes(rawData);
                     applyFilter();
                 } else {
@@ -141,7 +138,6 @@
 
         function generateBranchCheckboxes(data) {
             const container = document.getElementById('branchList');
-            // استخراج الأسماء الفريدة، حذف الفارغ، وترتيبها أبجدياً
             const branches = [...new Set(data.map(item => item.branch))]
                              .filter(b => b && b.trim() !== '')
                              .sort();
@@ -160,16 +156,12 @@
 
         function applyFilter() {
             const statusVal = document.getElementById('statusFilter').value;
-            // الحصول على قائمة الفروع التي تم اختيارها (عليها علامة صح)
             const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked'))
                                           .map(cb => cb.value);
 
             const filtered = rawData.filter(order => {
-                // شرط الحالة
                 const stateMatch = (statusVal === 'all') || (order.state || 'pending') === statusVal;
-                // شرط الفرع (هل اسم الفرع موجود ضمن المصفوفة المختارة؟)
                 const branchMatch = selectedBranches.includes(order.branch);
-                
                 return stateMatch && branchMatch;
             });
 
