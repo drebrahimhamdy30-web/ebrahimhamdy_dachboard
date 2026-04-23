@@ -12,11 +12,14 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s;
         }
-        .notif-card.completed { border-right-color: #6c757d; opacity: 0.7; background: #f8f9fa; }
-        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 5px; }
-        .note-content { font-weight: bold; color: #333; font-size: 1.1em; margin-bottom: 5px; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; }
-        .time-stamp { float: left; color: #aaa; font-size: 0.85em; }
+        .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; background: #f8f9fa; }
+        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .note-content { font-weight: bold; color: #333; font-size: 1.1em; margin-bottom: 8px; }
+        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+        .time-stamp { color: #888; font-size: 0.9em; }
+        .action-area { margin-top: 10px; display: flex; gap: 10px; align-items: center; background: #fdfdfd; padding: 8px; border-radius: 5px; }
+        .comment-input { flex-grow: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
+        .filter-section { display: flex; gap: 15px; margin-bottom: 15px; background: #fffde7; padding: 12px; border-radius: 8px; border: 1px solid #fbc02d; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -38,11 +41,10 @@
         <div class="card">
             <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f1f8e9; padding: 10px; border-radius: 8px;">
-                <button onclick="loadNotifications()" class="btn-success" style="width: auto;">تحديث 🔄</button>
-                <div style="font-weight: bold;">
-                    عرض إشعارات فرع: <span id="current-branch-display" style="color: #2e7d32;">-</span>
-                </div>
+            <div class="filter-section">
+                <label><input type="checkbox" id="myRequests" checked onchange="applyFilter()"> طلباتي للفروع 📤</label>
+                <label><input type="checkbox" id="incomingRequests" checked onchange="applyFilter()"> طلبات الفروع مني 📥</label>
+                <button onclick="loadNotifications()" class="btn-success" style="width: auto; margin-right: auto; padding: 5px 15px;">تحديث 🔄</button>
             </div>
 
             <div id="notif-container">
@@ -54,81 +56,102 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        // جلب فرع المستخدم الحالي (المعمورة أو سان ستيفانو)
         const userBranch = localStorage.getItem('userBranch') || 'الكل';
+        let allNotifs = [];
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
-            document.getElementById('current-branch-display').innerText = userBranch;
             window.onload = loadNotifications;
         }
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات من n8n...</p>';
+            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات...</p>';
 
             try {
-                // استدعاء البيانات من n8n باستخدام التايب الصحيح
                 const response = await fetchFromN8N('notifications');
-                console.log("Full Response:", response);
-
-                // معالجة مصفوفة n8n (الدخول لـ [0].data)
-                let items = [];
-                if (response && response[0] && response[0].data) {
-                    items = response[0].data;
-                } else if (Array.isArray(response)) {
-                    items = response;
-                }
-
-                if (items.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مسجلة</p>';
-                    return;
-                }
-
-                container.innerHTML = '';
                 
-                // ترتيب تنازلي حسب التاريخ
-                items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-                items.forEach(item => {
-                    // منطق الفلترة: يظهر الإشعار لو المستخدم هو الراسل (branch) أو المستقبل (target_branch)
-                    const isSender = (item.branch === userBranch);
-                    const isReceiver = (item.target_branch === userBranch);
-                    const isAdmin = (userBranch === 'الكل' || userBranch === 'ادمن');
-
-                    if (isSender || isReceiver || isAdmin) {
-                        const div = document.createElement('div');
-                        const isDone = (item.done === true || item.done === "true" || item.state === "تم");
-                        
-                        // حل مشكلة "بدون نص": البحث في كل المفاتيح الممكنة للنص
-                        const messageText = item.note || item.message || item.text || item.comment || "إشعار جديد";
-
-                        div.className = `notif-card ${isDone ? 'completed' : ''}`;
-                        div.innerHTML = `
-                            <div style="display:flex; justify-content:space-between; align-items: flex-start;">
-                                <div class="note-content">${messageText}</div>
-                                <span style="font-size: 1.2em;">${isDone ? '✅' : '⏳'}</span>
-                            </div>
-                            <div class="meta">
-                                من: <span class="branch-tag">${item.branch || '-'}</span> 
-                                ⬅️ إلى: <span class="branch-tag">${item.target_branch || '-'}</span>
-                                <span class="time-stamp">
-                                    ${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}
-                                </span>
-                            </div>
-                        `;
-                        container.appendChild(div);
-                    }
-                });
-
-                if (container.innerHTML === '') {
-                    container.innerHTML = `<p style="text-align:center; color:#999;">لا توجد إشعارات خاصة بفرع ${userBranch} حالياً</p>`;
+                if (response && response[0] && response[0].data) {
+                    allNotifs = response[0].data;
+                } else if (Array.isArray(response)) {
+                    allNotifs = response;
                 }
 
+                applyFilter();
             } catch (error) {
-                console.error("Error:", error);
                 container.innerHTML = '<p style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</p>';
             }
+        }
+
+        function applyFilter() {
+            const showMyRequests = document.getElementById('myRequests').checked;
+            const showIncoming = document.getElementById('incomingRequests').checked;
+            const container = document.getElementById('notif-container');
+            
+            // تصفية البيانات بناءً على الاختيارات
+            const filtered = allNotifs.filter(item => {
+                const isMyRequest = (item.branch === userBranch);
+                const isIncoming = (item.target_branch === userBranch);
+                
+                if (showMyRequests && isMyRequest) return true;
+                if (showIncoming && isIncoming) return true;
+                if (userBranch === 'الكل') return true;
+                return false;
+            });
+
+            renderNotifications(filtered);
+        }
+
+        function renderNotifications(items) {
+            const container = document.getElementById('notif-container');
+            if (items.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مطابقة للفلتر</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            items.forEach(item => {
+                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
+                const div = document.createElement('div');
+                div.className = `notif-card ${isDone ? 'completed' : ''}`;
+                
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items: flex-start;">
+                        <div class="note-content">${item.note || "إشعار بدون نص"}</div>
+                        <span style="font-size: 1.2em;">${isDone ? '✅' : '⏳'}</span>
+                    </div>
+                    
+                    <div class="meta">
+                        <span>من: <b class="branch-tag">${item.branch}</b> ⬅️ إلى: <b class="branch-tag">${item.target_branch}</b></span>
+                        <span class="time-stamp">${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
+                    </div>
+
+                    <div class="action-area">
+                        <input type="text" placeholder="أضف تعليق..." class="comment-input" id="comm-${item.id}" value="${item.comment || ''}">
+                        ${!isDone ? `<button onclick="markAsDone('${item.id}', this)" class="btn-success" style="width: auto; padding: 5px 12px; font-size: 0.8em;">تم ✔️</button>` : ''}
+                        <button onclick="saveComment('${item.id}', this)" class="btn-primary" style="width: auto; padding: 5px 12px; font-size: 0.8em; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">حفظ تعليق</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function saveComment(id, btn) {
+            const comment = document.getElementById(`comm-${id}`).value;
+            btn.innerText = "⏳";
+            const success = await updateData({ id, comment, action: "update_comment", type: "notifications" });
+            if (success) { alert("تم حفظ التعليق ✅"); loadNotifications(); }
+            else { alert("فشل الحفظ ❌"); btn.innerText = "حفظ تعليق"; }
+        }
+
+        async function markAsDone(id, btn) {
+            if(!confirm("هل تريد تعليم هذا الإشعار كمكتمل؟")) return;
+            btn.innerText = "⏳";
+            const success = await updateData({ id, done: true, action: "mark_done", type: "notifications" });
+            if (success) { loadNotifications(); }
+            else { alert("حدث خطأ ❌"); btn.innerText = "تم ✔️"; }
         }
     </script>
 </body>
