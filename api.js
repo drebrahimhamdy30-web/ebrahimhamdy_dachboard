@@ -2,7 +2,7 @@
 const MAIN_API_URL = "https://agent.ebrahimhamdy.com/webhook/get_order"; // تأكد من وضع رابطك القديم هنا
 
 // الرابط الجديد (للإشعارات فقط)
-const NOTIF_API_URL = "https://agent.ebrahimhamdy.com/webhook/notifications";
+const NOTIF_API_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
 
 // دالة إرسال البيانات (للمشتريات والتحويلات والجرد)
 async function postData(data) {
