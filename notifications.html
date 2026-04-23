@@ -3,49 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إشعاراتي ومهامي - صيدلية د. إبراهيم</title>
+    <title>مركز الإشعارات - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .filter-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-        .tab-btn {
-            padding: 10px 20px;
-            border: 1px solid #ddd;
-            background: #f8f9fa;
-            cursor: pointer;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        .tab-btn.active {
-            background: #007bff;
-            color: white;
-            border-color: #0056b3;
-        }
-        .task-card {
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .tab-btn { padding: 10px 20px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .tab-btn.active { background: #28a745; color: white; border-color: #218838; }
+        .notif-card {
             background: white;
             padding: 15px;
             margin-bottom: 12px;
             border-radius: 8px;
-            border-right: 6px solid #ccc;
+            border-right: 6px solid #28a745;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
-        .task-info b { color: #0056b3; }
-        .type-شراء { border-right-color: #ffc107; } /* أصفر */
-        .type-تحويل { border-right-color: #28a745; } /* أخضر */
-        .type-جرد { border-right-color: #17a2b8; } /* سماوي */
-        .status-tag {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            background: #eee;
-        }
+        .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; }
+        .info-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .note-text { font-size: 1.1em; color: #333; font-weight: bold; }
+        .meta-data { font-size: 0.85em; color: #666; }
+        .reply-section { background: #f1f3f5; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .reply-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -65,15 +42,15 @@
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">🔔 مركز التنبيهات والمهام</h2>
+            <h2 style="text-align: center; margin-bottom: 20px;">🔔 إشعارات وملاحظات الفروع</h2>
             
             <div class="filter-tabs">
-                <button class="tab-btn active" onclick="switchTab('my_tasks', this)">طلبات مطلوبة مني 📥</button>
-                <button class="tab-btn" onclick="switchTab('my_requests', this)">طلباتي للآخرين 📤</button>
+                <button class="tab-btn active" onclick="switchTab('inbound', this)">إشعارات واردة لي 📥</button>
+                <button class="tab-btn" onclick="switchTab('outbound', this)">إشعارات أرسلتها 📤</button>
             </div>
 
-            <div id="notif-list">
-                <p style="text-align:center;">جاري تحميل التنبيهات...</p>
+            <div id="notif-container">
+                <p style="text-align:center;">جاري تحميل البيانات...</p>
             </div>
         </div>
     </div>
@@ -82,8 +59,8 @@
     <script>
         const activeUser = checkAuth();
         const userBranch = localStorage.getItem('userBranch') || activeUser;
-        let allData = [];
-        let currentTab = 'my_tasks';
+        let rawNotifications = [];
+        let currentView = 'inbound';
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -91,74 +68,96 @@
         }
 
         async function loadNotifications() {
+            const container = document.getElementById('notif-container');
             try {
-                const response = await fetchData();
+                // استدعاء البيانات من جدول notification في n8n
+                const response = await fetchData(); 
                 if (response && response[0] && response[0].data) {
-                    allData = response[0].data;
-                    renderData();
+                    // نفترض أن الـ API يرجع بيانات جدول الـ notification
+                    rawNotifications = response[0].data;
+                    renderNotifications();
                 }
             } catch (error) {
-                document.getElementById('notif-list').innerHTML = '<p style="color:red; text-align:center;">خطأ في الاتصال بالسيرفر</p>';
+                container.innerHTML = '<p style="color:red; text-align:center;">خطأ في جلب الإشعارات</p>';
             }
         }
 
-        function switchTab(tab, btn) {
-            currentTab = tab;
+        function switchTab(view, btn) {
+            currentView = view;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            renderData();
+            renderNotifications();
         }
 
-        function renderData() {
-            const list = document.getElementById('notif-list');
-            list.innerHTML = '';
+        function renderNotifications() {
+            const container = document.getElementById('notif-container');
+            container.innerHTML = '';
 
-            const filtered = allData.filter(item => {
-                if (currentTab === 'my_tasks') {
-                    // المهام المطلوبة مني: أي شيء موجه لفرعي (branch) ولست أنا من طلبه (user)
-                    return item.branch === userBranch && item.user !== activeUser && item.state === 'pending';
+            const filtered = rawNotifications.filter(item => {
+                if (currentView === 'inbound') {
+                    // الإشعارات الموجهة لفرعي (target_branch)
+                    return item.target_branch === userBranch;
                 } else {
-                    // طلباتي أنا: أي شيء أنا صاحبه (user)
-                    return item.user === activeUser;
+                    // الإشعارات التي كتبتها أنا من فرعي (branch)
+                    return item.branch === userBranch;
                 }
             });
 
             if (filtered.length === 0) {
-                list.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">لا توجد ${currentTab === 'my_tasks' ? 'مهام حالية' : 'طلبات مسجلة'}</p>`;
+                container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد إشعارات حالياً</p>';
                 return;
             }
 
-            // ترتيب من الأحدث للأقدم
             filtered.reverse().forEach(item => {
+                const isDone = (item.done === true || item.done === "true" || item.done === 1);
                 const div = document.createElement('div');
-                div.className = `task-card type-${item.type}`;
+                div.className = `notif-card ${isDone ? 'completed' : ''}`;
                 
-                let actionText = "";
-                if(item.type === "تحويل") actionText = `تحويل صنف: <b>${item.item}</b> مطلوب لفرع <b>${item.user}</b>`;
-                else if(item.type === "شراء") actionText = `نقص شراء: <b>${item.item_name}</b> لفرعك`;
-                else if(item.type === "جرد") actionText = `مراجعة جرد صنف: <b>${item.item_name}</b>`;
-
                 div.innerHTML = `
-                    <div class="task-info">
-                        <div>${actionText}</div>
-                        <div style="font-size:12px; color:#666; margin-top:5px;">الكمية: ${item.qty || 0}</div>
+                    <div class="info-row">
+                        <div class="note-text">${item.note || 'بدون نص'}</div>
+                        <span class="status-tag">${isDone ? '✅ تمت' : '⏳ قيد الانتظار'}</span>
                     </div>
-                    <div style="text-align:left">
-                        <span class="status-tag">${item.state || 'انتظار'}</span>
-                        <div style="margin-top:5px;">
-                            <a href="${getRedirectLink(item.type)}" style="font-size:11px; color:#007bff; text-decoration:none;">انتقل للعمل ⬅️</a>
+                    <div class="meta-data">
+                        من: <b>${item.branch}</b> | إلى: <b>${item.target_branch}</b>
+                    </div>
+                    ${item.comment ? `<div style="margin-top:10px; color:#28a745; font-size:0.9em;"><b>الرد:</b> ${item.comment}</div>` : ''}
+                    
+                    ${(!isDone && currentView === 'inbound') ? `
+                        <div class="reply-section">
+                            <input type="text" class="reply-input" placeholder="اكتب ردك أو تعليقك هنا...">
+                            <button class="btn-success" onclick="completeNotif('${item.id}', this)" style="width:100%">تم التنفيذ وإرسال الرد</button>
                         </div>
-                    </div>
+                    ` : ''}
                 `;
-                list.appendChild(div);
+                container.appendChild(div);
             });
         }
 
-        function getRedirectLink(type) {
-            if(type === "شراء") return "purchases.html";
-            if(type === "تحويل") return "transfers.html";
-            if(type === "جرد") return "inventory.html";
-            return "#";
+        async function completeNotif(id, btn) {
+            const replyInput = btn.previousElementSibling;
+            const comment = replyInput.value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳ جاري الحفظ...";
+
+            // تحديث الحقول في جدول n8n
+            const success = await updateData({
+                id: id,
+                done: true,         // تحديث خانة done لتصبح true
+                comment: comment,   // إضافة الرد في خانة comment
+                type: "notification_update", // لكي يعرف n8n أي جدول يحدث
+                action: "update_status"
+            });
+
+            if (success) {
+                alert("تم تحديث الإشعار ✅");
+                loadNotifications();
+            } else {
+                alert("فشل التحديث ❌");
+                btn.disabled = false;
+                btn.innerText = "تم التنفيذ وإرسال الرد";
+            }
         }
     </script>
 </body>
