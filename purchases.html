@@ -111,8 +111,8 @@
         const activeUser = checkAuth();
         let rawData = []; 
 
-        const privilegedUsers = ['ebrahim', 'sanstefano', 'admin'];
-        const canEdit = privilegedUsers.includes(activeUser?.toLowerCase());
+        // التعديل هنا: جعل canEdit دائماً true طالما المستخدم مسجل دخول
+        const canEdit = true; 
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -121,11 +121,10 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات من السيرفر...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري جلب البيانات...</td></tr>';
             
             try {
                 const response = await fetchData(); 
-                // التحقق من وصول البيانات بناءً على هيكل الـ JSON الخاص بك
                 if (response && response[0] && response[0].data) {
                     rawData = response[0].data.filter(item => item.type === "شراء");
                     generateBranchCheckboxes(rawData);
@@ -192,50 +191,48 @@
                     <td>${order.qty || '0'}</td>
                     <td>
                         <input type="text" class="company-in" value="${order.company || ''}" 
-                               style="width:110px; padding:4px;" ${canEdit ? '' : 'disabled'}>
+                               style="width:110px; padding:4px;">
                     </td>
                     <td>
-                        <select class="form-select" ${canEdit ? '' : 'disabled'}>
+                        <select class="form-select" style="padding: 4px; border-radius: 4px;">
                             <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
                             <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
                             <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
                     <td>
-                        ${canEdit ? `<button class="btn-success" onclick="saveRow('${displayId}', this)" style="padding:4px 10px;">حفظ</button>` : '-'}
+                        <button class="btn-success" onclick="saveRow('${displayId}', this)" style="padding:4px 10px;">حفظ</button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-async function saveRow(id, btn) {
-    const row = btn.closest('tr');
-    const status = row.querySelector('select').value;
-    const company = row.querySelector('.company-in').value;
-    
-    btn.disabled = true;
-    btn.innerText = "⏳";
+        async function saveRow(id, btn) {
+            const row = btn.closest('tr');
+            const status = row.querySelector('select').value;
+            const company = row.querySelector('.company-in').value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳";
 
-    // هنا تم التأكيد على إرسال type: "شراء"
-    // لكي يستلمها الـ Switch في n8n ويوجهها لمسار تحديث جدول المشتريات
-    const success = await updateData({ 
-        id: id, 
-        status: status, 
-        company: company, 
-        type: "شراء", // هذا هو المفتاح لتشغيل الـ Switch
-        action: "update_status" 
-    });
+            const success = await updateData({ 
+                id: id, 
+                status: status, 
+                company: company, 
+                type: "شراء", 
+                action: "update_status" 
+            });
 
-    if (success) {
-        alert("تم التحديث ✅");
-        loadOrders(); 
-    } else {
-        alert("فشل التحديث ❌");
-        btn.disabled = false;
-        btn.innerText = "حفظ";
-    }
-}
+            if (success) {
+                alert("تم التحديث بنجاح ✅");
+                loadOrders(); 
+            } else {
+                alert("فشل التحديث ❌");
+                btn.disabled = false;
+                btn.innerText = "حفظ";
+            }
+        }
     </script>
 </body>
 </html>
