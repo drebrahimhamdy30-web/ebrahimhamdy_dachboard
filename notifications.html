@@ -3,21 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الإشعارات - صيدلية د. إبراهيم</title>
+    <title>إشعاراتي ومهامي - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .notif-item {
-            background: white;
-            border-right: 5px solid #ccc;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
         }
-        .type-شراء { border-right-color: #ffc107; }
-        .type-تحويل { border-right-color: #2196f3; }
-        .type-جرد { border-right-color: #9c27b0; }
-        .notif-time { font-size: 0.8em; color: #888; margin-top: 5px; }
+        .tab-btn {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .tab-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        .task-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border-right: 6px solid #ccc;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-info b { color: #0056b3; }
+        .type-شراء { border-right-color: #ffc107; } /* أصفر */
+        .type-تحويل { border-right-color: #28a745; } /* أخضر */
+        .type-جرد { border-right-color: #17a2b8; } /* سماوي */
+        .status-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #eee;
+        }
     </style>
 </head>
 <body>
@@ -37,8 +65,14 @@
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center;">🔔 آخر التنبيهات والطلبات</h2>
-            <div id="notif-list" style="margin-top: 20px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">🔔 مركز التنبيهات والمهام</h2>
+            
+            <div class="filter-tabs">
+                <button class="tab-btn active" onclick="switchTab('my_tasks', this)">طلبات مطلوبة مني 📥</button>
+                <button class="tab-btn" onclick="switchTab('my_requests', this)">طلباتي للآخرين 📤</button>
+            </div>
+
+            <div id="notif-list">
                 <p style="text-align:center;">جاري تحميل التنبيهات...</p>
             </div>
         </div>
@@ -47,46 +81,84 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        
+        const userBranch = localStorage.getItem('userBranch') || activeUser;
+        let allData = [];
+        let currentTab = 'my_tasks';
+
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
             window.onload = loadNotifications;
         }
 
         async function loadNotifications() {
-            const list = document.getElementById('notif-list');
-            
             try {
                 const response = await fetchData();
                 if (response && response[0] && response[0].data) {
-                    // عرض آخر 15 عملية تمت إضافتها فقط (بناءً على الترتيب التلقائي)
-                    const latestData = response[0].data.reverse().slice(0, 15);
-                    renderNotifications(latestData);
+                    allData = response[0].data;
+                    renderData();
                 }
             } catch (error) {
-                list.innerHTML = '<p style="color:red; text-align:center;">فشل تحميل الإشعارات</p>';
+                document.getElementById('notif-list').innerHTML = '<p style="color:red; text-align:center;">خطأ في الاتصال بالسيرفر</p>';
             }
         }
 
-        function renderNotifications(data) {
+        function switchTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderData();
+        }
+
+        function renderData() {
             const list = document.getElementById('notif-list');
             list.innerHTML = '';
 
-            data.forEach(item => {
+            const filtered = allData.filter(item => {
+                if (currentTab === 'my_tasks') {
+                    // المهام المطلوبة مني: أي شيء موجه لفرعي (branch) ولست أنا من طلبه (user)
+                    return item.branch === userBranch && item.user !== activeUser && item.state === 'pending';
+                } else {
+                    // طلباتي أنا: أي شيء أنا صاحبه (user)
+                    return item.user === activeUser;
+                }
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<p style="text-align:center; color:#999; padding:20px;">لا توجد ${currentTab === 'my_tasks' ? 'مهام حالية' : 'طلبات مسجلة'}</p>`;
+                return;
+            }
+
+            // ترتيب من الأحدث للأقدم
+            filtered.reverse().forEach(item => {
                 const div = document.createElement('div');
-                div.className = `notif-item type-${item.type}`;
+                div.className = `task-card type-${item.type}`;
                 
-                let message = "";
-                if(item.type === "شراء") message = `طلب شراء جديد لفرع <b>${item.branch}</b>: ${item.item_name}`;
-                else if(item.type === "تحويل") message = `طلب تحويل من <b>${item.user}</b> إلى <b>${item.branch}</b>: ${item.item}`;
-                else if(item.type === "جرد") message = `عملية جرد مسجلة لفرع <b>${item.branch}</b> للصنف: ${item.item_name}`;
+                let actionText = "";
+                if(item.type === "تحويل") actionText = `تحويل صنف: <b>${item.item}</b> مطلوب لفرع <b>${item.user}</b>`;
+                else if(item.type === "شراء") actionText = `نقص شراء: <b>${item.item_name}</b> لفرعك`;
+                else if(item.type === "جرد") actionText = `مراجعة جرد صنف: <b>${item.item_name}</b>`;
 
                 div.innerHTML = `
-                    <div>${message}</div>
-                    <div class="notif-time">الحالة الحالية: ${item.state || 'بانتظار الإجراء'}</div>
+                    <div class="task-info">
+                        <div>${actionText}</div>
+                        <div style="font-size:12px; color:#666; margin-top:5px;">الكمية: ${item.qty || 0}</div>
+                    </div>
+                    <div style="text-align:left">
+                        <span class="status-tag">${item.state || 'انتظار'}</span>
+                        <div style="margin-top:5px;">
+                            <a href="${getRedirectLink(item.type)}" style="font-size:11px; color:#007bff; text-decoration:none;">انتقل للعمل ⬅️</a>
+                        </div>
+                    </div>
                 `;
                 list.appendChild(div);
             });
+        }
+
+        function getRedirectLink(type) {
+            if(type === "شراء") return "purchases.html";
+            if(type === "تحويل") return "transfers.html";
+            if(type === "جرد") return "inventory.html";
+            return "#";
         }
     </script>
 </body>
