@@ -39,10 +39,6 @@
         }
         .branch-item:hover { background: #fffde7; }
         .branch-item input { cursor: pointer; }
-        
-        .status-waiting { background-color: #fff3e0 !important; color: #e65100; }
-        .status-ordered { background-color: #e8f5e9 !important; color: #2e7d32; }
-        .status-unavailable { background-color: #ffebee !important; color: #c62828; }
     </style>
 </head>
 <body>
@@ -110,8 +106,6 @@
     <script>
         const activeUser = checkAuth();
         let rawData = []; 
-
-        // الصلاحيات مفعلة دائماً طالما سجلت الدخول
         const canEdit = true; 
 
         if (activeUser) {
@@ -120,111 +114,90 @@
             window.onload = loadOrders;
         }
 
-async function loadOrders() {
-    const tbody = document.getElementById('table-body');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري معالجة البيانات...</td></tr>';
-    
-    try {
-        const response = await fetchOrders(); 
-        console.log("البيانات المستلمة:", response); // انظر للـ Console لترى شكل البيانات
-
-        // حل مشكلة الهيكل: التأكد من الوصول للمصفوفة أياً كان مكانها
-        let dataToProcess = [];
-        if (Array.isArray(response)) {
-            dataToProcess = response;
-        } else if (response.data && Array.isArray(response.data)) {
-            dataToProcess = response.data;
-        } else if (response[0] && response[0].data) {
-            dataToProcess = response[0].data;
-        }
-
-        if (dataToProcess.length > 0) {
-            // ملاحظة هامة: تأكد أن كلمة "شراء" مطابقة تماماً لما هو في جدول Airtable
-            rawData = dataToProcess.filter(item => item.type === "شراء");
+        async function loadOrders() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري معالجة البيانات...</td></tr>';
             
-            if (rawData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات من نوع "شراء"</td></tr>';
-            } else {
-                generateBranchCheckboxes(rawData);
-                applyFilter(); // هذه الدالة ستعرض البيانات في الجدول
+            try {
+                const response = await fetchOrders(); 
+                
+                // التأكد من الوصول للمصفوفة
+                let dataToProcess = [];
+                if (Array.isArray(response)) dataToProcess = response;
+                else if (response.data) dataToProcess = response.data;
+                else if (response[0] && response[0].data) dataToProcess = response[0].data;
+
+                if (dataToProcess.length > 0) {
+                    // تحويل البيانات لتنسيق ثابت (Normalizer)
+                    rawData = dataToProcess.map(item => ({
+                        id: item.id || item.ID || item._id,
+                        branch: item.branch || item.Branch || item['الفرع'] || '-',
+                        item_code: item.item_code || item['كود الصنف'] || '-',
+                        item_name: item.item_name || item['اسم الصنف'] || item.Item || '-',
+                        qty: item.qty || item['الكمية'] || 0,
+                        company: item.company || item['المورد'] || '',
+                        state: item.state || item.status || item['الحالة'] || 'pending',
+                        type: item.type || item['النوع'] || ''
+                    })).filter(item => item.type === "شراء");
+
+                    if (rawData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات نوع "شراء"</td></tr>';
+                    } else {
+                        generateBranchCheckboxes(rawData);
+                        applyFilter();
+                    }
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات في السيرفر</td></tr>';
+                }
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في قراءة البيانات</td></tr>';
             }
-        } else {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">السيرفر أرسل قائمة فارغة</td></tr>';
         }
-    } catch (error) {
-        console.error("حدث خطأ:", error);
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في قراءة البيانات</td></tr>';
-    }
-}
 
         function generateBranchCheckboxes(data) {
             const container = document.getElementById('branchList');
             if(!container) return;
-
-            const branches = [...new Set(data.map(item => item.branch))]
-                             .filter(b => b && b.trim() !== '')
-                             .sort();
-            
+            const branches = [...new Set(data.map(item => item.branch))].filter(b => b !== '-').sort();
             container.innerHTML = '';
             branches.forEach(br => {
                 const label = document.createElement('label');
                 label.className = 'branch-item';
-                label.innerHTML = `
-                    <input type="checkbox" class="branch-cb" value="${br}" checked onchange="applyFilter()">
-                    ${br}
-                `;
+                label.innerHTML = `<input type="checkbox" class="branch-cb" value="${br}" checked onchange="applyFilter()"> ${br}`;
                 container.appendChild(label);
             });
         }
 
         function applyFilter() {
             const statusVal = document.getElementById('statusFilter').value;
-            const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked'))
-                                          .map(cb => cb.value);
-
+            const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(cb => cb.value);
             const filtered = rawData.filter(order => {
-                const stateMatch = (statusVal === 'all') || (order.state || 'pending') === statusVal;
+                const stateMatch = (statusVal === 'all') || (order.state === statusVal);
                 const branchMatch = selectedBranches.includes(order.branch);
                 return stateMatch && branchMatch;
             });
-
             renderTable(filtered);
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
-
-            if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">لا توجد بيانات تطابق الفلاتر</td></tr>';
-                return;
-            }
-
             items.forEach((order) => {
                 const row = document.createElement('tr');
-                const currentState = order.state || 'pending';
-                const displayId = order.id;
-
                 row.innerHTML = `
-                    <td>${displayId}</td>
-                    <td style="font-weight:bold;">${order.branch || '-'}</td>
-                    <td style="color: #666;">${order.item_code || '-'}</td>
-                    <td>${order.item_name || '-'}</td>
-                    <td>${order.qty || '0'}</td>
+                    <td>${order.id}</td>
+                    <td>${order.branch}</td>
+                    <td>${order.item_code}</td>
+                    <td>${order.item_name}</td>
+                    <td>${order.qty}</td>
+                    <td><input type="text" class="company-in" value="${order.company}" style="width:110px; padding:4px;"></td>
                     <td>
-                        <input type="text" class="company-in" value="${order.company || ''}" 
-                               style="width:110px; padding:4px;">
-                    </td>
-                    <td>
-                        <select class="form-select" style="padding: 4px; border-radius: 4px;">
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${currentState === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                        <select class="form-select">
+                            <option value="pending" ${order.state === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
+                            <option value="ordered" ${order.state === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${order.state === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td>
-                        <button class="btn-success" onclick="saveRow('${displayId}', this)" style="padding:4px 10px;">حفظ</button>
-                    </td>
+                    <td><button class="btn-success" onclick="saveRow('${order.id}', this)">حفظ</button></td>
                 `;
                 tbody.appendChild(row);
             });
@@ -234,27 +207,10 @@ async function loadOrders() {
             const row = btn.closest('tr');
             const status = row.querySelector('select').value;
             const company = row.querySelector('.company-in').value;
-            
-            btn.disabled = true;
-            btn.innerText = "⏳";
-
-            // إرسال التحديث لـ n8n مع تحديد النوع "شراء" لتوجيهه للمسار الصحيح
-            const success = await updateData({ 
-                id: id, 
-                status: status, 
-                company: company, 
-                type: "شراء", 
-                action: "update_status" 
-            });
-
-            if (success) {
-                alert("تم التحديث بنجاح ✅");
-                loadOrders(); 
-            } else {
-                alert("فشل التحديث ❌");
-                btn.disabled = false;
-                btn.innerText = "حفظ";
-            }
+            btn.disabled = true; btn.innerText = "⏳";
+            const success = await updateData({ id, status, company, type: "شراء", action: "update_status" });
+            if (success) { alert("تم التحديث ✅"); loadOrders(); }
+            else { alert("فشل ❌"); btn.disabled = false; btn.innerText = "حفظ"; }
         }
     </script>
 </body>
