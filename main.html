@@ -36,9 +36,9 @@
                 <div class="form-group">
                     <label> طلب من فرع </label>
                     <select id="branch" required>
-                        <option value="فرع المعمورة">فرع المعمورة</option>
-                        <option value="فرع سان ستيفانو">فرع سان ستيفانو</option>
-                        <option value="فرع سيدى بشر">فرع سيدى بشر</option>
+                        <option value="المعمورة">المعمورة</option>
+                        <option value="سان ستيفانو">سان ستيفانو</option>
+                        <option value="سيدى بشر">سيدى بشر</option>
                     </select>
                 </div>
 
@@ -85,20 +85,18 @@
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
-            // تنفيذ القفل الأولي عند التحميل
             toggleBranchLock();
         }
 
-        // دالة قفل الفرع بناءً على نوع الطلب
         function toggleBranchLock() {
             const typeSelect = document.getElementById('type');
             const branchSelect = document.getElementById('branch');
             
             if (typeSelect.value === "شراء") {
-                // ضبط الفرع لفرع المستخدم وقفل الاختيار
                 if (userBranch) {
+                    // مطابقة دقيقة لاسم الفرع المخزن في المتصفح مع خيارات القائمة
                     for (let option of branchSelect.options) {
-                        if (option.value.includes(userBranch)) {
+                        if (option.value === userBranch) {
                             option.selected = true;
                             break;
                         }
@@ -106,7 +104,6 @@
                 }
                 branchSelect.disabled = true;
             } else {
-                // فتح الاختيار لأنواع الطلبات الأخرى
                 branchSelect.disabled = false;
             }
         }
@@ -118,11 +115,10 @@
             const btn = document.getElementById('submitBtn');
             const branchSelect = document.getElementById('branch');
             
-            // تجميع البيانات للحقول الجديدة
             const formData = {
                 user: user,
                 type: document.getElementById('type').value,
-                branch: branchSelect.value, // حتى لو disabled سيأخذ القيمة المختارة
+                branch: branchSelect.value, 
                 item_code: document.getElementById('item_code').value,
                 item: document.getElementById('item_name').value, 
                 customer_code: document.getElementById('customer_code').value,
@@ -141,7 +137,7 @@
                 if (success) {
                     alert("تم إرسال الطلب بنجاح ✅");
                     document.getElementById('orderForm').reset();
-                    toggleBranchLock(); // إعادة القفل بعد مسح النموذج
+                    toggleBranchLock(); 
                 } else {
                     alert("فشل الإرسال ❌");
                 }
