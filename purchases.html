@@ -5,41 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سجل المشتريات - صيدلية د. إبراهيم</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .filter-box {
-            background: #fff9c4;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #fbc02d;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .branch-filters-container {
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px dotted #fbc02d;
-        }
-        .branch-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 8px;
-        }
-        .branch-item {
-            background: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            border: 1px solid #fbc02d;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .branch-item:hover { background: #fffde7; }
-        .branch-item input { cursor: pointer; }
-    </style>
 </head>
 <body>
     <div class="nav-bar">
@@ -58,26 +23,22 @@
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات والطلبيات 🛒</h2>
+            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات (n8n Data Table) 🛒</h2>
 
-            <div class="filter-box">
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
-                    <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث 🔄</button>
+            <div class="filter-box" style="background: #fff9c4; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fbc02d;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <button onclick="loadOrders()" class="btn-success" style="width: auto;">تحديث 🔄</button>
                     <div>
-                        <label style="font-weight: bold;">الحالة:</label>
-                        <select id="statusFilter" onchange="applyFilter()" style="padding: 6px; border-radius: 5px; border: 1px solid #ccc;">
-                            <option value="all">عرض الكل</option>
-                            <option value="pending" selected>في الانتظار ⏳</option>
+                        <label>الحالة:</label>
+                        <select id="statusFilter" onchange="applyFilter()" style="padding: 5px;">
+                            <option value="all">الكل</option>
+                            <option value="pending" selected>انتظار ⏳</option>
                             <option value="ordered">تم الطلب ✅</option>
                             <option value="unavailable">غير متوفر ❌</option>
                         </select>
                     </div>
                 </div>
-
-                <div class="branch-filters-container">
-                    <label style="font-weight: bold; font-size: 14px;">تصفية حسب الفرع:</label>
-                    <div id="branchList" class="branch-list"></div>
-                </div>
+                <div id="branchList" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
             </div>
 
             <div style="overflow-x: auto;">
@@ -89,13 +50,13 @@
                             <th>كود الصنف</th>
                             <th>اسم الصنف</th>
                             <th>الكمية</th>
-                            <th>المورد / ملاحظات</th>
+                            <th>المورد</th>
                             <th>الحالة</th>
-                            <th>حفظ</th>
+                            <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
+                        <tr><td colspan="8" style="text-align:center;">جاري جلب بيانات الجدول...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -105,112 +66,120 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        let rawData = []; 
-        const canEdit = true; 
+        let rawData = [];
 
         if (activeUser) {
-            const userDisplay = document.getElementById('nav-user');
-            if(userDisplay) userDisplay.innerText = activeUser;
+            document.getElementById('nav-user').innerText = activeUser;
             window.onload = loadOrders;
         }
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">جاري معالجة البيانات...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">⏳ جاري فحص مخرجات n8n...</td></tr>';
             
             try {
-                const response = await fetchOrders(); 
-                
-                // التأكد من الوصول للمصفوفة
-                let dataToProcess = [];
-                if (Array.isArray(response)) dataToProcess = response;
-                else if (response.data) dataToProcess = response.data;
-                else if (response[0] && response[0].data) dataToProcess = response[0].data;
+                const response = await fetchOrders();
+                console.log("n8n Data Table Output:", response);
 
-                if (dataToProcess.length > 0) {
-                    // تحويل البيانات لتنسيق ثابت (Normalizer)
-                    rawData = dataToProcess.map(item => ({
-                        id: item.id || item.ID || item._id,
-                        branch: item.branch || item.Branch || item['الفرع'] || '-',
-                        item_code: item.item_code || item['كود الصنف'] || '-',
-                        item_name: item.item_name || item['اسم الصنف'] || item.Item || '-',
-                        qty: item.qty || item['الكمية'] || 0,
-                        company: item.company || item['المورد'] || '',
-                        state: item.state || item.status || item['الحالة'] || 'pending',
-                        type: item.type || item['النوع'] || ''
-                    })).filter(item => item.type === "شراء");
+                // استخراج المصفوفة من نود Data Table (غالباً تكون في response مباشرة أو response.data)
+                let items = [];
+                if (Array.isArray(response)) items = response;
+                else if (response.data && Array.isArray(response.data)) items = response.data;
+                else if (typeof response === 'object') items = Object.values(response).find(Array.isArray) || [];
+
+                if (items.length > 0) {
+                    // توحيد الحقول لتناسب n8n Data Table
+                    rawData = items.map(item => {
+                        const find = (keys) => {
+                            for (let k of keys) {
+                                if (item[k] !== undefined) return item[k];
+                            }
+                            return '-';
+                        };
+
+                        return {
+                            id: find(['id', 'ID', 'row_id', 'record_id']),
+                            branch: find(['branch', 'Branch', 'الفرع']),
+                            item_code: find(['item_code', 'code', 'كود الصنف']),
+                            item_name: find(['item_name', 'name', 'اسم الصنف', 'الصنف']),
+                            qty: find(['qty', 'quantity', 'الكمية']),
+                            company: find(['company', 'المورد', 'ملاحظات']) || '',
+                            state: find(['state', 'status', 'الحالة']) || 'pending',
+                            type: find(['type', 'النوع'])
+                        };
+                    }).filter(i => String(i.type).includes("شراء"));
 
                     if (rawData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات نوع "شراء"</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لم يتم العثور على سجلات "شراء" في الجدول</td></tr>';
                     } else {
-                        generateBranchCheckboxes(rawData);
+                        generateBranches(rawData);
                         applyFilter();
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد بيانات في السيرفر</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">الجدول فارغ في n8n</td></tr>';
                 }
-            } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">خطأ في قراءة البيانات</td></tr>';
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">خطأ: ${e.message}</td></tr>`;
             }
         }
 
-        function generateBranchCheckboxes(data) {
+        function generateBranches(data) {
             const container = document.getElementById('branchList');
-            if(!container) return;
-            const branches = [...new Set(data.map(item => item.branch))].filter(b => b !== '-').sort();
-            container.innerHTML = '';
-            branches.forEach(br => {
-                const label = document.createElement('label');
-                label.className = 'branch-item';
-                label.innerHTML = `<input type="checkbox" class="branch-cb" value="${br}" checked onchange="applyFilter()"> ${br}`;
-                container.appendChild(label);
-            });
+            const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-');
+            container.innerHTML = branches.map(b => `
+                <label style="background:white; padding:2px 8px; border-radius:15px; border:1px solid #fbc02d; font-size:12px;">
+                    <input type="checkbox" class="branch-cb" value="${b}" checked onchange="applyFilter()"> ${b}
+                </label>
+            `).join('');
         }
 
         function applyFilter() {
-            const statusVal = document.getElementById('statusFilter').value;
-            const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(cb => cb.value);
-            const filtered = rawData.filter(order => {
-                const stateMatch = (statusVal === 'all') || (order.state === statusVal);
-                const branchMatch = selectedBranches.includes(order.branch);
-                return stateMatch && branchMatch;
+            const status = document.getElementById('statusFilter').value;
+            const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(c => c.value);
+            
+            const filtered = rawData.filter(i => {
+                const sMatch = (status === 'all' || i.state === status);
+                const bMatch = selectedBranches.includes(i.branch);
+                return sMatch && bMatch;
             });
             renderTable(filtered);
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
-            items.forEach((order) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${order.id}</td>
-                    <td>${order.branch}</td>
-                    <td>${order.item_code}</td>
-                    <td>${order.item_name}</td>
-                    <td>${order.qty}</td>
-                    <td><input type="text" class="company-in" value="${order.company}" style="width:110px; padding:4px;"></td>
+            tbody.innerHTML = items.map(i => `
+                <tr>
+                    <td>${i.id}</td>
+                    <td><b>${i.branch}</b></td>
+                    <td>${i.item_code}</td>
+                    <td>${i.item_name}</td>
+                    <td>${i.qty}</td>
+                    <td><input type="text" value="${i.company}" class="comp-in" style="width:80px"></td>
                     <td>
-                        <select class="form-select">
-                            <option value="pending" ${order.state === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="ordered" ${order.state === 'ordered' ? 'selected' : ''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${order.state === 'unavailable' ? 'selected' : ''}>غير متوفر ❌</option>
+                        <select class="stat-sel">
+                            <option value="pending" ${i.state==='pending'?'selected':''}>انتظار</option>
+                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم الطلب</option>
+                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>غير متوفر</option>
                         </select>
                     </td>
-                    <td><button class="btn-success" onclick="saveRow('${order.id}', this)">حفظ</button></td>
-                `;
-                tbody.appendChild(row);
-            });
+                    <td><button class="btn-success" onclick="saveRow('${i.id}', this)" style="padding:2px 8px">حفظ</button></td>
+                </tr>
+            `).join('') || '<tr><td colspan="8" style="text-align:center;">لا توجد نتائج</td></tr>';
         }
 
         async function saveRow(id, btn) {
             const row = btn.closest('tr');
-            const status = row.querySelector('select').value;
-            const company = row.querySelector('.company-in').value;
-            btn.disabled = true; btn.innerText = "⏳";
-            const success = await updateData({ id, status, company, type: "شراء", action: "update_status" });
-            if (success) { alert("تم التحديث ✅"); loadOrders(); }
-            else { alert("فشل ❌"); btn.disabled = false; btn.innerText = "حفظ"; }
+            const data = {
+                id: id,
+                status: row.querySelector('.stat-sel').value,
+                company: row.querySelector('.comp-in').value,
+                type: "شراء",
+                action: "update_status"
+            };
+            btn.disabled = true;
+            const ok = await updateData(data);
+            if(ok) { alert("تم ✅"); loadOrders(); }
+            else { alert("فشل ❌"); btn.disabled = false; }
         }
     </script>
 </body>
