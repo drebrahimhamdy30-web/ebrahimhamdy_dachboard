@@ -3,33 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز الإشعارات - صيدلية د. إبراهيم</title>
+    <title>سجل الإشعارات - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
-        .tab-btn { padding: 10px 20px; border: 1px solid #ddd; background: #f8f9fa; cursor: pointer; border-radius: 5px; font-weight: bold; }
-        .tab-btn.active { background: #28a745; color: white; border-color: #218838; }
         .notif-card {
-            background: white;
-            padding: 15px;
-            margin-bottom: 12px;
-            border-radius: 8px;
-            border-right: 6px solid #28a745;
+            background: white; padding: 15px; margin-bottom: 12px;
+            border-radius: 8px; border-right: 6px solid #28a745;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; }
-        .info-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .note-text { font-size: 1.1em; color: #333; font-weight: bold; }
-        .meta-data { font-size: 0.85em; color: #666; }
-        .reply-section { background: #f1f3f5; padding: 10px; border-radius: 5px; margin-top: 10px; }
-        .reply-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 8px; }
+        .notif-card.completed { border-right-color: #6c757d; opacity: 0.7; }
+        .meta { font-size: 0.8em; color: #666; margin-top: 5px; }
+        .note-content { font-weight: bold; color: #333; }
     </style>
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
             <a href="main.html">➕ مدخلات جديدة</a>
-            <a href="purchases.html">🛒 المشتريات</a>
+            <a href="purchases.html">🛒 سجل المشتريات</a>
             <a href="transfers.html">🔄 التحويلات</a>
             <a href="inventory.html">📋 الجرد</a> 
             <a href="notifications.html" class="active">🔔 الإشعارات</a> 
@@ -42,15 +33,10 @@
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">🔔 إشعارات وملاحظات الفروع</h2>
-            
-            <div class="filter-tabs">
-                <button class="tab-btn active" onclick="switchTab('inbound', this)">إشعارات واردة لي 📥</button>
-                <button class="tab-btn" onclick="switchTab('outbound', this)">إشعارات أرسلتها 📤</button>
-            </div>
-
+            <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
+            <button onclick="loadNotifications()" class="btn-success" style="width: auto; margin-bottom: 15px;">تحديث 🔄</button>
             <div id="notif-container">
-                <p style="text-align:center;">جاري تحميل البيانات...</p>
+                <p style="text-align:center;">جاري تحميل الإشعارات...</p>
             </div>
         </div>
     </div>
@@ -58,9 +44,7 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || activeUser;
-        let rawNotifications = [];
-        let currentView = 'inbound';
+        const userBranch = localStorage.getItem('userBranch');
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -69,95 +53,29 @@
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            try {
-                // استدعاء البيانات من جدول notification في n8n
-                const response = await fetchData(); 
-                if (response && response[0] && response[0].data) {
-                    // نفترض أن الـ API يرجع بيانات جدول الـ notification
-                    rawNotifications = response[0].data;
-                    renderNotifications();
-                }
-            } catch (error) {
-                container.innerHTML = '<p style="color:red; text-align:center;">خطأ في جلب الإشعارات</p>';
-            }
-        }
+            const data = await fetchNotifications();
 
-        function switchTab(view, btn) {
-            currentView = view;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderNotifications();
-        }
-
-        function renderNotifications() {
-            const container = document.getElementById('notif-container');
-            container.innerHTML = '';
-
-            const filtered = rawNotifications.filter(item => {
-                if (currentView === 'inbound') {
-                    // الإشعارات الموجهة لفرعي (target_branch)
-                    return item.target_branch === userBranch;
-                } else {
-                    // الإشعارات التي كتبتها أنا من فرعي (branch)
-                    return item.branch === userBranch;
-                }
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">لا توجد إشعارات حالياً</p>';
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مسجلة</p>';
                 return;
             }
 
-            filtered.reverse().forEach(item => {
-                const isDone = (item.done === true || item.done === "true" || item.done === 1);
+            container.innerHTML = '';
+            // عرض الإشعارات الموجهة لفرعي أو التي أرسلتها أنا
+            data.reverse().forEach(item => {
                 const div = document.createElement('div');
-                div.className = `notif-card ${isDone ? 'completed' : ''}`;
-                
+                div.className = `notif-card ${item.done ? 'completed' : ''}`;
                 div.innerHTML = `
-                    <div class="info-row">
-                        <div class="note-text">${item.note || 'بدون نص'}</div>
-                        <span class="status-tag">${isDone ? '✅ تمت' : '⏳ قيد الانتظار'}</span>
+                    <div style="display:flex; justify-content:space-between;">
+                        <div class="note-content">${item.note || 'بدون نص'}</div>
+                        <span>${item.done ? '✅' : '⏳'}</span>
                     </div>
-                    <div class="meta-data">
+                    <div class="meta">
                         من: <b>${item.branch}</b> | إلى: <b>${item.target_branch}</b>
                     </div>
-                    ${item.comment ? `<div style="margin-top:10px; color:#28a745; font-size:0.9em;"><b>الرد:</b> ${item.comment}</div>` : ''}
-                    
-                    ${(!isDone && currentView === 'inbound') ? `
-                        <div class="reply-section">
-                            <input type="text" class="reply-input" placeholder="اكتب ردك أو تعليقك هنا...">
-                            <button class="btn-success" onclick="completeNotif('${item.id}', this)" style="width:100%">تم التنفيذ وإرسال الرد</button>
-                        </div>
-                    ` : ''}
                 `;
                 container.appendChild(div);
             });
-        }
-
-        async function completeNotif(id, btn) {
-            const replyInput = btn.previousElementSibling;
-            const comment = replyInput.value;
-            
-            btn.disabled = true;
-            btn.innerText = "⏳ جاري الحفظ...";
-
-            // تحديث الحقول في جدول n8n
-            const success = await updateData({
-                id: id,
-                done: true,         // تحديث خانة done لتصبح true
-                comment: comment,   // إضافة الرد في خانة comment
-                type: "notification_update", // لكي يعرف n8n أي جدول يحدث
-                action: "update_status"
-            });
-
-            if (success) {
-                alert("تم تحديث الإشعار ✅");
-                loadNotifications();
-            } else {
-                alert("فشل التحديث ❌");
-                btn.disabled = false;
-                btn.innerText = "تم التنفيذ وإرسال الرد";
-            }
         }
     </script>
 </body>
