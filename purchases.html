@@ -23,22 +23,23 @@
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات (n8n Data Table) 🛒</h2>
+            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات والطلبيات 🛒</h2>
 
             <div class="filter-box" style="background: #fff9c4; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fbc02d;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <button onclick="loadOrders()" class="btn-success" style="width: auto;">تحديث 🔄</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث 🔄</button>
                     <div>
-                        <label>الحالة:</label>
-                        <select id="statusFilter" onchange="applyFilter()" style="padding: 5px;">
-                            <option value="all">الكل</option>
-                            <option value="pending" selected>انتظار ⏳</option>
+                        <label style="font-weight: bold;">الحالة:</label>
+                        <select id="statusFilter" onchange="applyFilter()" style="padding: 6px; border-radius: 5px; border: 1px solid #ccc;">
+                            <option value="all">عرض الكل</option>
+                            <option value="pending" selected>في الانتظار ⏳</option>
                             <option value="ordered">تم الطلب ✅</option>
                             <option value="unavailable">غير متوفر ❌</option>
                         </select>
                     </div>
                 </div>
-                <div id="branchList" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                <div id="branchList" style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px dotted #fbc02d; padding-top: 10px;">
+                    </div>
             </div>
 
             <div style="overflow-x: auto;">
@@ -50,13 +51,13 @@
                             <th>كود الصنف</th>
                             <th>اسم الصنف</th>
                             <th>الكمية</th>
-                            <th>المورد</th>
+                            <th>المورد / ملاحظات</th>
                             <th>الحالة</th>
                             <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align:center;">جاري جلب بيانات الجدول...</td></tr>
+                        <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -75,24 +76,27 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">⏳ جاري فحص مخرجات n8n...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">⏳ جاري جلب البيانات من n8n...</td></tr>';
             
             try {
                 const response = await fetchOrders();
-                console.log("n8n Data Table Output:", response);
+                console.log("n8n Output:", response);
 
-                // استخراج المصفوفة من نود Data Table (غالباً تكون في response مباشرة أو response.data)
+                // استهداف المصفوفة الصحيحة بناءً على هيكل الـ Data Table في n8n
                 let items = [];
-                if (Array.isArray(response)) items = response;
-                else if (response.data && Array.isArray(response.data)) items = response.data;
-                else if (typeof response === 'object') items = Object.values(response).find(Array.isArray) || [];
+                if (response && response[0] && response[0].data) {
+                    items = response[0].data; 
+                } else if (Array.isArray(response)) {
+                    items = response;
+                } else if (response.data) {
+                    items = response.data;
+                }
 
                 if (items.length > 0) {
-                    // توحيد الحقول لتناسب n8n Data Table
                     rawData = items.map(item => {
                         const find = (keys) => {
                             for (let k of keys) {
-                                if (item[k] !== undefined) return item[k];
+                                if (item[k] !== undefined && item[k] !== null) return item[k];
                             }
                             return '-';
                         };
@@ -100,7 +104,7 @@
                         return {
                             id: find(['id', 'ID', 'row_id', 'record_id']),
                             branch: find(['branch', 'Branch', 'الفرع']),
-                            item_code: find(['item_code', 'code', 'كود الصنف']),
+                            item_code: find(['cust_code', 'item_code', 'code', 'كود الصنف']), // دعم التسمية الظاهرة في n8n
                             item_name: find(['item_name', 'name', 'اسم الصنف', 'الصنف']),
                             qty: find(['qty', 'quantity', 'الكمية']),
                             company: find(['company', 'المورد', 'ملاحظات']) || '',
@@ -110,24 +114,25 @@
                     }).filter(i => String(i.type).includes("شراء"));
 
                     if (rawData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لم يتم العثور على سجلات "شراء" في الجدول</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لم يتم العثور على سجلات من نوع "شراء"</td></tr>';
                     } else {
                         generateBranches(rawData);
                         applyFilter();
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">الجدول فارغ في n8n</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">الجدول فارغ في n8n حالياً</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">خطأ: ${e.message}</td></tr>`;
+                console.error("Fetch Error:", e);
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر: ${e.message}</td></tr>`;
             }
         }
 
         function generateBranches(data) {
             const container = document.getElementById('branchList');
-            const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-');
+            const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-').sort();
             container.innerHTML = branches.map(b => `
-                <label style="background:white; padding:2px 8px; border-radius:15px; border:1px solid #fbc02d; font-size:12px;">
+                <label style="background:white; padding:5px 12px; border-radius:20px; border:1px solid #fbc02d; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:5px;">
                     <input type="checkbox" class="branch-cb" value="${b}" checked onchange="applyFilter()"> ${b}
                 </label>
             `).join('');
@@ -138,7 +143,9 @@
             const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(c => c.value);
             
             const filtered = rawData.filter(i => {
-                const sMatch = (status === 'all' || i.state === status);
+                // معالجة حالة الـ null بجعلها 'pending' افتراضياً لضمان الظهور
+                const currentState = (i.state === '-' || i.state === null) ? 'pending' : i.state;
+                const sMatch = (status === 'all' || currentState === status);
                 const bMatch = selectedBranches.includes(i.branch);
                 return sMatch && bMatch;
             });
@@ -151,35 +158,46 @@
                 <tr>
                     <td>${i.id}</td>
                     <td><b>${i.branch}</b></td>
-                    <td>${i.item_code}</td>
+                    <td style="color:#666;">${i.item_code}</td>
                     <td>${i.item_name}</td>
                     <td>${i.qty}</td>
-                    <td><input type="text" value="${i.company}" class="comp-in" style="width:80px"></td>
+                    <td><input type="text" value="${i.company}" class="comp-in" style="width:100px; padding:4px; border:1px solid #ddd; border-radius:4px;"></td>
                     <td>
-                        <select class="stat-sel">
-                            <option value="pending" ${i.state==='pending'?'selected':''}>انتظار</option>
-                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم الطلب</option>
-                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>غير متوفر</option>
+                        <select class="stat-sel" style="padding:4px; border-radius:4px;">
+                            <option value="pending" ${i.state==='pending' || i.state==='-'?'selected':''}>انتظار ⏳</option>
+                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم الطلب ✅</option>
+                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>غير متوفر ❌</option>
                         </select>
                     </td>
-                    <td><button class="btn-success" onclick="saveRow('${i.id}', this)" style="padding:2px 8px">حفظ</button></td>
+                    <td><button class="btn-success" onclick="saveRow('${i.id}', this)" style="padding:4px 10px;">حفظ</button></td>
                 </tr>
-            `).join('') || '<tr><td colspan="8" style="text-align:center;">لا توجد نتائج</td></tr>';
+            `).join('') || '<tr><td colspan="8" style="text-align:center;">لا توجد نتائج تطابق الفلتر المختير</td></tr>';
         }
 
         async function saveRow(id, btn) {
             const row = btn.closest('tr');
-            const data = {
+            const status = row.querySelector('.stat-sel').value;
+            const company = row.querySelector('.comp-in').value;
+            
+            btn.disabled = true;
+            btn.innerText = "⏳";
+
+            const success = await updateData({
                 id: id,
-                status: row.querySelector('.stat-sel').value,
-                company: row.querySelector('.comp-in').value,
+                status: status,
+                company: company,
                 type: "شراء",
                 action: "update_status"
-            };
-            btn.disabled = true;
-            const ok = await updateData(data);
-            if(ok) { alert("تم ✅"); loadOrders(); }
-            else { alert("فشل ❌"); btn.disabled = false; }
+            });
+
+            if (success) {
+                alert("تم تحديث الحالة بنجاح ✅");
+                loadOrders(); 
+            } else {
+                alert("فشل في تحديث البيانات ❌");
+                btn.disabled = false;
+                btn.innerText = "حفظ";
+            }
         }
     </script>
 </body>
