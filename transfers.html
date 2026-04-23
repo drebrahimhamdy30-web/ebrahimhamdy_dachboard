@@ -51,7 +51,7 @@
             <a href="main.html">➕ مدخلات جديدة</a>
             <a href="purchases.html">🛒 سجل المشتريات</a>
             <a href="transfers.html" class="active">🔄 التحويلات</a>
-        </div>
+            <a href="inventory.html">📋 الجرد</a> <a href="notifications.html">🔔 الإشعارات</a> </div>
         <div class="user-info">
             <span id="nav-user"></span>
             <button onclick="logout()" class="logout-btn">خروج</button>
@@ -134,20 +134,16 @@
             try {
                 const response = await fetchData(); 
                 if (response && response[0] && response[0].data) {
-                    // تصفية البيانات الأساسية: فقط التحويلات التي تخصني
                     rawData = response[0].data.filter(item => {
                         const typeVal = (item.type || '').toString();
                         const isTransfer = (typeVal === 'transfer' || typeVal === 'تحويل');
-                        
-                        // مطابقة مرنة للأسماء (تشمل كلمة فرع أو بدونها)
                         const isMyTask = (item.branch && item.branch.includes(userBranch || activeUser));
                         const isMyRequest = (item.user === activeUser);
-                        
                         return isTransfer && (isMyTask || isMyRequest);
                     });
                     
                     populateBranchOptions(rawData);
-                    applyFilters(); // سيطبق الفلتر الافتراضي (مطلوب مني + انتظار)
+                    applyFilters(); 
                 } else {
                     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد تحويلات مسجلة</td></tr>';
                 }
@@ -173,18 +169,14 @@
             const branchVal = document.getElementById('branch-filter').value;
 
             const filtered = rawData.filter(item => {
-                // 1. فلتر الجهة
                 const isTarget = (item.branch && item.branch.includes(userBranch || activeUser));
                 const isSource = (item.user === activeUser);
                 let directionMatch = true;
                 if (directionVal === 'inbound') directionMatch = isTarget;
                 else if (directionVal === 'outbound') directionMatch = isSource;
 
-                // 2. فلتر الحالة
                 const itemStatus = (item.state || 'pending').toString();
                 const statusMatch = (statusVal === 'all') || (itemStatus === statusVal);
-
-                // 3. فلتر الفرع الطالب
                 const branchMatch = (branchVal === 'all') || (item.user === branchVal);
 
                 return directionMatch && statusMatch && branchMatch;
@@ -204,11 +196,8 @@
 
             items.forEach((order, index) => {
                 const row = document.createElement('tr');
-                
-                // التحقق هل أنا "المطلوب مني" التحويل لتمكين زر الرد
                 const isTargetBranch = (order.branch && order.branch.includes(userBranch || activeUser));
                 const isDisabled = isTargetBranch ? '' : 'disabled';
-                
                 const currentState = (order.state || 'pending').toString();
                 const displayId = order.id || (index + 1);
 
