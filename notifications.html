@@ -10,16 +10,18 @@
             background: white; padding: 15px; margin-bottom: 12px;
             border-radius: 8px; border-right: 6px solid #28a745;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
         }
         .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; background: #f8f9fa; }
-        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .note-content { font-weight: bold; color: #333; font-size: 1.1em; margin-bottom: 8px; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-        .time-stamp { color: #888; font-size: 0.9em; }
-        .action-area { margin-top: 10px; display: flex; gap: 10px; align-items: center; background: #fdfdfd; padding: 8px; border-radius: 5px; }
-        .comment-input { flex-grow: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; }
-        .filter-section { display: flex; gap: 15px; margin-bottom: 15px; background: #fffde7; padding: 12px; border-radius: 8px; border: 1px solid #fbc02d; font-weight: bold; }
+        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; }
+        .note-content { font-weight: bold; color: #333; font-size: 1.1em; }
+        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; }
+        .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+        .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .filter-section { 
+            display: flex; gap: 15px; margin-bottom: 15px; 
+            background: #fffde7; padding: 15px; border-radius: 8px; 
+            border: 1px solid #fbc02d; align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -42,22 +44,21 @@
             <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
             
             <div class="filter-section">
-                <label><input type="checkbox" id="myRequests" checked onchange="applyFilter()"> طلباتي للفروع 📤</label>
-                <label><input type="checkbox" id="incomingRequests" checked onchange="applyFilter()"> طلبات الفروع مني 📥</label>
-                <button onclick="loadNotifications()" class="btn-success" style="width: auto; margin-right: auto; padding: 5px 15px;">تحديث 🔄</button>
+                <span>تصفية: </span>
+                <label><input type="checkbox" id="myRequests" checked onchange="applyFilter()"> طلباتي 📤</label>
+                <label><input type="checkbox" id="incomingRequests" checked onchange="applyFilter()"> طلبات واردة 📥</label>
+                <button onclick="loadNotifications()" class="btn-success" style="width: auto; margin-right: auto;">تحديث 🔄</button>
             </div>
 
-            <div id="notif-container">
-                <p style="text-align:center;">جاري تحميل الإشعارات...</p>
-            </div>
+            <div id="notif-container"></div>
         </div>
     </div>
 
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || 'الكل';
-        let allNotifs = [];
+        const userBranch = localStorage.getItem('userBranch'); // تأكد أنها مخزنة بـ "المعمورة" أو "سان سكيفانو"
+        let allData = [];
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -66,92 +67,75 @@
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات...</p>';
-
+            container.innerHTML = '<p style="text-align:center;">جاري التحميل...</p>';
             try {
                 const response = await fetchFromN8N('notifications');
-                
-                if (response && response[0] && response[0].data) {
-                    allNotifs = response[0].data;
-                } else if (Array.isArray(response)) {
-                    allNotifs = response;
-                }
-
+                // الدخول للبيانات بناءً على الـ Aggregate في n8n
+                allData = (response && response[0] && response[0].data) ? response[0].data : (Array.isArray(response) ? response : []);
                 applyFilter();
-            } catch (error) {
-                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</p>';
+            } catch (e) {
+                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في الاتصال</p>';
             }
         }
 
         function applyFilter() {
-            const showMyRequests = document.getElementById('myRequests').checked;
-            const showIncoming = document.getElementById('incomingRequests').checked;
-            const container = document.getElementById('notif-container');
+            const showMyReq = document.getElementById('myRequests').checked;
+            const showInbound = document.getElementById('incomingRequests').checked;
             
-            // تصفية البيانات بناءً على الاختيارات
-            const filtered = allNotifs.filter(item => {
-                const isMyRequest = (item.branch === userBranch);
-                const isIncoming = (item.target_branch === userBranch);
+            const filtered = allData.filter(item => {
+                const amISender = String(item.branch).trim() === String(userBranch).trim();
+                const amIReceiver = String(item.target_branch).trim() === String(userBranch).trim();
                 
-                if (showMyRequests && isMyRequest) return true;
-                if (showIncoming && isIncoming) return true;
-                if (userBranch === 'الكل') return true;
+                if (showMyReq && amISender) return true;
+                if (showInbound && amIReceiver) return true;
                 return false;
             });
 
-            renderNotifications(filtered);
+            render(filtered);
         }
 
-        function renderNotifications(items) {
+        function render(items) {
             const container = document.getElementById('notif-container');
-            if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد إشعارات مطابقة للفلتر</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            items.forEach(item => {
-                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
+            container.innerHTML = items.length === 0 ? '<p style="text-align:center;">لا توجد نتائج</p>' : '';
+            
+            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).forEach(item => {
+                const isDone = (item.done === true || item.done === "true" || item.done === "Null" ? false : item.done);
                 const div = document.createElement('div');
                 div.className = `notif-card ${isDone ? 'completed' : ''}`;
-                
                 div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items: flex-start;">
-                        <div class="note-content">${item.note || "إشعار بدون نص"}</div>
-                        <span style="font-size: 1.2em;">${isDone ? '✅' : '⏳'}</span>
-                    </div>
-                    
+                    <div class="note-content">${item.note || 'بدون نص'}</div>
                     <div class="meta">
-                        <span>من: <b class="branch-tag">${item.branch}</b> ⬅️ إلى: <b class="branch-tag">${item.target_branch}</b></span>
-                        <span class="time-stamp">${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
+                        <span>من: <b class="branch-tag">${item.branch}</b> إلى: <b class="branch-tag">${item.target_branch}</b></span>
+                        <span style="color:#999;">${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
                     </div>
-
                     <div class="action-area">
-                        <input type="text" placeholder="أضف تعليق..." class="comment-input" id="comm-${item.id}" value="${item.comment || ''}">
-                        ${!isDone ? `<button onclick="markAsDone('${item.id}', this)" class="btn-success" style="width: auto; padding: 5px 12px; font-size: 0.8em;">تم ✔️</button>` : ''}
-                        <button onclick="saveComment('${item.id}', this)" class="btn-primary" style="width: auto; padding: 5px 12px; font-size: 0.8em; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">حفظ تعليق</button>
+                        <input type="text" id="input-${item.id}" class="comment-input" placeholder="التعليق..." value="${item.comment !== 'Null' && item.comment ? item.comment : ''}">
+                        <button onclick="updateNotif('${item.id}', 'comment')" class="btn-primary" style="width:auto; padding:8px 15px; font-size:0.8em;">حفظ التعليق</button>
+                        ${!isDone ? `<button onclick="updateNotif('${item.id}', 'done')" class="btn-success" style="width:auto; padding:8px 15px; font-size:0.8em; background:#28a745;">تم ✔️</button>` : ''}
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        async function saveComment(id, btn) {
-            const comment = document.getElementById(`comm-${id}`).value;
-            btn.innerText = "⏳";
-            const success = await updateData({ id, comment, action: "update_comment", type: "notifications" });
-            if (success) { alert("تم حفظ التعليق ✅"); loadNotifications(); }
-            else { alert("فشل الحفظ ❌"); btn.innerText = "حفظ تعليق"; }
-        }
+        async function updateNotif(id, actionType) {
+            const commentVal = document.getElementById(`input-${id}`).value;
+            const payload = {
+                id: id,
+                type: "notifications",
+                action: "update",
+                comment: commentVal,
+                done: (actionType === 'done') // إذا ضغط "تم" يرسل true، وإذا "حفظ تعليق" يرسل الحالة الحالية
+            };
 
-        async function markAsDone(id, btn) {
-            if(!confirm("هل تريد تعليم هذا الإشعار كمكتمل؟")) return;
-            btn.innerText = "⏳";
-            const success = await updateData({ id, done: true, action: "mark_done", type: "notifications" });
-            if (success) { loadNotifications(); }
-            else { alert("حدث خطأ ❌"); btn.innerText = "تم ✔️"; }
+            // نستخدم نفس الدالة التي نجحت في المشتريات
+            const success = await updateData(payload); 
+            if (success) {
+                alert("تم التحديث بنجاح ✅");
+                loadNotifications();
+            } else {
+                alert("حدث خطأ في التحديث ❌");
+            }
         }
     </script>
 </body>
