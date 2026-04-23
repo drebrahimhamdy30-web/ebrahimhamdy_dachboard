@@ -1,32 +1,33 @@
-// الرابط الموحد لكل عمليات العرض
-const FETCH_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
+// 1. تعريف الروابط (تأكد من الروابط الصحيحة)
+const FETCH_URL = "https://agent.ebrahimhamdy.com/webhook/get_order"; // للعرض
+const POST_MAIN_URL = "https://agent.ebrahimhamdy.com/webhook/get_order"; // للادخال (لو نفس الرابط)
 
-// 1. دالة جلب المشتريات والتحويلات (تأكد أن الشرط في n8n هو orders)
+// 2. دالة جلب البيانات (orders أو notifications)
+async function fetchFromN8N(category) {
+    try {
+        const response = await fetch(`${FETCH_URL}?type=${category}`);
+        if (!response.ok) throw new Error('Network error');
+        const data = await response.json();
+        return Array.isArray(data) ? data : (data.data || []);
+    } catch (error) {
+        console.error(`Error fetching ${category}:`, error);
+        return [];
+    }
+}
+
+// 3. الدوال اللي الصفحات بتستخدمها (دوال مبسطة)
 async function fetchOrders() {
-    try {
-        const response = await fetch(`${FETCH_URL}?type=orders`); // أضفنا type=orders
-        const data = await response.json();
-        return Array.isArray(data) ? data : (data.data || []);
-    } catch (error) {
-        return [];
-    }
+    return await fetchFromN8N('orders');
 }
 
-// 2. دالة جلب الإشعارات (تأكد أن الشرط في n8n هو notifications)
 async function fetchNotifications() {
-    try {
-        const response = await fetch(`${FETCH_URL}?type=notifications`); // أضفنا type=notifications
-        const data = await response.json();
-        return Array.isArray(data) ? data : (data.data || []);
-    } catch (error) {
-        return [];
-    }
+    return await fetchFromN8N('notifications');
 }
 
-// دالة إرسال الإشعارات (للجدول الجديد)
+// 4. دالة إرسال الإشعارات (POST)
 async function postNotification(data) {
     try {
-        const response = await fetch(NOTIF_API_URL, {
+        const response = await fetch(FETCH_URL, { // تأكد من رابط الـ POST هنا
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -38,20 +39,7 @@ async function postNotification(data) {
     }
 }
 
-// دالة جلب الإشعارات (للعرض في صفحة الإشعارات)
-async function fetchNotifications() {
-    try {
-        const response = await fetch(NOTIF_API_URL);
-        const data = await response.json();
-        // تأكد أن n8n يرسل البيانات في مصفوفة
-        return Array.isArray(data) ? data : (data.data || []);
-    } catch (error) {
-        console.error("Error fetching notifications:", error);
-        return [];
-    }
-}
-
-// دالة التحقق من تسجيل الدخول
+// 5. دالة التحقق من تسجيل الدخول والخروج
 function checkAuth() {
     const user = localStorage.getItem('activeUser');
     if (!user) {
