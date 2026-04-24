@@ -1,6 +1,6 @@
 // 1. تعريف الروابط الأساسية
 const FETCH_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
-const POST_URL = "https://agent.ebrahimhamdy.com/webhook/get_order";
+const POST_URL = "https://agent.ebrahimhamdy.com/webhook/taskmanagement";
 
 // 2. دالة جلب البيانات الموحدة (GET)
 async function fetchFromN8N(category) {
