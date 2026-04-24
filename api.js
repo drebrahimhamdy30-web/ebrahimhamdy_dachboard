@@ -42,6 +42,11 @@ async function postNotification(data) {
     return await updateData(data); // تستخدم نفس دالة الـ POST
 }
 
+// ✅ 5.1 دالة إرسال الطلبات (كانت ناقصة)
+async function postData(data) {
+    return await updateData(data); // تستخدم نفس دالة الـ POST
+}
+
 // 6. نظام التأكد من الهوية (تسجيل الدخول)
 function checkAuth() {
     const user = localStorage.getItem('activeUser');
