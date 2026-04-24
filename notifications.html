@@ -16,7 +16,7 @@
         .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
         .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
         .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .filter-box { display: flex; gap: 20px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
+        .filter-box { display: flex; flex-wrap: wrap; gap: 15px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
         .btn-done { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
         .btn-done:hover { background: #218838; }
         .btn-done:disabled { background: #ccc; cursor: not-allowed; }
@@ -43,8 +43,11 @@
             
             <div class="filter-box">
                 <span>تصفية:</span>
-                <label><input type="checkbox" id="showSent" checked onchange="applyFilter()"> طلباتي 📤</label>
-                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> طلبات واردة 📥</label>
+                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> طلبات واردة (مطلوبة مني) 📥</label>
+                <label><input type="checkbox" id="showSent" onchange="applyFilter()"> طلباتي المرسلة 📤</label>
+                <label style="border-right: 2px solid #ccc; padding-right: 15px; margin-right: 5px;">
+                    <input type="checkbox" id="hideDone" checked onchange="applyFilter()"> قيد الانتظار فقط ⏳
+                </label>
                 <button onclick="loadNotifications()" class="btn-success" style="width:auto; margin-right:auto; padding:5px 20px;">تحديث 🔄</button>
             </div>
 
@@ -57,7 +60,6 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        // جلب الفرع من localStorage أو استخدام اسم المستخدم كفرع افتراضي
         const userBranch = localStorage.getItem('userBranch') || activeUser || '';
         let allItems = [];
 
@@ -72,19 +74,11 @@
             
             try {
                 const response = await fetchFromN8N('notifications');
-                console.log("📥 البيانات المستقبلة:", response);
-
-                // معالجة ذكية لشكل البيانات القادمة من n8n
+                
                 if (Array.isArray(response)) {
-                    if (response.length > 0 && response[0].data && Array.isArray(response[0].data)) {
-                        allItems = response[0].data;
-                    } else {
-                        allItems = response;
-                    }
-                } else if (response && response.data) {
-                    allItems = response.data;
+                    allItems = (response[0] && response[0].data) ? response[0].data : response;
                 } else {
-                    allItems = [];
+                    allItems = response.data || [];
                 }
 
                 if (allItems.length === 0) {
@@ -93,7 +87,6 @@
                     applyFilter();
                 }
             } catch (e) {
-                console.error("❌ خطأ:", e);
                 container.innerHTML = '<p style="text-align:center; color:red;">❌ خطأ في تحميل البيانات</p>';
             }
         }
@@ -102,6 +95,7 @@
             const container = document.getElementById('notif-container');
             const sentChecked = document.getElementById('showSent').checked;
             const receivedChecked = document.getElementById('showReceived').checked;
+            const hideDone = document.getElementById('hideDone').checked;
 
             if (!sentChecked && !receivedChecked) {
                 container.innerHTML = '<p style="text-align:center; color:#999;">📭 اختر فلتر واحد على الأقل</p>';
@@ -112,6 +106,10 @@
                 const sender = String(item.branch || '').trim();
                 const receiver = String(item.target_branch || '').trim();
                 const current = String(userBranch).trim();
+                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
+
+                // فلتر قيد الانتظار
+                if (hideDone && isDone) return false;
 
                 const isSent = (sender === current);
                 const isReceived = (receiver === current);
@@ -127,14 +125,14 @@
         function renderNotifications(items) {
             const container = document.getElementById('notif-container');
             if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا يوجد نتائج</p>';
+                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا يوجد نتائج تطابق الفلاتر</p>';
                 return;
             }
 
             container.innerHTML = '';
             
-            // ترتيب من الأحدث للأقدم
-            items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            // التعديل: الترتيب من الأقدم إلى الأحدث (القديم فوق)
+            items.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
             items.forEach(item => {
                 const isDone = (item.done === true || item.done === "true" || item.done === "تم");
@@ -145,9 +143,7 @@
                 const branchFrom = item.branch || '؟';
                 const branchTo = item.target_branch || '؟';
                 const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : '؟';
-                const commentValue = (item.comment && item.comment !== 'null' && item.comment !== 'Null') ? item.comment : '';
-                
-                // تحويل الـ ID لنص لضمان عدم وجود أخطاء في الـ HTML
+                const commentValue = (item.comment && item.comment !== 'null') ? item.comment : '';
                 const safeId = String(item.id);
 
                 div.innerHTML = `
@@ -165,41 +161,34 @@
             });
         }
 
-async function handleDone(event, id) {
-            // منع السلوك الافتراضي للزر
+        async function handleDone(event, id) {
             if(event) event.preventDefault();
-            
             const btn = event.target;
             const comment = document.getElementById(`comm-${id}`).value;
             
             const updatePayload = {
                 id: id,
-                type: "إشعار", // هذا هو الحقل المطلوب لكي يعمل الـ Switch في n8n
+                type: "إشعار",
                 action: "update_status",
                 comment: comment,
-                done: "تم", // نرسل "تم" كنص لتسهيل الكتابة في Google Sheets
+                done: "تم",
                 updatedAt: new Date().toISOString()
             };
 
-            // تغيير حالة الزر لمنع الضغط المتكرر
             const originalText = btn.innerText;
             btn.innerText = "⏳...";
             btn.disabled = true;
 
-            console.log("📤 إرسال تحديث:", updatePayload);
-            
             try {
-                // ملاحظة: تأكد أن دالة updateData موجودة في api.js وترسل البيانات للـ Webhook
                 const success = await updateData(updatePayload);
                 if (success) {
-                    alert("✅ تم تحديث الحالة بنجاح");
-                    await loadNotifications(); // تحديث القائمة
+                    alert("✅ تم تحديث الحالة");
+                    await loadNotifications();
                 } else {
-                    throw new Error("فشل في الرد من السيرفر");
+                    throw new Error();
                 }
             } catch (error) {
-                console.error("Update error:", error);
-                alert("❌ فشل التحديث. تأكد من تفعيل CORS في n8n أو مراجعة الكونسول.");
+                alert("❌ فشل التحديث");
                 btn.innerText = originalText;
                 btn.disabled = false;
             }
