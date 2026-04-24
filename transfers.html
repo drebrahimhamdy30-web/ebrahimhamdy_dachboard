@@ -7,16 +7,18 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* تنسيقات الجدول المدمج */
         table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.85rem; }
-        th, td { padding: 8px 4px; text-align: center; border-bottom: 1px solid #edf2f7; }
+        th, td { padding: 8px 4px; text-align: center; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
         th { background-color: #f8fafc; color: #4a5568; font-weight: 700; }
         .filter-control { padding: 4px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.8rem; background: #fff; }
         .status-select { padding: 3px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 100%; }
         .note-input { width: 95%; padding: 3px 6px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.8rem; }
-        .btn-action { background: var(--success); color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-action { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         .btn-action:disabled { background: #cbd5e0; cursor: not-allowed; }
-        .tag-info { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+        .tag-info { font-size: 0.75rem; color: #64748b; margin-top: 5px; }
+        .dir-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-right: 5px; }
+        .in-badge { background: #e3f2fd; color: #1976d2; }
+        .out-badge { background: #fff3e0; color: #f57c00; }
     </style>
 </head>
 <body>
@@ -38,17 +40,17 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary);">🔄 إدارة تحويلات الفروع</h3>
-                <button onclick="loadTransfers()" class="btn-done" style="background: var(--accent); padding: 5px 15px;">
+                <button onclick="loadTransfers()" style="background: #3498db; padding: 5px 15px; color: white; border: none; border-radius: 4px; cursor: pointer;">
                     <i class="fas fa-sync-alt"></i> تحديث
                 </button>
             </div>
 
-            <div class="filter-box" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 8px; background: #f8fafc;">
+            <div class="filter-box" style="display: flex; gap: 10px; flex-wrap: wrap; padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 0.8rem;">📦 الجهة:</span>
+                    <span style="font-size: 0.8rem;">📦 النوع:</span>
                     <select id="direction-filter" class="filter-control" onchange="applyFilters()">
-                        <option value="inbound">مهامي الواردة 📥</option>
-                        <option value="outbound">طلباتي المرسلة 📤</option>
+                        <option value="inbound">تحويلات واردة إلينا 📥</option>
+                        <option value="outbound">طلبات مرسلة لغيرنا 📤</option>
                         <option value="all">الكل</option>
                     </select>
                 </div>
@@ -61,26 +63,20 @@
                         <option value="all">الكل</option>
                     </select>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 0.8rem;">🏢 الفرع:</span>
-                    <select id="branch-filter" class="filter-control" onchange="applyFilters()">
-                        <option value="all">كل الفروع</option>
-                    </select>
-                </div>
             </div>
 
-            <div id="branch-tag" class="tag-info" style="text-align: center; margin: 5px 0; font-weight: bold; color: var(--accent);"></div>
+            <div id="branch-tag" class="tag-info" style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #e67e22;"></div>
 
             <div style="overflow-x: auto;">
                 <table id="transfers-table">
                     <thead>
                         <tr>
-                            <th>المسار (من ⬅️ إلى)</th>
-                            <th>الصنف</th>
-                            <th>الكمية</th>
-                            <th>ملاحظة الرد</th>
-                            <th>الحالة</th>
-                            <th>إجراء</th>
+                            <th style="width: 20%;">المسار (من ⬅️ إلى)</th>
+                            <th style="width: 25%;">الصنف</th>
+                            <th style="width: 8%;">الكمية</th>
+                            <th style="width: 20%;">ملاحظة / رد</th>
+                            <th style="width: 15%;">الحالة</th>
+                            <th style="width: 12%;">إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
@@ -95,12 +91,13 @@
     <script>
         let rawData = [];
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || activeUser;
+        // نستخدم الفرع المخزن أو اسم المستخدم كفرع افتراضي
+        const userBranchName = localStorage.getItem('userBranch') || "المعمورة"; 
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
             const branchTag = document.getElementById('branch-tag');
-            if (branchTag) branchTag.innerText = "📍 فرعك الحالي: " + userBranch;
+            if (branchTag) branchTag.innerText = "📍 فرعك الحالي: " + userBranchName;
             window.onload = loadTransfers;
         }
 
@@ -109,52 +106,42 @@
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
             
             try {
-                const response = await fetchData(); 
-                if (response && response[0]?.data) {
-                    rawData = response[0].data.filter(item => {
-                        const typeVal = (item.type || '').toString();
-                        const isTransfer = (typeVal === 'transfer' || typeVal === 'تحويل');
-                        const isRelevant = (item.branch?.includes(userBranch)) || (item.user === activeUser);
-                        return isTransfer && isRelevant;
+                // استخدام الدالة fetchOrders لأنها تجلب كل العمليات
+                const response = await fetchOrders(); 
+                let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
+
+                if (Array.isArray(items)) {
+                    rawData = items.filter(item => {
+                        const typeVal = item.type || '';
+                        // التأكد أن العملية هي تحويل
+                        return typeVal === "تحويل";
                     });
-                    
-                    populateBranchOptions(rawData);
                     applyFilters(); 
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد تحويلات</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد بيانات متاحة</td></tr>';
                 }
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">❌ خطأ في الاتصال</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">❌ خطأ في الاتصال بالسيرفر</td></tr>';
             }
-        }
-
-        function populateBranchOptions(data) {
-            const branchFilter = document.getElementById('branch-filter');
-            const branches = [...new Set(data.map(item => item.user))].filter(b => b);
-            branchFilter.innerHTML = '<option value="all">كل الفروع</option>';
-            branches.forEach(br => {
-                branchFilter.innerHTML += `<option value="${br}">${br}</option>`;
-            });
         }
 
         function applyFilters() {
             const directionVal = document.getElementById('direction-filter').value;
             const statusVal = document.getElementById('status-filter').value;
-            const branchVal = document.getElementById('branch-filter').value;
 
             const filtered = rawData.filter(item => {
-                const isTarget = (item.branch?.includes(userBranch));
-                const isSource = (item.user === activeUser);
+                const isTarget = (item.branch === userBranchName); // الفرع الموجه إليه التحويل
+                const isSource = (item.user === userBranchName);   // الفرع الذي طلب التحويل
                 
-                let dirMatch = (directionVal === 'all') || 
-                               (directionVal === 'inbound' && isTarget) || 
-                               (directionVal === 'outbound' && isSource);
+                let dirMatch = false;
+                if (directionVal === 'all') dirMatch = (isTarget || isSource);
+                if (directionVal === 'inbound') dirMatch = isTarget;
+                if (directionVal === 'outbound') dirMatch = isSource;
 
                 const itemStatus = item.state || 'pending';
                 const statMatch = (statusVal === 'all') || (itemStatus === statusVal);
-                const brMatch = (branchVal === 'all') || (item.user === branchVal);
 
-                return dirMatch && statMatch && brMatch;
+                return dirMatch && statMatch;
             });
 
             renderTable(filtered);
@@ -165,38 +152,44 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد نتائج تطابق البحث</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد تحويلات حالياً</td></tr>';
                 return;
             }
 
             items.forEach((item) => {
-                const isTargetBranch = (item.branch?.includes(userBranch));
+                // إذا كان فرعي هو "الموجه إليه" (branch)، فلي حق الرد
+                const canReply = (item.branch === userBranchName);
                 const currentState = item.state || 'pending';
                 const tr = document.createElement('tr');
                 
                 tr.innerHTML = `
-                    <td style="font-size:0.8rem;">
-                        <span style="color:#3182ce;">${item.user}</span> 
-                        <i class="fas fa-long-arrow-alt-left" style="margin:0 4px; color:#cbd5e0;"></i> 
-                        <span style="font-weight:bold;">${item.branch}</span>
-                    </td>
-                    <td style="text-align:right; font-weight:500;">${item.item_name || item.item || '-'}</td>
-                    <td style="font-weight:bold;">${item.qty || '0'}</td>
                     <td>
-                        <input type="text" id="note-${item.id}" class="note-input" value="${item.company || ''}" 
-                               placeholder="..." ${!isTargetBranch ? 'disabled' : ''}>
+                        <div style="font-size:0.8rem; font-weight:bold;">${item.user} ⬅️ ${item.branch}</div>
+                        <span class="dir-badge ${canReply ? 'in-badge' : 'out-badge'}">
+                            ${canReply ? 'وارد إليك' : 'صادر منك'}
+                        </span>
+                    </td>
+                    <td style="text-align:right;">
+                        <div style="font-weight:600;">${item.item_name || '-'}</div>
+                        <div style="font-size:0.7rem; color:#64748b;">كود: ${item.item_code || '-'}</div>
+                    </td>
+                    <td style="font-weight:bold; color:#2c3e50;">${item.qty || '0'}</td>
+                    <td>
+                        <input type="text" id="note-${item.id}" class="note-input" 
+                               value="${item.company || ''}" placeholder="ملاحظة الرد..." 
+                               ${!canReply ? 'disabled' : ''}>
                     </td>
                     <td>
-                        <select id="stat-${item.id}" class="status-select" ${!isTargetBranch ? 'disabled' : ''}>
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>انتظار ⏳</option>
-                            <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>تم ✅</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>نقص ❌</option>
+                        <select id="stat-${item.id}" class="status-select" ${!canReply ? 'disabled' : ''}>
+                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>⏳ انتظار</option>
+                            <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>✅ تم</option>
+                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>❌ نقص</option>
                         </select>
                     </td>
                     <td>
-                        ${isTargetBranch ? 
-                            `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-reply"></i></button>` : 
-                            '<span style="font-size:0.7rem; color:#94a3b8;">بانتظار الرد</span>'}
+                        ${canReply ? 
+                            `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-reply"></i> رد</button>` : 
+                            '<span style="font-size:0.75rem; color:#94a3b8;">بانتظار الطرف الآخر</span>'}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -210,6 +203,7 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
+            // إرسال التحديث للسيرفر
             const success = await updateData({ 
                 id: id, 
                 status: status, 
@@ -219,13 +213,13 @@
             });
 
             if (success) {
-                btn.style.background = "#48bb78";
-                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.style.background = "#27ae60";
+                btn.innerHTML = '<i class="fas fa-check"></i> تم';
                 setTimeout(() => loadTransfers(), 1000);
             } else {
-                alert("فشل التحديث");
+                alert("فشل تحديث الحالة");
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-reply"></i>';
+                btn.innerHTML = '<i class="fas fa-reply"></i> رد';
             }
         }
     </script>
