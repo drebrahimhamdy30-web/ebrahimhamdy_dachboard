@@ -7,14 +7,16 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* تنسيقات إضافية خاصة بالجدول لضمان النحافة */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { padding: 8px 5px; text-align: center; border-bottom: 1px solid #edf2f7; }
-        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; }
+        th, td { padding: 10px 5px; text-align: center; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 2px solid #e2e8f0; }
         tr:hover { background-color: #f7fafc; }
-        .stat-sel { padding: 3px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; }
-        .comp-in { padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 90%; }
-        .btn-save { background: var(--success); color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+        .stat-sel { padding: 5px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; background: white; }
+        .comp-in { padding: 5px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 95%; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
+        .btn-save:hover { background: #218838; }
+        .data-sub { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+        .data-main { font-weight: 600; color: #1e293b; }
     </style>
 </head>
 <body>
@@ -34,24 +36,24 @@
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary);">🛒 سجل المشتريات والطلبيات</h3>
-                <button onclick="loadOrders()" class="btn-done" style="background: var(--accent); padding: 5px 15px;">
-                    <i class="fas fa-sync-alt"></i> تحديث
+                <button onclick="loadOrders()" class="btn-done" style="background: #3498db; padding: 5px 15px; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <i class="fas fa-sync-alt"></i> تحديث البيانات
                 </button>
             </div>
 
-            <div class="filter-box" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
-                    <span><i class="fas fa-filter"></i> الحالة:</span>
-                    <select id="statusFilter" onchange="applyFilter()" class="stat-sel" style="width: 120px;">
+            <div class="filter-box" style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                    <span><i class="fas fa-filter"></i> تصفية بالحالة:</span>
+                    <select id="statusFilter" onchange="applyFilter()" class="stat-sel" style="width: 150px;">
                         <option value="all">عرض الكل</option>
                         <option value="pending" selected>قيد الانتظار ⏳</option>
                         <option value="ordered">تم الطلب ✅</option>
                         <option value="unavailable">غير متوفر ❌</option>
                     </select>
                 </div>
-                <div id="branchList" style="display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #eee; pt: 5px; width: 100%;">
+                <div id="branchList" style="display: flex; gap: 10px; flex-wrap: wrap;">
                     </div>
             </div>
 
@@ -59,16 +61,17 @@
                 <table id="orders-table">
                     <thead>
                         <tr>
-                            <th>الفرع</th>
-                            <th>الصنف</th>
-                            <th>الكمية</th>
-                            <th>المورد / ملاحظات</th>
-                            <th>الحالة</th>
-                            <th>حفظ</th>
+                            <th style="width: 10%;">الفرع</th>
+                            <th style="width: 25%;">بيانات الصنف</th>
+                            <th style="width: 20%;">بيانات العميل</th>
+                            <th style="width: 8%;">الكمية</th>
+                            <th style="width: 20%;">المورد / ملاحظات</th>
+                            <th style="width: 12%;">الحالة</th>
+                            <th style="width: 5%;">حفظ</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="6" style="text-align:center; padding: 20px;">جاري تحميل البيانات...</td></tr>
+                        <tr><td colspan="7" style="text-align:center; padding: 30px;">جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -87,19 +90,22 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
             
             try {
                 const response = await fetchOrders();
+                // التعامل مع اختلاف شكل البيانات القادمة
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
 
                 if (Array.isArray(items) && items.length > 0) {
                     rawData = items.map(item => ({
                         id: item.id || item.row_id || item.ID,
-                        branch: item.branch || item.الفرع || '-',
-                        item_code: item.cust_code || item.item_code || '',
-                        item_name: item.item_name || item.الصنف || '-',
-                        qty: item.qty || item.الكمية || 0,
+                        branch: item.branch || '-',
+                        item_code: item.item_code || 'بدون كود',
+                        item_name: item.item || item.item_name || 'صنف غير مسمى',
+                        customer_code: item.customer_code || '---',
+                        customer_name: item.customer_name || 'عميل عام',
+                        qty: item.qty || 0,
                         company: (item.company && item.company !== 'null') ? item.company : '',
                         state: (item.state === '-' || !item.state) ? 'pending' : item.state,
                         type: item.type || ''
@@ -108,10 +114,11 @@
                     generateBranches(rawData);
                     applyFilter();
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد بيانات حالياً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد طلبات شراء حالياً</td></tr>';
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في تحميل البيانات</td></tr>';
             }
         }
 
@@ -119,7 +126,7 @@
             const container = document.getElementById('branchList');
             const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-').sort();
             container.innerHTML = branches.map(b => `
-                <label style="font-size: 0.75rem; background: #f1f5f9; padding: 2px 8px; border-radius: 12px; cursor: pointer; border: 1px solid #e2e8f0;">
+                <label style="font-size: 0.8rem; background: white; padding: 4px 10px; border-radius: 20px; cursor: pointer; border: 1px solid #cbd5e0; display: flex; align-items: center; gap: 5px;">
                     <input type="checkbox" class="branch-cb" value="${b}" checked onchange="applyFilter()"> ${b}
                 </label>
             `).join('');
@@ -139,25 +146,34 @@
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">لا توجد نتائج تطابق الفلتر</td></tr>';
+                return;
+            }
+
             tbody.innerHTML = items.map(i => `
                 <tr>
-                    <td style="font-weight:bold; color:var(--primary);">${i.branch}</td>
-                    <td style="text-align:right;">
-                        <div style="font-weight:500;">${i.item_name}</div>
-                        <div style="font-size:0.7rem; color:#94a3b8;">${i.item_code}</div>
+                    <td class="data-main" style="color:#2c3e50;">${i.branch}</td>
+                    <td style="text-align:right; padding-right:15px;">
+                        <div class="data-main">${i.item_name}</div>
+                        <div class="data-sub"><i class="fas fa-barcode"></i> ${i.item_code}</div>
                     </td>
-                    <td style="font-weight:bold;">${i.qty}</td>
-                    <td><input type="text" value="${i.company}" id="comp-${i.id}" class="comp-in" placeholder="..."></td>
+                    <td style="text-align:right;">
+                        <div class="data-main">${i.customer_name}</div>
+                        <div class="data-sub"><i class="fas fa-user-tag"></i> ${i.customer_code}</div>
+                    </td>
+                    <td style="font-weight:bold; font-size:1rem; color:#e67e22;">${i.qty}</td>
+                    <td><input type="text" value="${i.company}" id="comp-${i.id}" class="comp-in" placeholder="المورد أو ملاحظة..."></td>
                     <td>
                         <select id="stat-${i.id}" class="stat-sel">
-                            <option value="pending" ${i.state==='pending'?'selected':''}>انتظار ⏳</option>
-                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم ✅</option>
-                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>نقص ❌</option>
+                            <option value="pending" ${i.state==='pending'?'selected':''}>⏳ انتظار</option>
+                            <option value="ordered" ${i.state==='ordered'?'selected':''}>✅ تم الطلب</option>
+                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>❌ نقص</option>
                         </select>
                     </td>
                     <td><button class="btn-save" onclick="saveRow('${i.id}', this)"><i class="fas fa-save"></i></button></td>
                 </tr>
-            `).join('') || '<tr><td colspan="6" style="text-align:center;">لا توجد نتائج</td></tr>';
+            `).join('');
         }
 
         async function saveRow(id, btn) {
@@ -167,14 +183,26 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            const success = await updateData({ id, status, company, type: "شراء", action: "update_status" });
+            // إرسال البيانات المحدثة لـ n8n
+            const success = await updateData({ 
+                id: id, 
+                status: status, 
+                company: company, 
+                type: "شراء", 
+                action: "update_status" 
+            });
 
             if (success) {
-                btn.style.background = "#48bb78";
+                btn.style.background = "#2ecc71";
                 btn.innerHTML = '<i class="fas fa-check"></i>';
-                setTimeout(() => loadOrders(), 1000);
+                setTimeout(() => {
+                    btn.style.background = "#28a745";
+                    btn.innerHTML = '<i class="fas fa-save"></i>';
+                    btn.disabled = false;
+                    loadOrders(); // إعادة تحميل للتأكد من التزامن
+                }, 1500);
             } else {
-                alert("فشل التحديث");
+                alert("حدث خطأ أثناء حفظ البيانات");
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-save"></i>';
             }
