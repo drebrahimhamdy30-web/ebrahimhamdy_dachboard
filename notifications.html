@@ -56,11 +56,11 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || '';
+        const userBranch = localStorage.getItem('userBranch') || activeUser || ''; // استخدم اسم المستخدم إذا لم يكن هناك فرع
         let allItems = [];
 
         console.log("👤 المستخدم:", activeUser);
-        console.log("🏢 الفرع:", userBranch);
+        console.log("🏢 الفرع (أو المستخدم):", userBranch);
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -115,8 +115,15 @@
             const sentChecked = document.getElementById('showSent').checked;
             const receivedChecked = document.getElementById('showReceived').checked;
 
-            console.log("🔍 تطبيق الفلتر - الفرع الحالي:", userBranch);
+            console.log("🔍 تطبيق الفلتر - المستخدم/الفرع:", userBranch);
             console.log("✓ إظهار المرسلات:", sentChecked, "✓ إظهار المستقبلات:", receivedChecked);
+
+            // إذا كانت الاثنين unchecked، لا تظهر شيء
+            if (!sentChecked && !receivedChecked) {
+                console.log("⚠️ كلا الفلترين مشيّل - لا تظهر بيانات");
+                container.innerHTML = '<p style="text-align:center; color:#999;">📭 اختر على الأقل فلتر واحد</p>';
+                return;
+            }
 
             const filtered = allItems.filter(item => {
                 const sender = String(item.branch || '').trim();
@@ -126,7 +133,9 @@
                 const isSent = (sender === current);
                 const isReceived = (receiver === current);
 
-                // احترم اختيار المستخدم دائماً
+                console.log(`📋 Item: من=${sender}, إلى=${receiver}, يطابق_مرسل=${isSent}, يطابق_مستقبل=${isReceived}`);
+
+                // احترم اختيار المستخدم
                 if (sentChecked && isSent) return true;
                 if (receivedChecked && isReceived) return true;
                 
