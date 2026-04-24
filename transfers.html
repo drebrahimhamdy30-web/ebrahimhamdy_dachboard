@@ -18,13 +18,10 @@
         .status-select { padding: 5px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 100px; }
         .note-input { width: 90%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.8rem; }
         
-        .btn-action { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
-        .btn-action:hover { background: #219150; }
-        
+        .btn-action { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
         .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
         .inbound { background: #e3f2fd; color: #1976d2; }
         .outbound { background: #fff3e0; color: #f57c00; }
-        
         .code-text { font-family: monospace; color: #7f8c8d; font-size: 0.8rem; }
         .name-text { font-weight: 600; color: #2c3e50; }
     </style>
@@ -40,16 +37,16 @@
         </div>
         <div class="user-info" style="color: white; font-size: 0.8rem;">
             <span id="nav-user"></span>
-            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; cursor:pointer; margin-right:10px; padding: 2px 8px;">خروج</button>
+            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; padding: 2px 8px;">خروج</button>
         </div>
     </div>
 
     <div class="container">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #2c3e50;"><i class="fas fa-sync-alt"></i> إدارة تحويلات الفروع</h3>
+                <h3 style="margin: 0;"><i class="fas fa-sync-alt"></i> إدارة تحويلات الفروع</h3>
                 <button onclick="loadTransfers()" style="background: #3498db; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer;">
-                    تحديث البيانات <i class="fas fa-sync"></i>
+                    تحديث <i class="fas fa-sync"></i>
                 </button>
             </div>
 
@@ -57,18 +54,18 @@
                 <div>
                     <label style="font-size: 0.8rem;">📦 نوع العملية:</label>
                     <select id="direction-filter" class="filter-control" onchange="applyFilters()">
-                        <option value="all">الكل</option>
-                        <option value="inbound">تحويلات واردة إلينا 📥</option>
+                        <option value="inbound" selected>تحويلات واردة إلينا 📥</option>
                         <option value="outbound">طلبات مرسلة منا 📤</option>
+                        <option value="all">الكل</option>
                     </select>
                 </div>
                 <div>
                     <label style="font-size: 0.8rem;">⚙️ الحالة:</label>
                     <select id="status-filter" class="filter-control" onchange="applyFilters()">
-                        <option value="all">الكل</option>
-                        <option value="pending">انتظار ⏳</option>
+                        <option value="pending" selected>انتظار ⏳</option>
                         <option value="transferred">تم ✅</option>
                         <option value="unavailable">نقص ❌</option>
+                        <option value="all">الكل</option>
                     </select>
                 </div>
             </div>
@@ -113,11 +110,9 @@
         async function loadTransfers() {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
-            
             try {
                 const response = await fetchOrders(); 
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
-
                 if (Array.isArray(items)) {
                     rawData = items.filter(item => item.type === "تحويل");
                     applyFilters(); 
@@ -135,7 +130,11 @@
                 const isTarget = (item.branch === userBranchName);
                 const isSource = (item.user === userBranchName);
                 
-                let dirMatch = (directionVal === 'all') || (directionVal === 'inbound' && isTarget) || (directionVal === 'outbound' && isSource);
+                let dirMatch = false;
+                if (directionVal === 'all') dirMatch = (isTarget || isSource);
+                if (directionVal === 'inbound') dirMatch = isTarget;
+                if (directionVal === 'outbound') dirMatch = isSource;
+
                 let statMatch = (statusVal === 'all') || ((item.state || 'pending') === statusVal);
 
                 return dirMatch && statMatch;
@@ -149,7 +148,7 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px;">لا توجد تحويلات مطابقة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px;">لا توجد طلبات انتظار واردة حالياً</td></tr>';
                 return;
             }
 
@@ -161,7 +160,7 @@
                 tr.innerHTML = `
                     <td>
                         <div style="font-size:0.75rem;">${item.user} ⬅️ ${item.branch}</div>
-                        <span class="badge ${canReply ? 'inbound' : 'outbound'}">${canReply ? 'وارد' : 'صادر'}</span>
+                        <span class="badge ${canReply ? 'inbound' : 'outbound'}">${canReply ? 'وارد إليك' : 'صادر منك'}</span>
                     </td>
                     <td class="name-text">${item.item_name || '-'}</td>
                     <td class="code-text">${item.item_code || '-'}</td>
