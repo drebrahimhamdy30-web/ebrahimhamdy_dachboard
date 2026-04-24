@@ -5,90 +5,104 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إضافة طلب جديد - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .hidden { display: none !important; }
-        hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+        .form-card { max-width: 500px; margin: auto; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; color: #4a5568; }
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e0; font-size: 1rem; transition: border 0.3s;
+        }
+        .input-group input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1); }
+        .row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .col { flex: 1; }
+        .type-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; background: #edf2f7; margin-bottom: 15px; display: inline-block; }
     </style>
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html" class="active">➕ مدخلات جديدة</a>
-            <a href="purchases.html">🛒 سجل المشتريات</a>
-            <a href="transfers.html">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> 
-            <a href="notifications.html">🔔 الإشعارات</a> 
+            <a href="main.html" class="active"><i class="fas fa-plus-circle"></i> مدخلات</a>
+            <a href="purchases.html"><i class="fas fa-shopping-cart"></i> مشتريات</a>
+            <a href="transfers.html"><i class="fas fa-exchange-alt"></i> تحويلات</a>
+            <a href="inventory.html"><i class="fas fa-list"></i> جرد</a> 
+            <a href="notifications.html"><i class="fas fa-bell"></i> إشعارات</a> 
         </div>
-        <div class="user-info">
+        <div class="user-info" style="color: white; font-size: 0.8rem;">
             <span id="nav-user"></span>
-            <button onclick="logout()" class="logout-btn">خروج</button>
+            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; cursor:pointer; margin-right:10px; padding: 2px 8px;">خروج</button>
         </div>
     </div>
 
     <div class="container">
-        <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">أضف طلب جديد للفرع</h2>
+        <div class="card form-card">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--primary);">📝 إضافة طلب جديد</h3>
+                <div id="user-branch-display" class="type-badge"></div>
+            </div>
+
             <form id="orderForm">
-                <div class="form-group">
-                    <label>نوع العملية</label>
-                    <select id="type" onchange="handleTypeChange()" required>
-                        <option value="شراء">طلب شراء (نقص)</option>
-                        <option value="تحويل">تحويل بين الفروع</option>
-                        <option value="جرد">جرد</option>
-                        <option value="إشعار">إشعار</option>
+                <div class="input-group">
+                    <label><i class="fas fa-tasks"></i> نوع العملية</label>
+                    <select id="type" onchange="handleTypeChange()" style="background-color: #fff9c4; border-color: #fbc02d; font-weight: bold;">
+                        <option value="شراء">طلب شراء (نقص) 🛒</option>
+                        <option value="تحويل">تحويل بين الفروع 🔄</option>
+                        <option value="جرد">جرد صنف 📋</option>
+                        <option value="إشعار">إرسال إشعار / ملاحظة 🔔</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label id="branch-label">توجيه إلى فرع</label>
-                    <select id="branch" required>
-                        <option value="المعمورة">المعمورة</option>
-                        <option value="سان ستيفانو">سان ستيفانو</option>
-                        <option value="سيدى بشر">سيدى بشر</option>
+                <div class="input-group" id="branch-div">
+                    <label><i class="fas fa-map-marker-alt"></i> توجيه إلى فرع</label>
+                    <select id="branch">
+                        <option value="المعمورة">فرع المعمورة</option>
+                        <option value="سان ستيفانو">فرع سان ستيفانو</option>
+                        <option value="سيدى بشر">فرع سيدى بشر</option>
                     </select>
                 </div>
 
-                <hr id="divider">
+                <hr style="border: 0; border-top: 1px dashed #cbd5e0; margin: 20px 0;">
 
                 <div id="item-section">
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label>كود الصنف</label>
-                            <input type="text" id="item_code" placeholder="اختياري">
+                    <div class="row">
+                        <div class="col" style="flex: 1;">
+                            <label style="font-size: 0.8rem; font-weight: bold;">كود الصنف</label>
+                            <input type="text" id="item_code" placeholder="123...">
                         </div>
-                        <div class="form-group" style="flex: 2;" id="item-name-div">
-                            <label>اسم الصنف</label>
-                            <input type="text" id="item_name" placeholder="اسم المنتج">
+                        <div class="col" style="flex: 2;" id="item-name-div">
+                            <label style="font-size: 0.8rem; font-weight: bold;">اسم الصنف</label>
+                            <input type="text" id="item_name" placeholder="اسم الدواء أو المنتج">
                         </div>
                     </div>
                 </div>
 
                 <div id="extra-section">
-                    <div style="display: flex; gap: 10px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label>كود العميل</label>
-                            <input type="text" id="customer_code" placeholder="اختياري">
+                    <div class="row">
+                        <div class="col">
+                            <label style="font-size: 0.8rem; font-weight: bold;">كود العميل</label>
+                            <input type="text" id="customer_code" placeholder="...">
                         </div>
-                        <div class="form-group" style="flex: 2;">
-                            <label>اسم العميل</label>
-                            <input type="text" id="customer_name" placeholder="اسم العميل">
+                        <div class="col">
+                            <label style="font-size: 0.8rem; font-weight: bold;">اسم العميل</label>
+                            <input type="text" id="customer_name" placeholder="...">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>الكمية المطلوبة</label>
-                        <input type="number" id="qty" placeholder="0">
+                    <div class="input-group">
+                        <label><i class="fas fa-sort-numeric-up"></i> الكمية المطلوبة</label>
+                        <input type="number" id="qty" value="1" min="1">
                     </div>
                 </div>
 
                 <div id="note-section" class="hidden">
-                    <div class="form-group">
-                        <label>نص الإشعار / الملاحظة</label>
-                        <textarea id="note_text" rows="4" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;" placeholder="اكتب تفاصيل الإشعار هنا..."></textarea>
+                    <div class="input-group">
+                        <label><i class="fas fa-comment-alt"></i> نص الإشعار</label>
+                        <textarea id="note_text" rows="4" placeholder="اكتب تفاصيل الملاحظة هنا..."></textarea>
                     </div>
                 </div>
 
-                <button type="button" id="submitBtn" class="btn btn-success" style="width: 100%; margin-top: 15px;" onclick="submitOrder()">
-                    إرسال الآن
+                <button type="button" id="submitBtn" class="btn-success" style="width: 100%; padding: 12px; font-size: 1.1rem; border-radius: 10px; margin-top: 10px;" onclick="submitOrder()">
+                    <i class="fas fa-paper-plane"></i> إرسال الطلب الآن
                 </button>
             </form>
         </div>
@@ -97,106 +111,97 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch');
+        const userBranch = localStorage.getItem('userBranch') || "غير محدد";
 
         if (activeUser) {
-            document.getElementById('nav-user').innerText = `${activeUser} (${userBranch})`;
+            document.getElementById('nav-user').innerText = activeUser;
+            document.getElementById('user-branch-display').innerText = `📍 فرعك: ${userBranch}`;
             handleTypeChange(); 
         }
 
         function handleTypeChange() {
             const type = document.getElementById('type').value;
+            const branchDiv = document.getElementById('branch-div');
             const branchSelect = document.getElementById('branch');
             const itemSection = document.getElementById('item-section');
             const itemNameDiv = document.getElementById('item-name-div');
             const extraSection = document.getElementById('extra-section');
             const noteSection = document.getElementById('note-section');
 
-            if (userBranch) branchSelect.value = userBranch;
+            // إعادة ضبط الرؤية
+            [branchDiv, itemSection, itemNameDiv, extraSection, noteSection].forEach(el => el.classList.remove('hidden'));
+            branchSelect.disabled = false;
 
             if (type === "جرد") {
-                itemSection.classList.remove('hidden');
                 itemNameDiv.classList.add('hidden');
                 extraSection.classList.add('hidden');
                 noteSection.classList.add('hidden');
-                branchSelect.disabled = false;
-            } 
-            else if (type === "إشعار") {
+            } else if (type === "إشعار") {
                 itemSection.classList.add('hidden');
                 extraSection.classList.add('hidden');
-                noteSection.classList.remove('hidden');
-                branchSelect.disabled = false;
-            }
-            else if (type === "شراء") {
-                itemSection.classList.remove('hidden');
-                itemNameDiv.classList.remove('hidden');
-                extraSection.classList.remove('hidden');
-                noteSection.classList.add('hidden');
+            } else if (type === "شراء") {
+                branchSelect.value = userBranch;
                 branchSelect.disabled = true;
-            }
-            else { // تحويل
-                itemSection.classList.remove('hidden');
-                itemNameDiv.classList.remove('hidden');
-                extraSection.classList.remove('hidden');
                 noteSection.classList.add('hidden');
-                branchSelect.disabled = false;
+            } else if (type === "تحويل") {
+                noteSection.classList.add('hidden');
             }
         }
 
-async function submitOrder() {
-    const btn = document.getElementById('submitBtn');
-    const type = document.getElementById('type').value;
-    const branchVal = document.getElementById('branch').value;
+        async function submitOrder() {
+            const btn = document.getElementById('submitBtn');
+            const type = document.getElementById('type').value;
+            const branchVal = document.getElementById('branch').value;
 
-    btn.disabled = true;
-    btn.innerText = "⏳ جاري الإرسال...";
+            if (!document.getElementById('item_name').value && type !== "إشعار" && type !== "جرد") {
+                alert("يرجى إدخال اسم الصنف"); return;
+            }
 
-    try {
-        let success = false;
-        if (type === "إشعار") {
-            const notifData = {
-                action: "insert",
-                type: "إشعار", // أضفنا النوع لسهولة التوجيه في n8n
-                branch: userBranch,
-                target_branch: branchVal,
-                note: document.getElementById('note_text').value,
-                done: false,
-                user: activeUser,
-                createdAt: new Date().toISOString()
-            };
-            success = await postNotification(notifData);
-        } else {
-            // هنا التعديل لإضافة بيانات العميل واسم الصنف
-            const formData = {
-                user: activeUser,
-                type: type,
-                branch: branchVal,
-                item_code: document.getElementById('item_code').value,
-                item: document.getElementById('item_name').value, // اسم الصنف
-                customer_code: document.getElementById('customer_code').value, // كود العميل (جديد)
-                customer_name: document.getElementById('customer_name').value, // اسم العميل (جديد)
-                qty: document.getElementById('qty').value || 0,
-                state: 'pending',
-                createdAt: new Date().toISOString()
-            };
-            success = await postData(formData);
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+
+            try {
+                let success = false;
+                if (type === "إشعار") {
+                    success = await postNotification({
+                        action: "insert",
+                        type: "إشعار",
+                        branch: userBranch,
+                        target_branch: branchVal,
+                        note: document.getElementById('note_text').value,
+                        done: false,
+                        user: activeUser,
+                        createdAt: new Date().toISOString()
+                    });
+                } else {
+                    success = await postData({
+                        user: activeUser,
+                        type: type,
+                        branch: branchVal,
+                        item_code: document.getElementById('item_code').value,
+                        item: document.getElementById('item_name').value,
+                        customer_code: document.getElementById('customer_code').value,
+                        customer_name: document.getElementById('customer_name').value,
+                        qty: document.getElementById('qty').value || 0,
+                        state: 'pending',
+                        createdAt: new Date().toISOString()
+                    });
+                }
+
+                if (success) {
+                    alert("تم الإرسال بنجاح ✅");
+                    document.getElementById('orderForm').reset();
+                    handleTypeChange();
+                } else {
+                    alert("فشل الإرسال ❌");
+                }
+            } catch (e) {
+                alert("خطأ في الاتصال");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الطلب الآن';
+            }
         }
-
-        if (success) {
-            alert("تم الإرسال بنجاح ✅");
-            document.getElementById('orderForm').reset();
-            handleTypeChange();
-        } else {
-            alert("فشل الإرسال ❌");
-        }
-    } catch (e) {
-        console.error("Submission Error:", e);
-        alert("خطأ في الاتصال");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "إرسال الآن";
-    }
-}
     </script>
 </body>
 </html>
