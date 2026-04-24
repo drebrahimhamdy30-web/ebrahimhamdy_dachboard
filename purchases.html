@@ -3,42 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل المشتريات - صيدلية د. إبراهيم</title>
+    <title>سجل المشتريات - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* تنسيقات إضافية خاصة بالجدول لضمان النحافة */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        th, td { padding: 8px 5px; text-align: center; border-bottom: 1px solid #edf2f7; }
+        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; }
+        tr:hover { background-color: #f7fafc; }
+        .stat-sel { padding: 3px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; }
+        .comp-in { padding: 3px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 90%; }
+        .btn-save { background: var(--success); color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+    </style>
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html">➕ مدخلات جديدة</a>
-            <a href="purchases.html" class="active">🛒 سجل المشتريات</a>
-            <a href="transfers.html">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> 
-            <a href="notifications.html">🔔 الإشعارات</a> 
+            <a href="main.html"><i class="fas fa-plus"></i> مدخلات</a>
+            <a href="purchases.html" class="active"><i class="fas fa-shopping-cart"></i> مشتريات</a>
+            <a href="transfers.html"><i class="fas fa-exchange-alt"></i> تحويلات</a>
+            <a href="inventory.html"><i class="fas fa-list"></i> جرد</a> 
+            <a href="notifications.html"><i class="fas fa-bell"></i> إشعارات</a> 
         </div>
-        <div class="user-info">
+        <div class="user-info" style="color: white; font-size: 0.8rem;">
             <span id="nav-user"></span>
-            <button onclick="logout()" class="logout-btn">خروج</button>
+            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; cursor:pointer; margin-right:10px; padding: 2px 8px;">خروج</button>
         </div>
     </div>
 
     <div class="container">
         <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">سجل المشتريات والطلبيات 🛒</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary);">🛒 سجل المشتريات والطلبيات</h3>
+                <button onclick="loadOrders()" class="btn-done" style="background: var(--accent); padding: 5px 15px;">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
 
-            <div class="filter-box" style="background: #fff9c4; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fbc02d;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <button onclick="loadOrders()" class="btn-success" style="width: auto; padding: 8px 15px;">تحديث 🔄</button>
-                    <div>
-                        <label style="font-weight: bold;">الحالة:</label>
-                        <select id="statusFilter" onchange="applyFilter()" style="padding: 6px; border-radius: 5px; border: 1px solid #ccc;">
-                            <option value="all">عرض الكل</option>
-                            <option value="pending" selected>في الانتظار ⏳</option>
-                            <option value="ordered">تم الطلب ✅</option>
-                            <option value="unavailable">غير متوفر ❌</option>
-                        </select>
-                    </div>
+            <div class="filter-box" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                    <span><i class="fas fa-filter"></i> الحالة:</span>
+                    <select id="statusFilter" onchange="applyFilter()" class="stat-sel" style="width: 120px;">
+                        <option value="all">عرض الكل</option>
+                        <option value="pending" selected>قيد الانتظار ⏳</option>
+                        <option value="ordered">تم الطلب ✅</option>
+                        <option value="unavailable">غير متوفر ❌</option>
+                    </select>
                 </div>
-                <div id="branchList" style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; border-top: 1px dotted #fbc02d; padding-top: 10px;">
+                <div id="branchList" style="display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid #eee; pt: 5px; width: 100%;">
                     </div>
             </div>
 
@@ -46,18 +59,16 @@
                 <table id="orders-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>الفرع</th>
-                            <th>كود الصنف</th>
-                            <th>اسم الصنف</th>
+                            <th>الصنف</th>
                             <th>الكمية</th>
                             <th>المورد / ملاحظات</th>
                             <th>الحالة</th>
-                            <th>إجراء</th>
+                            <th>حفظ</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align:center;">جاري تحميل البيانات...</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding: 20px;">جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -76,55 +87,31 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">⏳ جاري جلب البيانات من n8n...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
             
             try {
                 const response = await fetchOrders();
-                console.log("n8n Output:", response);
+                let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
 
-                // استهداف المصفوفة الصحيحة بناءً على هيكل الـ Data Table في n8n
-                let items = [];
-                if (response && response[0] && response[0].data) {
-                    items = response[0].data; 
-                } else if (Array.isArray(response)) {
-                    items = response;
-                } else if (response.data) {
-                    items = response.data;
-                }
+                if (Array.isArray(items) && items.length > 0) {
+                    rawData = items.map(item => ({
+                        id: item.id || item.row_id || item.ID,
+                        branch: item.branch || item.الفرع || '-',
+                        item_code: item.cust_code || item.item_code || '',
+                        item_name: item.item_name || item.الصنف || '-',
+                        qty: item.qty || item.الكمية || 0,
+                        company: (item.company && item.company !== 'null') ? item.company : '',
+                        state: (item.state === '-' || !item.state) ? 'pending' : item.state,
+                        type: item.type || ''
+                    })).filter(i => String(i.type).includes("شراء"));
 
-                if (items.length > 0) {
-                    rawData = items.map(item => {
-                        const find = (keys) => {
-                            for (let k of keys) {
-                                if (item[k] !== undefined && item[k] !== null) return item[k];
-                            }
-                            return '-';
-                        };
-
-                        return {
-                            id: find(['id', 'ID', 'row_id', 'record_id']),
-                            branch: find(['branch', 'Branch', 'الفرع']),
-                            item_code: find(['cust_code', 'item_code', 'code', 'كود الصنف']), // دعم التسمية الظاهرة في n8n
-                            item_name: find(['item_name', 'name', 'اسم الصنف', 'الصنف']),
-                            qty: find(['qty', 'quantity', 'الكمية']),
-                            company: find(['company', 'المورد', 'ملاحظات']) || '',
-                            state: find(['state', 'status', 'الحالة']) || 'pending',
-                            type: find(['type', 'النوع'])
-                        };
-                    }).filter(i => String(i.type).includes("شراء"));
-
-                    if (rawData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لم يتم العثور على سجلات من نوع "شراء"</td></tr>';
-                    } else {
-                        generateBranches(rawData);
-                        applyFilter();
-                    }
+                    generateBranches(rawData);
+                    applyFilter();
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">الجدول فارغ في n8n حالياً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد بيانات حالياً</td></tr>';
                 }
             } catch (e) {
-                console.error("Fetch Error:", e);
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر: ${e.message}</td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
 
@@ -132,7 +119,7 @@
             const container = document.getElementById('branchList');
             const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-').sort();
             container.innerHTML = branches.map(b => `
-                <label style="background:white; padding:5px 12px; border-radius:20px; border:1px solid #fbc02d; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <label style="font-size: 0.75rem; background: #f1f5f9; padding: 2px 8px; border-radius: 12px; cursor: pointer; border: 1px solid #e2e8f0;">
                     <input type="checkbox" class="branch-cb" value="${b}" checked onchange="applyFilter()"> ${b}
                 </label>
             `).join('');
@@ -143,9 +130,7 @@
             const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(c => c.value);
             
             const filtered = rawData.filter(i => {
-                // معالجة حالة الـ null بجعلها 'pending' افتراضياً لضمان الظهور
-                const currentState = (i.state === '-' || i.state === null) ? 'pending' : i.state;
-                const sMatch = (status === 'all' || currentState === status);
+                const sMatch = (status === 'all' || i.state === status);
                 const bMatch = selectedBranches.includes(i.branch);
                 return sMatch && bMatch;
             });
@@ -156,47 +141,42 @@
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = items.map(i => `
                 <tr>
-                    <td>${i.id}</td>
-                    <td><b>${i.branch}</b></td>
-                    <td style="color:#666;">${i.item_code}</td>
-                    <td>${i.item_name}</td>
-                    <td>${i.qty}</td>
-                    <td><input type="text" value="${i.company}" class="comp-in" style="width:100px; padding:4px; border:1px solid #ddd; border-radius:4px;"></td>
+                    <td style="font-weight:bold; color:var(--primary);">${i.branch}</td>
+                    <td style="text-align:right;">
+                        <div style="font-weight:500;">${i.item_name}</div>
+                        <div style="font-size:0.7rem; color:#94a3b8;">${i.item_code}</div>
+                    </td>
+                    <td style="font-weight:bold;">${i.qty}</td>
+                    <td><input type="text" value="${i.company}" id="comp-${i.id}" class="comp-in" placeholder="..."></td>
                     <td>
-                        <select class="stat-sel" style="padding:4px; border-radius:4px;">
-                            <option value="pending" ${i.state==='pending' || i.state==='-'?'selected':''}>انتظار ⏳</option>
-                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم الطلب ✅</option>
-                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>غير متوفر ❌</option>
+                        <select id="stat-${i.id}" class="stat-sel">
+                            <option value="pending" ${i.state==='pending'?'selected':''}>انتظار ⏳</option>
+                            <option value="ordered" ${i.state==='ordered'?'selected':''}>تم ✅</option>
+                            <option value="unavailable" ${i.state==='unavailable'?'selected':''}>نقص ❌</option>
                         </select>
                     </td>
-                    <td><button class="btn-success" onclick="saveRow('${i.id}', this)" style="padding:4px 10px;">حفظ</button></td>
+                    <td><button class="btn-save" onclick="saveRow('${i.id}', this)"><i class="fas fa-save"></i></button></td>
                 </tr>
-            `).join('') || '<tr><td colspan="8" style="text-align:center;">لا توجد نتائج تطابق الفلتر المختير</td></tr>';
+            `).join('') || '<tr><td colspan="6" style="text-align:center;">لا توجد نتائج</td></tr>';
         }
 
         async function saveRow(id, btn) {
-            const row = btn.closest('tr');
-            const status = row.querySelector('.stat-sel').value;
-            const company = row.querySelector('.comp-in').value;
+            const status = document.getElementById(`stat-${id}`).value;
+            const company = document.getElementById(`comp-${id}`).value;
             
             btn.disabled = true;
-            btn.innerText = "⏳";
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            const success = await updateData({
-                id: id,
-                status: status,
-                company: company,
-                type: "شراء",
-                action: "update_status"
-            });
+            const success = await updateData({ id, status, company, type: "شراء", action: "update_status" });
 
             if (success) {
-                alert("تم تحديث الحالة بنجاح ✅");
-                loadOrders(); 
+                btn.style.background = "#48bb78";
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => loadOrders(), 1000);
             } else {
-                alert("فشل في تحديث البيانات ❌");
+                alert("فشل التحديث");
                 btn.disabled = false;
-                btn.innerText = "حفظ";
+                btn.innerHTML = '<i class="fas fa-save"></i>';
             }
         }
     </script>
