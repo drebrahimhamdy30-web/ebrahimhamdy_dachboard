@@ -5,31 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سجل الإشعارات - نظام الصيدلية</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        .notif-card {
-            background: white; padding: 15px; margin-bottom: 12px;
-            border-radius: 8px; border-right: 6px solid #28a745;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; background: #f8f9fa; }
-        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-        .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
-        .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .filter-box { display: flex; flex-wrap: wrap; gap: 15px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
-        .btn-done { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
-        .btn-done:hover { background: #218838; }
-        .btn-done:disabled { background: #ccc; cursor: not-allowed; }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="nav-bar">
         <div class="nav-links">
-            <a href="main.html">➕ مدخلات جديدة</a>
-            <a href="purchases.html">🛒 سجل المشتريات</a>
-            <a href="transfers.html">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> 
-            <a href="notifications.html" class="active">🔔 الإشعارات</a> 
+            <a href="main.html"><i class="fas fa-plus-circle"></i> مدخلات جديدة</a>
+            <a href="purchases.html"><i class="fas fa-shopping-cart"></i> سجل المشتريات</a>
+            <a href="transfers.html"><i class="fas fa-exchange-alt"></i> التحويلات</a>
+            <a href="inventory.html"><i class="fas fa-clipboard-list"></i> الجرد</a> 
+            <a href="notifications.html" class="active"><i class="fas fa-bell"></i> الإشعارات</a> 
         </div>
         <div class="user-info">
             <span id="nav-user"></span>
@@ -42,13 +27,15 @@
             <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
             
             <div class="filter-box">
-                <span>تصفية:</span>
-                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> طلبات واردة (مطلوبة مني) 📥</label>
-                <label><input type="checkbox" id="showSent" onchange="applyFilter()"> طلباتي المرسلة 📤</label>
-                <label style="border-right: 2px solid #ccc; padding-right: 15px; margin-right: 5px;">
+                <span><i class="fas fa-filter"></i> تصفية:</span>
+                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> واردة 📥</label>
+                <label><input type="checkbox" id="showSent" onchange="applyFilter()"> مرسلة 📤</label>
+                <label style="border-right: 2px solid #cbd5e0; padding-right: 15px; margin-right: 5px;">
                     <input type="checkbox" id="hideDone" checked onchange="applyFilter()"> قيد الانتظار فقط ⏳
                 </label>
-                <button onclick="loadNotifications()" class="btn-success" style="width:auto; margin-right:auto; padding:5px 20px;">تحديث 🔄</button>
+                <button onclick="loadNotifications()" class="btn-success" style="width:auto; margin-right:auto; padding:5px 20px;">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
             </div>
 
             <div id="notif-container">
@@ -70,11 +57,10 @@
 
         async function loadNotifications() {
             const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">⏳ جاري تحميل البيانات من السيرفر...</p>';
+            container.innerHTML = '<p style="text-align:center;">⏳ جاري جلب البيانات من النظام...</p>';
             
             try {
                 const response = await fetchFromN8N('notifications');
-                
                 if (Array.isArray(response)) {
                     allItems = (response[0] && response[0].data) ? response[0].data : response;
                 } else {
@@ -87,7 +73,7 @@
                     applyFilter();
                 }
             } catch (e) {
-                container.innerHTML = '<p style="text-align:center; color:red;">❌ خطأ في تحميل البيانات</p>';
+                container.innerHTML = '<p style="text-align:center; color:red;">❌ خطأ في الاتصال بالسيرفر</p>';
             }
         }
 
@@ -97,20 +83,13 @@
             const receivedChecked = document.getElementById('showReceived').checked;
             const hideDone = document.getElementById('hideDone').checked;
 
-            if (!sentChecked && !receivedChecked) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">📭 اختر فلتر واحد على الأقل</p>';
-                return;
-            }
-
             const filtered = allItems.filter(item => {
                 const sender = String(item.branch || '').trim();
                 const receiver = String(item.target_branch || '').trim();
                 const current = String(userBranch).trim();
-                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
+                const isDone = (item.done === "تم" || item.done === true || item.done === "true");
 
-                // فلتر قيد الانتظار
                 if (hideDone && isDone) return false;
-
                 const isSent = (sender === current);
                 const isReceived = (receiver === current);
 
@@ -125,36 +104,31 @@
         function renderNotifications(items) {
             const container = document.getElementById('notif-container');
             if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا يوجد نتائج تطابق الفلاتر</p>';
+                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا يوجد نتائج تطابق بحثك</p>';
                 return;
             }
 
             container.innerHTML = '';
-            
-            // التعديل: الترتيب من الأقدم إلى الأحدث (القديم فوق)
+            // الترتيب من الأقدم للأحدث (الأقدم فوق)
             items.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
             items.forEach(item => {
-                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
+                const isDone = (item.done === "تم" || item.done === true || item.done === "true");
                 const div = document.createElement('div');
                 div.className = `notif-card ${isDone ? 'completed' : ''}`;
                 
-                const noteText = item.note || 'إشعار بدون نص';
-                const branchFrom = item.branch || '؟';
-                const branchTo = item.target_branch || '؟';
-                const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : '؟';
+                const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : 'غير محدد';
                 const commentValue = (item.comment && item.comment !== 'null') ? item.comment : '';
-                const safeId = String(item.id);
 
                 div.innerHTML = `
-                    <div style="font-weight:bold; font-size:1.1em; margin-bottom:8px;">📌 ${noteText}</div>
+                    <div style="font-weight:bold; font-size:1.1em; color:#2d3748; margin-bottom:8px;">📌 ${item.note || 'إشعار'}</div>
                     <div class="meta">
-                        <span>من: <b class="branch-tag">${branchFrom}</b> ⬅️ إلى: <b class="branch-tag">${branchTo}</b></span>
-                        <span style="color:#888; font-size:0.9em;">📅 ${dateStr}</span>
+                        <span>من: <b class="branch-tag">${item.branch || '؟'}</b> ⬅️ إلى: <b class="branch-tag">${item.target_branch || '؟'}</b></span>
+                        <span style="color:#718096; font-size:0.85em;"><i class="far fa-clock"></i> ${dateStr}</span>
                     </div>
                     <div class="action-area">
-                        <input type="text" id="comm-${safeId}" class="comment-input" placeholder="أضف تعليقاً..." value="${commentValue}">
-                        ${!isDone ? `<button onclick="handleDone(event, '${safeId}')" class="btn-done">✅ تم</button>` : '<span style="color:#999; font-weight:bold;">✓ تم إنجازه</span>'}
+                        <input type="text" id="comm-${item.id}" class="comment-input" placeholder="أضف تعليقاً..." value="${commentValue}">
+                        ${!isDone ? `<button onclick="handleDone(event, '${item.id}')" class="btn-done"><i class="fas fa-check"></i> تم</button>` : '<span style="color:#4a5568; font-weight:bold;"><i class="fas fa-check-double"></i> مكتمل</span>'}
                     </div>
                 `;
                 container.appendChild(div);
@@ -162,34 +136,20 @@
         }
 
         async function handleDone(event, id) {
-            if(event) event.preventDefault();
             const btn = event.target;
             const comment = document.getElementById(`comm-${id}`).value;
-            
-            const updatePayload = {
-                id: id,
-                type: "إشعار",
-                action: "update_status",
-                comment: comment,
-                done: "تم",
-                updatedAt: new Date().toISOString()
-            };
+            const updatePayload = { id, type: "إشعار", action: "update_status", comment, done: "تم", updatedAt: new Date().toISOString() };
 
-            const originalText = btn.innerText;
-            btn.innerText = "⏳...";
+            btn.innerText = "...";
             btn.disabled = true;
 
             try {
-                const success = await updateData(updatePayload);
-                if (success) {
-                    alert("✅ تم تحديث الحالة");
+                if (await updateData(updatePayload)) {
                     await loadNotifications();
-                } else {
-                    throw new Error();
-                }
+                } else throw new Error();
             } catch (error) {
-                alert("❌ فشل التحديث");
-                btn.innerText = originalText;
+                alert("❌ حدث خطأ في التحديث");
+                btn.innerText = "تم";
                 btn.disabled = false;
             }
         }
