@@ -17,8 +17,9 @@
         .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
         .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         .filter-box { display: flex; gap: 20px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
-        .btn-done { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-done { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
         .btn-done:hover { background: #218838; }
+        .btn-done:disabled { background: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -56,11 +57,9 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
+        // جلب الفرع من localStorage أو استخدام اسم المستخدم كفرع افتراضي
         const userBranch = localStorage.getItem('userBranch') || activeUser || '';
         let allItems = [];
-
-        console.log("👤 المستخدم:", activeUser);
-        console.log("🏢 الفرع (أو المستخدم):", userBranch);
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -72,41 +71,30 @@
             container.innerHTML = '<p style="text-align:center;">⏳ جاري تحميل البيانات من السيرفر...</p>';
             
             try {
-                console.log("📡 بدء جلب البيانات من API...");
                 const response = await fetchFromN8N('notifications');
-                console.log("📥 البيانات المستقبلة الخام:", response);
+                console.log("📥 البيانات المستقبلة:", response);
 
-                // معالجة البيانات بناءً على الهيكل المستقبل
+                // معالجة ذكية لشكل البيانات القادمة من n8n
                 if (Array.isArray(response)) {
                     if (response.length > 0 && response[0].data && Array.isArray(response[0].data)) {
                         allItems = response[0].data;
-                        console.log("✅ تم استخراج البيانات من response[0].data");
-                    } else if (response.length > 0 && response[0].note) {
-                        allItems = response;
-                        console.log("✅ البيانات Array مباشر");
                     } else {
                         allItems = response;
-                        console.log("⚠️ تم استلام Array بدون هيكل واضح");
                     }
-                } else if (response && typeof response === 'object' && response.data) {
+                } else if (response && response.data) {
                     allItems = response.data;
-                    console.log("✅ تم استخراج البيانات من response.data");
                 } else {
                     allItems = [];
-                    console.warn("❌ لم يتمكن من معالجة البيانات المستقبلة");
                 }
 
-                console.log(`📊 عدد الإشعارات المستقبلة: ${allItems.length}`);
-                console.log("📋 محتويات البيانات:", allItems);
-
                 if (allItems.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#ff9800;">⚠️ لا توجد إشعارات في النظام حالياً</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#ff9800;">⚠️ لا توجد إشعارات حالياً</p>';
                 } else {
                     applyFilter();
                 }
             } catch (e) {
-                console.error("❌ خطأ في جلب البيانات:", e);
-                container.innerHTML = '<p style="text-align:center; color:red;">❌ خطأ في تحميل البيانات: ' + e.message + '</p>';
+                console.error("❌ خطأ:", e);
+                container.innerHTML = '<p style="text-align:center; color:red;">❌ خطأ في تحميل البيانات</p>';
             }
         }
 
@@ -115,13 +103,8 @@
             const sentChecked = document.getElementById('showSent').checked;
             const receivedChecked = document.getElementById('showReceived').checked;
 
-            console.log("🔍 تطبيق الفلتر - المستخدم/الفرع:", userBranch);
-            console.log("✓ إظهار المرسلات:", sentChecked, "✓ إظهار المستقبلات:", receivedChecked);
-
-            // إذا كانت الاثنين unchecked، لا تظهر شيء
             if (!sentChecked && !receivedChecked) {
-                console.log("⚠️ كلا الفلترين مشيّل - لا تظهر بيانات");
-                container.innerHTML = '<p style="text-align:center; color:#999;">📭 اختر على الأقل فلتر واحد</p>';
+                container.innerHTML = '<p style="text-align:center; color:#999;">📭 اختر فلتر واحد على الأقل</p>';
                 return;
             }
 
@@ -133,35 +116,25 @@
                 const isSent = (sender === current);
                 const isReceived = (receiver === current);
 
-                console.log(`📋 Item: من=${sender}, إلى=${receiver}, يطابق_مرسل=${isSent}, يطابق_مستقبل=${isReceived}`);
-
-                // احترم اختيار المستخدم
                 if (sentChecked && isSent) return true;
                 if (receivedChecked && isReceived) return true;
-                
                 return false;
             });
 
-            console.log(`✅ عدد النتائج بعد الفلترة: ${filtered.length}`);
             renderNotifications(filtered);
         }
 
         function renderNotifications(items) {
             const container = document.getElementById('notif-container');
-            
             if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا توجد إشعارات تطابق معايير الفلترة</p>';
+                container.innerHTML = '<p style="text-align:center; color:#999;">📭 لا يوجد نتائج</p>';
                 return;
             }
 
             container.innerHTML = '';
             
-            // ترتيب تنازلي حسب التاريخ
-            items.sort((a, b) => {
-                const dateA = new Date(a.createdAt || 0);
-                const dateB = new Date(b.createdAt || 0);
-                return dateB - dateA;
-            });
+            // ترتيب من الأحدث للأقدم
+            items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
             items.forEach(item => {
                 const isDone = (item.done === true || item.done === "true" || item.done === "تم");
@@ -172,8 +145,11 @@
                 const branchFrom = item.branch || '؟';
                 const branchTo = item.target_branch || '؟';
                 const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : '؟';
-                const commentValue = (item.comment && item.comment !== 'Null' && item.comment !== 'null') ? item.comment : '';
+                const commentValue = (item.comment && item.comment !== 'null' && item.comment !== 'Null') ? item.comment : '';
                 
+                // تحويل الـ ID لنص لضمان عدم وجود أخطاء في الـ HTML
+                const safeId = String(item.id);
+
                 div.innerHTML = `
                     <div style="font-weight:bold; font-size:1.1em; margin-bottom:8px;">📌 ${noteText}</div>
                     <div class="meta">
@@ -181,33 +157,51 @@
                         <span style="color:#888; font-size:0.9em;">📅 ${dateStr}</span>
                     </div>
                     <div class="action-area">
-                        <input type="text" id="comm-${item.id}" class="comment-input" placeholder="أضف تعليقاً..." value="${commentValue}">
-                        ${!isDone ? `<button onclick="handleDone('${item.id}')" class="btn-done">✅ تم</button>` : '<span style="color:#999; font-weight:bold;">✓ تم إنجازه</span>'}
+                        <input type="text" id="comm-${safeId}" class="comment-input" placeholder="أضف تعليقاً..." value="${commentValue}">
+                        ${!isDone ? `<button onclick="handleDone(event, '${safeId}')" class="btn-done">✅ تم</button>` : '<span style="color:#999; font-weight:bold;">✓ تم إنجازه</span>'}
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
-async function handleDone(id) {
-    const comment = document.getElementById(`comm-${id}`).value;
-    
-    const updatePayload = {
-        id: id,
-        action: "update_status",  // ✅ غيّر لـ update_status
-        comment: comment,
-        done: true
-    };
 
-    console.log("📤 إرسال البيانات:", updatePayload);
-    const success = await updateData(updatePayload);
-    
-    if (success) {
-        alert("✅ تم التحديث بنجاح!");
-        loadNotifications();
-    } else {
-        alert("❌ فشل التحديث - تحقق من الاتصال");
-    }
-}
+        async function handleDone(event, id) {
+            // منع السلوك الافتراضي للزر
+            if(event) event.preventDefault();
+            
+            const btn = event.target;
+            const comment = document.getElementById(`comm-${id}`).value;
+            
+            const updatePayload = {
+                id: id,
+                action: "update_status",
+                comment: comment,
+                done: "تم", // نرسل "تم" كنص لتسهيل الكتابة في Google Sheets
+                updatedAt: new Date().toISOString()
+            };
+
+            // تغيير حالة الزر لمنع الضغط المتكرر
+            const originalText = btn.innerText;
+            btn.innerText = "⏳...";
+            btn.disabled = true;
+
+            console.log("📤 إرسال تحديث:", updatePayload);
+            
+            try {
+                const success = await updateData(updatePayload);
+                if (success) {
+                    alert("✅ تم تحديث الحالة بنجاح");
+                    await loadNotifications(); // تحديث القائمة
+                } else {
+                    throw new Error("فشل في الرد من السيرفر");
+                }
+            } catch (error) {
+                console.error("Update error:", error);
+                alert("❌ فشل التحديث. تأكد من تفعيل CORS في n8n أو مراجعة الكونسول.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
