@@ -12,8 +12,8 @@
         th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 2px solid #3498db; }
         tr:hover { background-color: #f7fafc; }
         
-        .filter-box { display: flex; gap: 15px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .filter-control { padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.85rem; }
+        .filter-box { display: flex; gap: 15px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-control { padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.85rem; min-width: 120px; }
         
         .status-select { padding: 5px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 100px; }
         .note-input { width: 90%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 0.8rem; }
@@ -68,6 +68,12 @@
                         <option value="all">الكل</option>
                     </select>
                 </div>
+                <div>
+                    <label style="font-size: 0.8rem;">🏢 فلترة بفرع معين:</label>
+                    <select id="branch-select-filter" class="filter-control" onchange="applyFilters()">
+                        <option value="all">كل الفروع</option>
+                    </select>
+                </div>
             </div>
 
             <div id="branch-tag" style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #3498db;"></div>
@@ -76,7 +82,7 @@
                 <table id="transfers-table">
                     <thead>
                         <tr>
-                            <th>المسار</th>
+                            <th>الفرع الطالب</th>
                             <th>اسم الصنف</th>
                             <th>كود الصنف</th>
                             <th>اسم العميل</th>
@@ -99,7 +105,7 @@
     <script>
         let rawData = [];
         const activeUser = checkAuth();
-        const userBranchName = localStorage.getItem('userBranch') || "المعمورة"; 
+        const userBranchName = localStorage.getItem('userBranch') || "المعمورة";
 
         if (activeUser) {
             document.getElementById('nav-user').innerText = activeUser;
@@ -115,6 +121,7 @@
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
                 if (Array.isArray(items)) {
                     rawData = items.filter(item => item.type === "تحويل");
+                    populateBranchFilter(rawData);
                     applyFilters(); 
                 }
             } catch (error) {
@@ -122,22 +129,52 @@
             }
         }
 
+        // وظيفة بناء فلتر الفروع ديناميكياً
+        function populateBranchFilter(data) {
+            const branchSelect = document.getElementById('branch-select-filter');
+            // استخراج الفروع الطالبة (user) والفرع المطلوب منه (branch) باستثناء فرعي الحالي
+            const branches = new Set();
+            data.forEach(item => {
+                if (item.user && item.user !== userBranchName) branches.add(item.user);
+                if (item.branch && item.branch !== userBranchName) branches.add(item.branch);
+            });
+
+            branchSelect.innerHTML = '<option value="all">كل الفروع</option>';
+            branches.forEach(br => {
+                const opt = document.createElement('option');
+                opt.value = br;
+                opt.innerText = br;
+                branchSelect.appendChild(opt);
+            });
+        }
+
         function applyFilters() {
             const directionVal = document.getElementById('direction-filter').value;
             const statusVal = document.getElementById('status-filter').value;
+            const selectedBranch = document.getElementById('branch-select-filter').value;
 
             const filtered = rawData.filter(item => {
                 const isTarget = (item.branch === userBranchName);
                 const isSource = (item.user === userBranchName);
                 
+                // فلتر الاتجاه
                 let dirMatch = false;
                 if (directionVal === 'all') dirMatch = (isTarget || isSource);
                 if (directionVal === 'inbound') dirMatch = isTarget;
                 if (directionVal === 'outbound') dirMatch = isSource;
 
+                // فلتر الحالة
                 let statMatch = (statusVal === 'all') || ((item.state || 'pending') === statusVal);
 
-                return dirMatch && statMatch;
+                // فلتر الفرع المحدد (ديناميكي)
+                let specificBranchMatch = true;
+                if (selectedBranch !== 'all') {
+                    // إذا كنت أشوف الوارد، ابحث عن الفرع الطالب في حقل user
+                    // إذا كنت أشوف الصادر، ابحث عن الفرع المطلوب منه في حقل branch
+                    specificBranchMatch = (item.user === selectedBranch || item.branch === selectedBranch);
+                }
+
+                return dirMatch && statMatch && specificBranchMatch;
             });
 
             renderTable(filtered);
@@ -148,7 +185,7 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px;">لا توجد طلبات انتظار واردة حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px;">لا توجد نتائج تطابق الفلاتر المختارة</td></tr>';
                 return;
             }
 
@@ -159,8 +196,10 @@
                 
                 tr.innerHTML = `
                     <td>
-                        <div style="font-size:0.75rem;">${item.user} ⬅️ ${item.branch}</div>
-                        <span class="badge ${canReply ? 'inbound' : 'outbound'}">${canReply ? 'وارد إليك' : 'صادر منك'}</span>
+                        <div style="font-weight:bold; color:#2c3e50;">${item.user}</div>
+                        <span class="badge ${canReply ? 'inbound' : 'outbound'}">
+                            ${canReply ? 'وارد من' : 'مطلوب من'}
+                        </span>
                     </td>
                     <td class="name-text">${item.item_name || '-'}</td>
                     <td class="code-text">${item.item_code || '-'}</td>
