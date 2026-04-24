@@ -143,55 +143,60 @@
             }
         }
 
-        async function submitOrder() {
-            const btn = document.getElementById('submitBtn');
-            const type = document.getElementById('type').value;
-            const branchVal = document.getElementById('branch').value;
+async function submitOrder() {
+    const btn = document.getElementById('submitBtn');
+    const type = document.getElementById('type').value;
+    const branchVal = document.getElementById('branch').value;
 
-            btn.disabled = true;
-            btn.innerText = "⏳ جاري الإرسال...";
+    btn.disabled = true;
+    btn.innerText = "⏳ جاري الإرسال...";
 
-            try {
-                let success = false;
-                if (type === "إشعار") {
-                    const notifData = {
-                        action: "insert",
-                        branch: userBranch,
-                        target_branch: branchVal,
-                        note: document.getElementById('note_text').value,
-                        done: false,
-                        user: activeUser,
-                        createdAt: new Date().toISOString()
-                    };
-                    success = await postNotification(notifData);
-                } else {
-                    const formData = {
-                        user: activeUser,
-                        type: type,
-                        branch: branchVal,
-                        item_code: document.getElementById('item_code').value,
-                        item: document.getElementById('item_name').value,
-                        qty: document.getElementById('qty').value || 0,
-                        state: 'pending',
-                        createdAt: new Date().toISOString()
-                    };
-                    success = await postData(formData);
-                }
-
-                if (success) {
-                    alert("تم الإرسال بنجاح ✅");
-                    document.getElementById('orderForm').reset();
-                    handleTypeChange();
-                } else {
-                    alert("فشل الإرسال ❌");
-                }
-            } catch (e) {
-                alert("خطأ في الاتصال");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "إرسال الآن";
-            }
+    try {
+        let success = false;
+        if (type === "إشعار") {
+            const notifData = {
+                action: "insert",
+                type: "إشعار", // أضفنا النوع لسهولة التوجيه في n8n
+                branch: userBranch,
+                target_branch: branchVal,
+                note: document.getElementById('note_text').value,
+                done: false,
+                user: activeUser,
+                createdAt: new Date().toISOString()
+            };
+            success = await postNotification(notifData);
+        } else {
+            // هنا التعديل لإضافة بيانات العميل واسم الصنف
+            const formData = {
+                user: activeUser,
+                type: type,
+                branch: branchVal,
+                item_code: document.getElementById('item_code').value,
+                item: document.getElementById('item_name').value, // اسم الصنف
+                customer_code: document.getElementById('customer_code').value, // كود العميل (جديد)
+                customer_name: document.getElementById('customer_name').value, // اسم العميل (جديد)
+                qty: document.getElementById('qty').value || 0,
+                state: 'pending',
+                createdAt: new Date().toISOString()
+            };
+            success = await postData(formData);
         }
+
+        if (success) {
+            alert("تم الإرسال بنجاح ✅");
+            document.getElementById('orderForm').reset();
+            handleTypeChange();
+        } else {
+            alert("فشل الإرسال ❌");
+        }
+    } catch (e) {
+        console.error("Submission Error:", e);
+        alert("خطأ في الاتصال");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "إرسال الآن";
+    }
+}
     </script>
 </body>
 </html>
