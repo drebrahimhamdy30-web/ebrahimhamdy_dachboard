@@ -146,55 +146,57 @@
 
             renderTable(filtered);
         }
+function renderTable(items) {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
 
-        function renderTable(items) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '';
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد تحويلات حالياً</td></tr>';
+        return;
+    }
 
-            if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">لا توجد تحويلات حالياً</td></tr>';
-                return;
-            }
-
-            items.forEach((item) => {
-                // إذا كان فرعي هو "الموجه إليه" (branch)، فلي حق الرد
-                const canReply = (item.branch === userBranchName);
-                const currentState = item.state || 'pending';
-                const tr = document.createElement('tr');
-                
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-size:0.8rem; font-weight:bold;">${item.user} ⬅️ ${item.branch}</div>
-                        <span class="dir-badge ${canReply ? 'in-badge' : 'out-badge'}">
-                            ${canReply ? 'وارد إليك' : 'صادر منك'}
-                        </span>
-                    </td>
-                    <td style="text-align:right;">
-                        <div style="font-weight:600;">${item.item_name || '-'}</div>
-                        <div style="font-size:0.7rem; color:#64748b;">كود: ${item.item_code || '-'}</div>
-                    </td>
-                    <td style="font-weight:bold; color:#2c3e50;">${item.qty || '0'}</td>
-                    <td>
-                        <input type="text" id="note-${item.id}" class="note-input" 
-                               value="${item.company || ''}" placeholder="ملاحظة الرد..." 
-                               ${!canReply ? 'disabled' : ''}>
-                    </td>
-                    <td>
-                        <select id="stat-${item.id}" class="status-select" ${!canReply ? 'disabled' : ''}>
-                            <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>⏳ انتظار</option>
-                            <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>✅ تم</option>
-                            <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>❌ نقص</option>
-                        </select>
-                    </td>
-                    <td>
-                        ${canReply ? 
-                            `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-reply"></i> رد</button>` : 
-                            '<span style="font-size:0.75rem; color:#94a3b8;">بانتظار الطرف الآخر</span>'}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+    items.forEach((item) => {
+        const canReply = (item.branch === userBranchName);
+        const currentState = item.state || 'pending';
+        const tr = document.createElement('tr');
+        
+        tr.innerHTML = `
+            <td>
+                <div style="font-size:0.8rem; font-weight:bold;">${item.user} ⬅️ ${item.branch}</div>
+                <span class="dir-badge ${canReply ? 'in-badge' : 'out-badge'}">
+                    ${canReply ? 'وارد إليك' : 'صادر منك'}
+                </span>
+            </td>
+            <td style="text-align:right;">
+                <div style="font-weight:600;">${item.item_name || '-'}</div>
+                <div style="font-size:0.7rem; color:#64748b;">كود الصنف: ${item.item_code || '-'}</div>
+                <div style="margin-top:4px; padding-top:4px; border-top:1px dashed #eee;">
+                    <div style="font-size:0.75rem; color:#2c3e50;"><i class="fas fa-user"></i> ${item.cust_name || 'بدون اسم'}</div>
+                    <div style="font-size:0.7rem; color:#7f8c8d;">كود العميل: ${item.cust_code || '---'}</div>
+                </div>
+            </td>
+            <td style="font-weight:bold; color:#2c3e50;">${item.qty || '0'}</td>
+            <td>
+                <input type="text" id="note-${item.id}" class="note-input" 
+                       value="${item.company || ''}" placeholder="ملاحظة الرد..." 
+                       ${!canReply ? 'disabled' : ''}>
+            </td>
+            <td>
+                <select id="stat-${item.id}" class="status-select" ${!canReply ? 'disabled' : ''}>
+                    <option value="pending" ${currentState === 'pending' ? 'selected' : ''}>⏳ انتظار</option>
+                    <option value="transferred" ${currentState === 'transferred' ? 'selected' : ''}>✅ تم</option>
+                    <option value="unavailable" ${currentState === 'unavailable' ? 'selected' : ''}>❌ نقص</option>
+                </select>
+            </td>
+            <td>
+                ${canReply ? 
+                    `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-reply"></i> رد</button>` : 
+                    '<span style="font-size:0.75rem; color:#94a3b8;">بانتظار الطرف الآخر</span>'}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
         async function saveTransfer(id, btn) {
             const status = document.getElementById(`stat-${id}`).value;
