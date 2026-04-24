@@ -17,8 +17,8 @@
         .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
         .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         .filter-box { display: flex; gap: 20px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
-        .btn-primary { background: #1a73e8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
-        .btn-primary:hover { background: #1557b0; }
+        .btn-done { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-done:hover { background: #218838; }
     </style>
 </head>
 <body>
@@ -56,7 +56,7 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || activeUser || ''; // استخدم اسم المستخدم إذا لم يكن هناك فرع
+        const userBranch = localStorage.getItem('userBranch') || activeUser || '';
         let allItems = [];
 
         console.log("👤 المستخدم:", activeUser);
@@ -182,15 +182,14 @@
                     </div>
                     <div class="action-area">
                         <input type="text" id="comm-${item.id}" class="comment-input" placeholder="أضف تعليقاً..." value="${commentValue}">
-                        <button onclick="handleAction('${item.id}', 'comment')" class="btn-primary">💾 حفظ</button>
-                        ${!isDone ? `<button onclick="handleAction('${item.id}', 'done')" class="btn-success" style="width:auto; padding:8px 15px;">✅ تم</button>` : '<span style="color:#999;">تم إنجازه ✓</span>'}
+                        ${!isDone ? `<button onclick="handleDone('${item.id}')" class="btn-done">✅ تم</button>` : '<span style="color:#999; font-weight:bold;">✓ تم إنجازه</span>'}
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        async function handleAction(id, actionType) {
+        async function handleDone(id) {
             const commentEl = document.getElementById(`comm-${id}`);
             if (!commentEl) {
                 alert("❌ خطأ: لم يتم العثور على حقل التعليق");
@@ -199,12 +198,13 @@
 
             const comment = commentEl.value;
             
+            // تجهيز الـ Payload
             const updatePayload = {
                 id: id,
                 type: "notifications",
                 action: "update_data",
                 comment: comment,
-                done: (actionType === 'done' ? true : false)
+                done: true
             };
 
             console.log("📤 إرسال البيانات:", updatePayload);
