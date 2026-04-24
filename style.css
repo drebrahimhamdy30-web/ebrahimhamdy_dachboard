@@ -1,11 +1,11 @@
-/* ملف التنسيق الموحد - نظام صيدليات د. إبراهيم حمدي */
+/* نظام صيدليات د. إبراهيم حمدي - نسخة عالية الكثافة */
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
 
 :root {
-    --primary: #2c3e50;    /* لون الهيدر - كحلي */
-    --accent: #3498db;     /* لون الأزرار والروابط - أزرق طبي */
-    --success: #27ae60;    /* لون زر "تم" - أخضر */
-    --bg: #f8f9fa;         /* لون الخلفية المريح */
+    --primary: #2c3e50;
+    --accent: #3498db;
+    --success: #27ae60;
+    --bg: #f4f7f6;
     --white: #ffffff;
 }
 
@@ -14,87 +14,102 @@ body {
     background-color: var(--bg);
     margin: 0;
     direction: rtl;
+    font-size: 14px; /* تصغير الخط العام */
 }
 
-/* شريط التنقل الاحترافي */
 .nav-bar {
     background: var(--primary);
-    padding: 12px 5%;
+    padding: 8px 3%; /* تقليل سماكة الهيدر */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .nav-links a {
-    color: #ecf0f1;
+    color: #fff;
     text-decoration: none;
-    padding: 8px 15px;
-    margin: 0 5px;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    transition: 0.3s;
+    padding: 5px 10px;
+    margin: 0 2px;
+    border-radius: 4px;
+    font-size: 0.85rem;
 }
 
-.nav-links a.active, .nav-links a:hover {
-    background: var(--accent);
-    color: white;
-}
+.nav-links a.active { background: var(--accent); }
 
-/* الحاوية الرئيسية */
 .container {
-    max-width: 1000px;
-    margin: 30px auto;
-    padding: 0 20px;
+    max-width: 1200px; /* توسيع العرض لاستغلال الشاشة */
+    margin: 10px auto;
+    padding: 0 10px;
 }
 
-/* البطاقات (Cards) */
 .card {
     background: var(--white);
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-radius: 8px;
+    padding: 12px; /* تقليل المسافة الداخلية */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-/* تنسيق بطاقة الإشعارات */
+/* تنسيق الإشعار ليصبح سطراً واحداً أو اثنين بحد أقصى */
 .notif-card {
     background: var(--white);
-    border: 1px solid #edf2f7;
-    border-right: 6px solid var(--accent);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    border: 1px solid #eee;
+    border-right: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .notif-card.completed {
     border-right-color: #cbd5e0;
     opacity: 0.7;
-    background: #fdfdfd;
 }
 
-/* الفلاتر */
+.meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f9f9f9;
+    padding-top: 4px;
+}
+
+.branch-tag {
+    background: #ebf8ff;
+    color: #2c5282;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* تصغير الفلاتر */
 .filter-box {
     display: flex;
-    gap: 20px;
-    background: #ebf8ff;
-    padding: 15px 20px;
-    border-radius: 10px;
-    margin-bottom: 25px;
-    border: 1px solid #bee3f8;
+    gap: 12px;
+    background: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
     align-items: center;
 }
 
-/* الأزرار */
-.btn-success {
+.comment-input {
+    width: 180px; /* جعل خانة التعليق أنحف */
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.btn-done {
     background: var(--success);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
+    padding: 4px 12px;
+    border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
+    font-size: 0.8rem;
 }
-
-.btn-success:hover { background: #219150; }
