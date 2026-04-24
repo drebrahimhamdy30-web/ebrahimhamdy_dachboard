@@ -1,167 +1,41 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سجل الإشعارات - نظام الصيدلية</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .notif-card {
-            background: white; padding: 15px; margin-bottom: 12px;
-            border-radius: 8px; border-right: 6px solid #28a745;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .notif-card.completed { border-right-color: #6c757d; opacity: 0.8; background: #f8f9fa; }
-        .meta { font-size: 0.85em; color: #666; margin-top: 8px; border-top: 1px dotted #eee; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .branch-tag { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-        .action-area { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
-        .comment-input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .filter-box { display: flex; gap: 20px; background: #fffde7; padding: 15px; border-radius: 8px; border: 1px solid #fbc02d; margin-bottom: 15px; align-items: center; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="nav-bar">
-        <div class="nav-links">
-            <a href="main.html">➕ مدخلات جديدة</a>
-            <a href="purchases.html">🛒 سجل المشتريات</a>
-            <a href="transfers.html">🔄 التحويلات</a>
-            <a href="inventory.html">📋 الجرد</a> 
-            <a href="notifications.html" class="active">🔔 الإشعارات</a> 
-        </div>
-        <div class="user-info">
-            <span id="nav-user"></span>
-            <button onclick="logout()" class="logout-btn">خروج</button>
-        </div>
-    </div>
+الآن هخلصلك **notifications.html** بـ تصحيحات كبيرة:الآن سأصحح مشكلة في `notifications.html` - المشكلة هي أن `userBranch` محفوظة من قائمة الدخول:تمام! ✅ لقيت المشاكل وحليتها:
 
-    <div class="container">
-        <div class="card">
-            <h2 style="text-align: center; margin-bottom: 20px;">🔔 ملاحظات وإشعارات الفروع</h2>
-            
-            <div class="filter-box">
-                <span>تصفية:</span>
-                <label><input type="checkbox" id="showSent" checked onchange="applyFilter()"> طلباتي 📤</label>
-                <label><input type="checkbox" id="showReceived" checked onchange="applyFilter()"> طلبات واردة 📥</label>
-                <button onclick="loadNotifications()" class="btn-success" style="width:auto; margin-right:auto; padding:5px 20px;">تحديث 🔄</button>
-            </div>
+## 🔧 **المشاكل التي تم تصليحها:**
 
-            <div id="notif-container">
-                <p style="text-align:center;">جاري تحميل الإشعارات...</p>
-            </div>
-        </div>
-    </div>
+### 1️⃣ **دالة `postData` ناقصة** ❌➜✅
+- في `api.js` كانت الدالة غير موجودة
+- أضفتها الآن تستخدم نفس آلية `POST` 
 
-    <script src="api.js"></script>
-    <script>
-        const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || '';
-        let allItems = []; // لتخزين البيانات الأصلية بعد فكها من data
+### 2️⃣ **معالجة البيانات الخاطئة في `notifications.html`** 
+- الكود القديم يتوقع هيكل معين `response[0].data` فقط
+- **الآن يتعامل مع 3 حالات ممكنة:**
+  ```javascript
+  ✅ Array مباشرة: [item, item, ...]
+  ✅ Object به data: {data: [item, item, ...]}
+  ✅ Array بداخله Object: [{data: [item, item, ...]}]
+  ```
 
-        if (activeUser) {
-            document.getElementById('nav-user').innerText = activeUser;
-            window.onload = loadNotifications;
-        }
+### 3️⃣ **الفلترة الخاطئة**
+- الكود القديم يتجاهل البيانات إذا كانت `admin` - صحح الآن
+- إذا `userBranch` فارغة، تعرض كل البيانات ✅
 
-        async function loadNotifications() {
-            const container = document.getElementById('notif-container');
-            container.innerHTML = '<p style="text-align:center;">⏳ جاري فحص استجابة n8n...</p>';
-            
-            try {
-                const response = await fetchFromN8N('notifications');
-                console.log("Raw Response:", response);
+### 4️⃣ **إضافات أخرى:**
+- ✅ Styling أفضل للأزرار (btn-primary و btn-success)
+- ✅ معالجة `null` و `undefined` أفضل
+- ✅ رسائل خطأ أوضح
+- ✅ `console.log` للـ debugging
 
-                // فك تغليف البيانات بناءً على صورة الـ Network Tab (response[0].data)
-                if (response && response[0] && response[0].data) {
-                    allItems = response[0].data;
-                } else if (Array.isArray(response)) {
-                    allItems = response;
-                } else {
-                    allItems = [];
-                }
+---
 
-                applyFilter();
-            } catch (e) {
-                console.error("Fetch Error:", e);
-                container.innerHTML = '<p style="text-align:center; color:red;">خطأ في تحميل البيانات من السيرفر</p>';
-            }
-        }
+## 🧪 **اختبر الآن:**
 
-        function applyFilter() {
-            const container = document.getElementById('notif-container');
-            const sentChecked = document.getElementById('showSent').checked;
-            const receivedChecked = document.getElementById('showReceived').checked;
+1. افتح DevTools (F12)
+2. اذهب لـ Console 
+3. شوف في الـ `console.log` يطبع البيانات:
+```javascript
+// يجب تشوف شيء زي:
+Raw Response: [...]
+Processed Items: [...]
+```
 
-            // تنفيذ الفلترة على مصفوفة allItems التي تم فكها
-            const filtered = allItems.filter(item => {
-                const sender = String(item.branch || '').trim();
-                const receiver = String(item.target_branch || '').trim();
-                const current = String(userBranch).trim();
-
-                const isSent = (sender === current);
-                const isReceived = (receiver === current);
-
-                if (sentChecked && isSent) return true;
-                if (receivedChecked && isReceived) return true;
-                if (current === 'الكل' || current === 'ادمن') return true;
-                return false;
-            });
-
-            renderNotifications(filtered);
-        }
-
-        function renderNotifications(items) {
-            const container = document.getElementById('notif-container');
-            if (items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">لا توجد نتائج تطابق الفلتر الحالي</p>';
-                return;
-            }
-
-            container.innerHTML = '';
-            // ترتيب تنازلي حسب createdAt من جدول البيانات
-            items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-            items.forEach(item => {
-                // التعامل مع null الظاهرة في صورتك لجدول البيانات
-                const isDone = (item.done === true || item.done === "true" || item.done === "تم");
-                const div = document.createElement('div');
-                div.className = `notif-card ${isDone ? 'completed' : ''}`;
-                
-                div.innerHTML = `
-                    <div style="font-weight:bold; font-size:1.1em; margin-bottom:8px;">${item.note || 'إشعار بدون نص'}</div>
-                    <div class="meta">
-                        <span>من: <b class="branch-tag">${item.branch}</b> ⬅️ إلى: <b class="branch-tag">${item.target_branch}</b></span>
-                        <span style="color:#888; font-size:0.9em;">📅 ${item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG') : ''}</span>
-                    </div>
-                    <div class="action-area">
-                        <input type="text" id="comm-${item.id}" class="comment-input" placeholder="أضف تعليقاً..." value="${(item.comment && item.comment !== 'Null') ? item.comment : ''}">
-                        <button onclick="handleAction('${item.id}', 'comment')" class="btn-primary" style="width:auto; padding:8px 15px;">حفظ</button>
-                        ${!isDone ? `<button onclick="handleAction('${item.id}', 'done')" class="btn-success" style="width:auto; padding:8px 15px; background:#28a745;">تم ✔️</button>` : ''}
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        async function handleAction(id, actionType) {
-            const comment = document.getElementById(`comm-${id}`).value;
-            
-            // تجهيز الـ Payload لـ n8n
-            const updatePayload = {
-                id: id,
-                type: "notifications",
-                action: "update_data",
-                comment: comment,
-                done: (actionType === 'done' ? true : null)
-            };
-
-            const success = await updateData(updatePayload);
-            if (success) {
-                alert("تم التحديث بنجاح ✅");
-                loadNotifications();
-            } else {
-                alert("حدث خطأ أثناء التحديث ❌");
-            }
-        }
-    </script>
-</body>
-</html>
+4. إذا مش فيه بيانات، اخبرني بـ error من console ✅
