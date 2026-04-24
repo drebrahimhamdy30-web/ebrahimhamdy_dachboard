@@ -188,35 +188,26 @@
                 container.appendChild(div);
             });
         }
+async function handleDone(id) {
+    const comment = document.getElementById(`comm-${id}`).value;
+    
+    const updatePayload = {
+        id: id,
+        action: "update_status",  // ✅ غيّر لـ update_status
+        comment: comment,
+        done: true
+    };
 
-        async function handleDone(id) {
-            const commentEl = document.getElementById(`comm-${id}`);
-            if (!commentEl) {
-                alert("❌ خطأ: لم يتم العثور على حقل التعليق");
-                return;
-            }
-
-            const comment = commentEl.value;
-            
-            // تجهيز الـ Payload
-            const updatePayload = {
-                id: id,
-                type: "notifications",
-                action: "update_data",
-                comment: comment,
-                done: true
-            };
-
-            console.log("📤 إرسال البيانات:", updatePayload);
-            const success = await updateData(updatePayload);
-            
-            if (success) {
-                alert("✅ تم التحديث بنجاح!");
-                loadNotifications();
-            } else {
-                alert("❌ فشل التحديث - تحقق من الاتصال");
-            }
-        }
+    console.log("📤 إرسال البيانات:", updatePayload);
+    const success = await updateData(updatePayload);
+    
+    if (success) {
+        alert("✅ تم التحديث بنجاح!");
+        loadNotifications();
+    } else {
+        alert("❌ فشل التحديث - تحقق من الاتصال");
+    }
+}
     </script>
 </body>
 </html>
