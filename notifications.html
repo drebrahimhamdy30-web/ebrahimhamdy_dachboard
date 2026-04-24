@@ -56,7 +56,7 @@
     <script src="api.js"></script>
     <script>
         const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || 'الكل';
+        const userBranch = localStorage.getItem('userBranch') || '';
         let allItems = [];
 
         console.log("👤 المستخدم:", activeUser);
@@ -78,13 +78,10 @@
 
                 // معالجة البيانات بناءً على الهيكل المستقبل
                 if (Array.isArray(response)) {
-                    // إذا كانت Array مباشرة
                     if (response.length > 0 && response[0].data && Array.isArray(response[0].data)) {
-                        // [{data: [...]}]
                         allItems = response[0].data;
                         console.log("✅ تم استخراج البيانات من response[0].data");
                     } else if (response.length > 0 && response[0].note) {
-                        // [item, item, ...] مباشرة
                         allItems = response;
                         console.log("✅ البيانات Array مباشر");
                     } else {
@@ -92,7 +89,6 @@
                         console.log("⚠️ تم استلام Array بدون هيكل واضح");
                     }
                 } else if (response && typeof response === 'object' && response.data) {
-                    // {data: [...]}
                     allItems = response.data;
                     console.log("✅ تم استخراج البيانات من response.data");
                 } else {
@@ -129,9 +125,8 @@
 
                 const isSent = (sender === current);
                 const isReceived = (receiver === current);
-                const isAdmin = (current === 'الكل' || current === 'ادمن' || current === 'admin');
 
-                if (isAdmin) return true;
+                // احترم اختيار المستخدم دائماً
                 if (sentChecked && isSent) return true;
                 if (receivedChecked && isReceived) return true;
                 
