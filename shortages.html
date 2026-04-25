@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --warn-orange: #f39c12; --success-green: #27ae60; }
+        :root { --warn-orange: #f39c12; --success-green: #27ae60; --primary-blue: #3498db; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
         .container { padding: 20px; max-width: 1300px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -17,7 +17,8 @@
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
         
         .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ffeeba; }
-        
+        .branch-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+
         .btn-update { 
             background: var(--success-green); 
             color: white; 
@@ -30,8 +31,10 @@
             align-items: center;
             gap: 5px;
             margin: auto;
+            transition: 0.3s;
         }
-        .btn-update:hover { background: #219150; }
+        .btn-update:hover { background: #219150; transform: scale(1.02); }
+        .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -41,10 +44,11 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="margin: 0; color: #2c3e50;">
-                    <i class="fas fa-exclamation-triangle" style="color: var(--warn-orange);"></i> أصناف قيد المتابعة (النواقص)
+                    <i class="fas fa-exclamation-triangle" style="color: var(--warn-orange);"></i> 
+                    متابعة نواقص فرع: <span id="current-branch-name" style="color: var(--primary-blue);">...</span>
                 </h3>
-                <button onclick="loadShortages()" class="btn-update" style="background: #3498db;">
-                    <i class="fas fa-sync-alt"></i> تحديث القائمة
+                <button onclick="loadShortages()" class="btn-refresh">
+                    <i class="fas fa-sync-alt"></i> تحديث
                 </button>
             </div>
 
@@ -52,12 +56,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>الصنف</th>
-                            <th>الفرع</th>
-                            <th>اسم العميل</th>
-                            <th>كود العميل</th>
-                            <th>الحالة الحالية</th>
-                            <th>إجراء</th>
+                            <th style="width: 25%;">الصنف</th>
+                            <th style="width: 10%;">الفرع</th>
+                            <th style="width: 20%;">اسم العميل</th>
+                            <th style="width: 15%;">كود العميل</th>
+                            <th style="width: 15%;">الحالة الحالية</th>
+                            <th style="width: 15%;">إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="shortage-list">
@@ -71,24 +75,35 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
+        // التحقق من تسجيل الدخول وجلب اسم الفرع
         const activeUser = checkAuth();
+        const userBranch = (localStorage.getItem('userBranch') || "").trim();
+        document.getElementById('current-branch-name').innerText = userBranch || "عام";
         
-        if (activeUser) { window.onload = loadShortages; }
+        if (activeUser) { 
+            window.onload = loadShortages; 
+        }
 
         async function loadShortages() {
             const tbody = document.getElementById('shortage-list');
             try {
+                // جلب البيانات من السيرفر
                 const response = await fetchOrders(); 
                 const allItems = (response[0]?.data) ? response[0].data : (response.data || response);
                 
-                // فلترة الأصناف التي حالتها "غير متوفر يحتاج متابعة" فقط
-                const shortages = allItems.filter(item => 
-                    String(item.cust_state).trim() === "غير متوفر يحتاج متابعة"
-                );
+                // الفلترة: 
+                // 1. يجب أن تكون الحالة "غير متوفر يحتاج متابعة"
+                // 2. يجب أن يكون فرع الطلب هو نفس فرع المستخدم الحالي
+                const shortages = allItems.filter(item => {
+                    const isShortageStatus = String(item.cust_state).trim() === "غير متوفر يحتاج متابعة";
+                    const isMyBranch = String(item.user).trim() === userBranch;
+                    return isShortageStatus && isMyBranch;
+                });
 
                 renderShortages(shortages);
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ خطأ في تحميل البيانات</td></tr>';
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:20px;">❌ فشل تحميل البيانات، تأكد من الاتصال بالسيرفر</td></tr>';
             }
         }
 
@@ -96,7 +111,13 @@
             const tbody = document.getElementById('shortage-list');
             
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding:40px; color:#27ae60; font-weight:bold;">✅ لا توجد أصناف تحتاج متابعة حالياً</td></tr>';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding:50px; color:#64748b;">
+                            <i class="fas fa-check-double" style="font-size: 2rem; color: var(--success-green); display: block; margin-bottom: 10px;"></i>
+                            لا توجد نواقص تحتاج متابعة لفرعك حالياً
+                        </td>
+                    </tr>`;
                 return;
             }
 
@@ -109,7 +130,7 @@
                     <td><span class="shortage-tag">قيد المتابعة 🔍</span></td>
                     <td>
                         <button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
-                            <i class="fas fa-check"></i> توفر وتم ابلاغ العميل
+                            <i class="fas fa-check"></i> توفر وتم الإبلاغ
                         </button>
                     </td>
                 </tr>
@@ -118,26 +139,29 @@
 
         async function markAsAvailable(event, id) {
             const btn = event.target.closest('button');
-            if(!confirm("هل تأكدت من توفر الصنف وإبلاغ العميل؟")) return;
+            
+            if(!confirm("هل تأكدت من توفر الصنف وإبلاغ العميل فعلياً؟")) return;
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحديث...';
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
 
-            // إرسال تحديث لـ n8n لتغيير الحالة في جوجل شيت
+            // تحديث البيانات عبر API الخاص بـ n8n
             const success = await updateData({
                 id: id,
                 type: "cs_action",
-                decision: "متوفر وتم ابلاغ العميل", // نغير الحالة للنهائية
+                decision: "متوفر وتم ابلاغ العميل", // نغير القيمة للقيمة النهائية
+                done: "تم",
                 updatedAt: new Date().toISOString()
             });
 
             if (success) {
-                // إزالة السطر من الشاشة فوراً
+                // إعادة تحميل القائمة لتختفي الطلبية المنفذة
                 loadShortages(); 
             } else {
-                alert("⚠️ حدث خطأ أثناء التحديث");
+                alert("⚠️ فشل التحديث، حاول مرة أخرى");
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> توفر الآن';
+                btn.innerHTML = originalContent;
             }
         }
     </script>
