@@ -14,10 +14,8 @@
             width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; box-sizing: border-box; font-family: inherit;
         }
         .form-group input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
-        
         .flex-row { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
         .flex-row > div { flex: 1; min-width: 200px; }
-        
         .btn-submit { 
             width: 100%; background: #27ae60; color: white; border: none; padding: 15px; 
             border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold; transition: 0.3s;
@@ -105,17 +103,15 @@
     <script src="nav.js"></script>
 
     <script>
-        // 1. استرجاع بيانات الهوية والتحقق من تسجيل الدخول
-        const activeUser = checkAuth(); // دالة من api.js
+        // 1. استخدام دالة checkAuth من ملف api.js الخاص بك
+        const activeUser = checkAuth(); 
         const userBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
 
-        // تنفيذ الإعدادات الأولية عند تحميل الصفحة
         if (activeUser) {
             document.getElementById('branch').value = userBranch;
             handleTypeChange();
         }
 
-        // 2. التحكم في ظهور الحقول بناءً على نوع الطلب
         function handleTypeChange() {
             const type = document.getElementById('type').value;
             const branchSelect = document.getElementById('branch');
@@ -126,7 +122,6 @@
             const extraSection = document.getElementById('extra-section');
             const noteSection = document.getElementById('note-section');
 
-            // تصفير الحالات
             branchDiv.classList.remove('hidden');
             itemSection.classList.remove('hidden');
             itemNameDiv.classList.remove('hidden');
@@ -144,14 +139,13 @@
                 noteSection.classList.remove('hidden');
             } else if (type === "شراء") {
                 branchSelect.value = userBranch;
-                branchSelect.disabled = true; // الشراء يتم للفرع الحالي
+                branchSelect.disabled = true;
                 branchLabel.innerText = "فرع الطلب (ثابت)";
             } else if (type === "تحويل") {
                 branchLabel.innerText = "طلب تحويل من فرع:";
             }
         }
 
-        // 3. إرسال الطلب إلى n8n
         async function submitOrder() {
             const btn = document.getElementById('submitBtn');
             const type = document.getElementById('type').value;
@@ -160,7 +154,6 @@
             const itemCode = document.getElementById('item_code').value.trim();
             const itemName = document.getElementById('item_name').value.trim();
 
-            // التحقق من صحة المدخلات
             if (type !== "إشعار" && !itemCode && !itemName) {
                 alert("برجاء إدخال كود أو اسم الصنف");
                 return;
@@ -169,9 +162,9 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
 
-            // تجهيز البيانات بصيغة متوافقة مع JSON.parse في n8n
+            // تجهيز البيانات
             const payload = {
-                action: "insert_order",
+                action: "insert_order", // لإخبار n8n بنوع العملية
                 type: type,
                 user: activeUser,
                 branch: userBranch, 
@@ -187,19 +180,19 @@
             };
 
             try {
-                // استخدام دالة postData الموحدة في api.js
-                const success = await postData(payload);
+                // ملاحظة: هنا نستخدم دالة updateData الموجودة في ملف api.js الخاص بك
+                const success = await updateData(payload);
 
                 if (success) {
                     alert("تم الإرسال بنجاح ✅");
                     document.getElementById('orderForm').reset();
                     handleTypeChange();
                 } else {
-                    alert("فشل الإرسال ❌ تأكد من أن الـ Workflow يعمل");
+                    alert("فشل الإرسال ❌ تأكد من تشغيل الـ Workflow");
                 }
             } catch (error) {
                 console.error("Submission error:", error);
-                alert("خطأ تقني في الاتصال");
+                alert("خطأ في الاتصال بالسيرفر");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الطلب الآن';
