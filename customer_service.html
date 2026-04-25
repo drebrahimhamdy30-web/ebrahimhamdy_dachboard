@@ -68,28 +68,44 @@
 
         window.onload = loadCSData;
 
-        async function loadCSData() {
-            const list = document.getElementById('data-list');
-            list.innerHTML = '<tr><td colspan="7">⏳ جاري جلب البيانات...</td></tr>';
+async function loadCSData() {
+    const list = document.getElementById('data-list');
+    list.innerHTML = '<tr><td colspan="7">⏳ جاري فحص البيانات...</td></tr>';
 
-            try {
-                const response = await fetchOrders();
-                let allItems = [];
-                if (Array.isArray(response)) allItems = response;
-                else if (response && response[0]?.data) allItems = response[0].data;
-                else if (response && response.data) allItems = response.data;
+    try {
+        const response = await fetchOrders();
+        
+        // --- جزء كشف الأخطاء (Debug) ---
+        console.log("البيانات القادمة من السيرفر:", response);
+        console.log("اسم الفرع الذي نبحث عنه:", currentBranch);
+        // ------------------------------
 
-                // --- التعديل هنا: سنعرض كل طلبات الفرع حتى لو pending ---
-                const filtered = allItems.filter(item => {
-                    const itemUser = String(item.user || "").trim();
-                    return itemUser === currentBranch; 
-                });
-
-                renderTable(filtered);
-            } catch (err) {
-                list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ خطأ في الاتصال</td></tr>';
-            }
+        let allItems = [];
+        // فحص هيكل البيانات
+        if (Array.isArray(response)) {
+            allItems = response;
+        } else if (response && response.data) {
+            allItems = response.data;
+        } else if (response && response[0] && response[0].data) {
+            allItems = response[0].data;
         }
+
+        console.log("عدد العناصر التي تم استخراجها:", allItems.length);
+
+        const filtered = allItems.filter(item => {
+            const itemUser = String(item.user || "").trim();
+            // سنطبع أول 3 عناصر لنرى ماذا يوجد في خانة user فعلياً
+            return itemUser === currentBranch;
+        });
+
+        console.log("عدد العناصر بعد الفلترة لفرعك:", filtered.length);
+        renderTable(filtered);
+
+    } catch (err) {
+        console.error("خطأ تقني:", err);
+        list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ فشل في جلب البيانات من api.js</td></tr>';
+    }
+}
 
         function renderTable(data) {
             const list = document.getElementById('data-list');
