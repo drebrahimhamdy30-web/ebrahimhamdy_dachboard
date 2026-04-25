@@ -3,44 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خدمة العملاء - متابعة طلباتي</title>
+    <title>خدمة العملاء - المعمورة</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --main-green: #27ae60; --light-bg: #f8fafc; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
-        .container { padding: 25px; max-width: 1200px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .table-container { overflow-x: auto; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: var(--light-bg); color: #64748b; padding: 15px; border-bottom: 2px solid var(--main-green); font-size: 0.9rem; }
-        td { padding: 15px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: #1e293b; }
-        .badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
-        .bg-purchase { background: #dbeafe; color: #1e40af; }
-        .bg-transfer { background: #f3e8ff; color: #6b21a8; }
-        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: 600; min-width: 80px; display: inline-block; }
+        :root { --main-green: #27ae60; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f1f5f9; margin: 0; }
+        .container { padding: 20px; max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--main-green); color: #64748b; }
+        td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        .badge-buy { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; }
         .ordered { background: #dcfce7; color: #166534; }
-        .unavailable { background: #fee2e2; color: #991b1b; }
-        .transferred { background: #fef9c3; color: #854d0e; }
-        .pending { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
-        .branch-info { background: var(--main-green); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
-        .refresh-btn { background: #fff; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+        .pending { background: #f1f5f9; color: #64748b; }
+        .branch-tag { background: var(--main-green); color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="nav-bar"></div>
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0; font-size: 1.25rem; color: #334155;">
-                    <i class="fas fa-headset" style="color: var(--main-green);"></i> متابعة ردود طلبات فرعي
-                </h2>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <span id="branch-tag" class="branch-info">جاري التعرف...</span>
-                    <button onclick="loadCSData()" class="refresh-btn"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3><i class="fas fa-headset"></i> متابعة ردود طلباتي</h3>
+                <div>
+                    <span id="branch-name" class="branch-tag">جاري التحميل...</span>
+                    <button onclick="loadCSData()" style="padding: 6px 12px; cursor: pointer; margin-right: 10px;">تحديث</button>
                 </div>
             </div>
-            <div class="table-container">
+
+            <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
@@ -48,12 +41,11 @@
                             <th>الصنف</th>
                             <th>العميل</th>
                             <th>الكمية</th>
-                            <th>جهة التوفير</th>
                             <th>الملاحظات</th>
                             <th>الحالة</th>
                         </tr>
                     </thead>
-                    <tbody id="data-list"></tbody>
+                    <tbody id="table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -62,84 +54,59 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        // جلب اسم الفرع
-        const currentBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
-        document.getElementById('branch-tag').innerHTML = `<i class="fas fa-store"></i> فرع: ${currentBranch}`;
+        const myBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
+        document.getElementById('branch-name').innerText = "فرع: " + myBranch;
 
         window.onload = loadCSData;
 
-async function loadCSData() {
-    const list = document.getElementById('data-list');
-    list.innerHTML = '<tr><td colspan="7">⏳ جاري فحص البيانات...</td></tr>';
+        async function loadCSData() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr><td colspan="6">⏳ جاري جلب البيانات...</td></tr>';
 
-    try {
-        const response = await fetchOrders();
-        
-        // --- جزء كشف الأخطاء (Debug) ---
-        console.log("البيانات القادمة من السيرفر:", response);
-        console.log("اسم الفرع الذي نبحث عنه:", currentBranch);
-        // ------------------------------
+            try {
+                const response = await fetchOrders();
+                let actualData = [];
 
-        let allItems = [];
-        // فحص هيكل البيانات
-        if (Array.isArray(response)) {
-            allItems = response;
-        } else if (response && response.data) {
-            allItems = response.data;
-        } else if (response && response[0] && response[0].data) {
-            allItems = response[0].data;
-        }
+                // --- معالجة "الغلاف" القادم من السيرفر ---
+                if (Array.isArray(response)) {
+                    // إذا كانت المصفوفة تحتوي على عنصر واحد جواه مصفوفة data (كما يظهر في صورتك)
+                    if (response[0] && Array.isArray(response[0].data)) {
+                        actualData = response[0].data;
+                    } else {
+                        actualData = response;
+                    }
+                } else if (response && Array.isArray(response.data)) {
+                    actualData = response.data;
+                }
 
-        console.log("عدد العناصر التي تم استخراجها:", allItems.length);
+                // الفلترة
+                const myOrders = actualData.filter(item => {
+                    const userField = String(item.user || "").trim();
+                    return userField === myBranch;
+                });
 
-        const filtered = allItems.filter(item => {
-            const itemUser = String(item.user || "").trim();
-            // سنطبع أول 3 عناصر لنرى ماذا يوجد في خانة user فعلياً
-            return itemUser === currentBranch;
-        });
+                if (myOrders.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px; color:#94a3b8;">لا توجد طلبات مسجلة لفرع ${myBranch} حالياً.</td></tr>`;
+                    return;
+                }
 
-        console.log("عدد العناصر بعد الفلترة لفرعك:", filtered.length);
-        renderTable(filtered);
-
-    } catch (err) {
-        console.error("خطأ تقني:", err);
-        list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ فشل في جلب البيانات من api.js</td></tr>';
-    }
-}
-
-        function renderTable(data) {
-            const list = document.getElementById('data-list');
-            if (data.length === 0) {
-                list.innerHTML = `<tr><td colspan="7" style="padding:40px;">لا توجد طلبات مسجلة لفرع ${currentBranch}</td></tr>`;
-                return;
-            }
-
-            data.sort((a, b) => b.id - a.id);
-
-            list.innerHTML = data.map(i => {
-                const isBuy = String(i.type).includes("شراء");
-                const state = String(i.state || "").trim().toLowerCase();
-                
-                let sLabel = i.state || 'قيد الانتظار';
-                let sClass = 'pending';
-
-                if (state === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
-                else if (state === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
-                else if (state === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
-                else if (state === 'pending' || !state || state === 'null') { sLabel = 'إنتظار ⏳'; sClass = 'pending'; }
-
-                return `
+                myOrders.sort((a, b) => b.id - a.id);
+                tbody.innerHTML = myOrders.map(i => `
                     <tr>
-                        <td><span class="badge ${isBuy ? 'bg-purchase' : 'bg-transfer'}">${isBuy ? 'شراء' : 'تحويل'}</span></td>
-                        <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b><br><small>${i.item_code || ''}</small></td>
-                        <td style="text-align:right;">${i.cust_name || 'عميل عام'}<br><small>${i.cust_code || ''}</small></td>
-                        <td><b>${i.qty || 1}</b></td>
-                        <td>${isBuy ? 'المشتريات' : (i.branch || '---')}</td>
-                        <td>${(i.company && i.company !== 'null') ? i.company : '---'}</td>
-                        <td><span class="status-pill ${sClass}">${sLabel}</span></td>
+                        <td><span class="badge-buy">${i.type || 'شراء'}</span></td>
+                        <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b></td>
+                        <td>${i.cust_name || 'عميل عام'}</td>
+                        <td>${i.qty || 1}</td>
+                        <td>${i.company && i.company !== 'null' ? i.company : '---'}</td>
+                        <td><span class="status-pill ${i.state === 'ordered' ? 'ordered' : 'pending'}">
+                            ${i.state === 'ordered' ? 'تم الطلب ✅' : (i.state || 'إنتظار ⏳')}
+                        </span></td>
                     </tr>
-                `;
-            }).join('');
+                `).join('');
+
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ فشل في الاتصال بالبيانات</td></tr>';
+            }
         }
     </script>
 </body>
