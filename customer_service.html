@@ -105,49 +105,53 @@
             }
         }
 
-      function renderItems() {
+function renderItems() {
             const tbody = document.getElementById('data-list');
+            // فلتر "إخفاء ما تم تنفيذه" سيعتمد على وجود قيمة في cust_state
             const hideDone = document.getElementById('hideDone').checked;
             
-const filtered = allItems.filter(item => {
-    const isMyBranch = (String(item.user).trim() === String(userBranch).trim());
-    
-    // التعديل هنا: نحدد الحالات اللي عايزينها تظهر بس
-    const validStates = ['ordered', 'unavailable', 'transferred'];
-    const isResponded = validStates.includes(String(item.state).trim().toLowerCase());
-    
-    const isDone = (item.cs_done === "تم" || item.cs_done === true);
-    
-    if (hideDone && isDone) return false;
+            const filtered = allItems.filter(item => {
+                const isMyBranch = (String(item.user).trim() === String(userBranch).trim());
+                
+                // الحالات التي ردت عليها المشتريات فقط
+                const validStates = ['ordered', 'unavailable', 'transferred'];
+                const isResponded = validStates.includes(String(item.state || "").trim().toLowerCase());
+                
+                // نعتبر الطلب "منفذ" إذا كانت خانة cust_state في الجدول تحتوي على بيانات
+                const hasAction = (item.cust_state && item.cust_state !== "" && item.cust_state !== "null");
 
-    // يظهر فقط لو أنا صاحب الطلب والحالة واحدة من الـ 3 اللي فوق
-    return isMyBranch && isResponded;
-});
+                // إذا كان المستخدم معلم على "إخفاء المنفذ" وكان الطلب له إجراء سابق -> استبعده
+                if (hideDone && hasAction) return false;
+
+                return isMyBranch && isResponded;
+            });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="padding:30px; color:#94a3b8;">لا توجد طلبات تخص المستخدم (${userBranch}) تحتاج إجراء حالياً</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="padding:30px; color:#94a3b8;">لا توجد طلبات معلقة لفرع ${userBranch}</td></tr>`;
                 return;
             }
 
-            // عرض البيانات المفلترة
             tbody.innerHTML = filtered.map(item => {
-                const isDone = (item.cs_done === "تم" || item.cs_done === true);
+                // استرجاع القيمة الحالية من الجدول (cust_state)
+                const currentAction = (item.cust_state && item.cust_state !== "null") ? item.cust_state : "";
+                const isDone = (currentAction !== ""); // لو فيه قيمة يبقى مكتمل
+                
                 const s = String(item.state || "").trim().toLowerCase();
 
                 return `
                     <tr class="${isDone ? 'row-done' : ''}">
-                        <td style="text-align:right;"><b>${item.item_name || item.item}</b></td>
-                        <td>${item.cust_name || 'عميل عام'}</td>
+                        <td style="text-align:right;"><b>${item.item_name || item.item || 'صنف غير مسمى'}</b></td>
+                        <td>${item.cust_name || '---'}</td>
                         <td><small>${item.company || '---'}</small></td>
                         <td><span class="status-pill ${s === 'ordered' ? 'ordered' : 'unavailable'}">
-                            ${s === 'ordered' ? 'تم الطلب' : 'غير متوفر'}
+                            ${s === 'ordered' ? 'تم الطلب' : (s === 'transferred' ? 'محول' : 'غير متوفر')}
                         </span></td>
                         <td>
                             <select id="select-${item.id}" class="cs-select" ${isDone ? 'disabled' : ''}>
-                                <option value="" disabled ${!item.cs_decision ? 'selected' : ''}>اختر إجراء...</option>
-                                <option value="متوفر وتم ابلاغ العميل" ${item.cs_decision === 'متوفر وتم ابلاغ العميل' ? 'selected' : ''}>متوفر وتم ابلاغ العميل ✅</option>
-                                <option value="غير متوفر يحتاج متابعة" ${item.cs_decision === 'غير متوفر يحتاج متابعة' ? 'selected' : ''}>غير متوفر يحتاج متابعة 🔍</option>
-                                <option value="إلغاء لعدم التوفر" ${item.cs_decision === 'إلغاء لعدم التوفر' ? 'selected' : ''}>إلغاء لعدم التوفر ❌</option>
+                                <option value="" disabled ${currentAction === "" ? 'selected' : ''}>اختر إجراء...</option>
+                                <option value="متوفر وتم ابلاغ العميل" ${currentAction === 'متوفر وتم ابلاغ العميل' ? 'selected' : ''}>متوفر وتم ابلاغ العميل ✅</option>
+                                <option value="غير متوفر يحتاج متابعة" ${currentAction === 'غير متوفر يحتاج متابعة' ? 'selected' : ''}>غير متوفر يحتاج متابعة 🔍</option>
+                                <option value="إلغاء لعدم التوفر" ${currentAction === 'إلغاء لعدم التوفر' ? 'selected' : ''}>إلغاء لعدم التوفر ❌</option>
                             </select>
                         </td>
                         <td>
@@ -160,7 +164,6 @@ const filtered = allItems.filter(item => {
                 `;
             }).join('');
         }
-
         async function submitCSAction(event, id) {
             const btn = event.target;
             const decision = document.getElementById(`select-${id}`).value;
