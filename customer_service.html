@@ -3,31 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متابعة طلباتي - خدمة العملاء</title>
+    <title>خدمة العملاء - متابعة طلباتي</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary-color: #27ae60; --bg-color: #f4f7f6; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; }
-        .container { padding: 20px; max-width: 1200px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        :root { --main-green: #27ae60; --light-bg: #f8fafc; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
+        .container { padding: 25px; max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #edf2f7; }
-        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 3px solid var(--primary-color); }
+        /* تنسيق الجدول */
+        .table-container { overflow-x: auto; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--light-bg); color: #64748b; padding: 15px; border-bottom: 2px solid var(--main-green); font-size: 0.9rem; }
+        td { padding: 15px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: #1e293b; }
         
-        .type-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .type-purchase { background: #e3f2fd; color: #1976d2; }
-        .type-transfer { background: #f3e5f5; color: #7b1fa2; }
+        /* الشارات badges */
+        .badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
+        .bg-purchase { background: #dbeafe; color: #1e40af; }
+        .bg-transfer { background: #f3e8ff; color: #6b21a8; }
         
-        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; min-width: 90px; }
-        .stat-ordered { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .stat-unavailable { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .stat-transferred { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: 600; }
+        .ordered { background: #dcfce7; color: #166534; }
+        .unavailable { background: #fee2e2; color: #991b1b; }
+        .transferred { background: #fef9c3; color: #854d0e; }
         
-        .current-branch-tag { background: #27ae60; color: white; padding: 4px 12px; border-radius: 6px; font-size: 0.9rem; }
-        .btn-refresh { background: var(--primary-color); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        .btn-refresh:hover { opacity: 0.8; }
+        .branch-info { background: var(--main-green); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
+        .refresh-btn { background: #fff; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .refresh-btn:hover { background: #f8fafc; }
     </style>
 </head>
 <body>
@@ -36,32 +39,32 @@
     <div class="container">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #2c3e50;">
-                    <i class="fas fa-clipboard-list" style="color: var(--primary-color);"></i> متابعة ردود طلبات فرعي
-                </h3>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <span id="branch-display" class="current-branch-tag">جاري التحقق...</span>
-                    <button onclick="loadCSData()" class="btn-refresh">
+                <h2 style="margin:0; font-size: 1.25rem; color: #334155;">
+                    <i class="fas fa-headset" style="color: var(--main-green);"></i> متابعة ردود طلبات فرعي
+                </h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span id="branch-tag" class="branch-info">جاري التعرف على الفرع...</span>
+                    <button onclick="loadCSData()" class="refresh-btn">
                         <i class="fas fa-sync-alt"></i> تحديث
                     </button>
                 </div>
             </div>
 
-            <div style="overflow-x: auto;">
-                <table id="cs-table">
+            <div class="table-container">
+                <table>
                     <thead>
                         <tr>
-                            <th style="width: 8%;">النوع</th>
-                            <th style="width: 25%;">الصنف</th>
-                            <th style="width: 20%;">العميل</th>
-                            <th style="width: 7%;">الكمية</th>
-                            <th style="width: 15%;">جهة التوفير</th>
-                            <th style="width: 15%;">الرد / الملاحظة</th>
-                            <th style="width: 10%;">الحالة</th>
+                            <th>النوع</th>
+                            <th>الصنف</th>
+                            <th>العميل</th>
+                            <th>الكمية</th>
+                            <th>جهة التوفير</th>
+                            <th>الملاحظات</th>
+                            <th>الحالة</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
-                        <tr><td colspan="7" style="text-align:center; padding: 40px; color: #94a3b8;">جاري تحميل البيانات...</td></tr>
+                    <tbody id="data-list">
+                        <tr><td colspan="7">⏳ جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -71,90 +74,87 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        // 1. التحقق من الهوية واسم الفرع
-        const activeUser = checkAuth();
-        const userBranch = (localStorage.getItem('userBranch') || "").trim();
+        // 1. تحديد اسم الفرع بدقة
+        // نبحث في الـ localStorage بـ 3 مسميات شائعة، وإذا لم نجد نستخدم "المعمورة" كافتراض
+        const currentBranch = (localStorage.getItem('userBranch') || 
+                               localStorage.getItem('branch') || 
+                               localStorage.getItem('activeBranch') || 
+                               "المعمورة").trim();
 
-        if (activeUser) {
-            document.getElementById('branch-display').innerHTML = `<i class="fas fa-map-marker-alt"></i> فرع ${userBranch || 'غير معروف'}`;
-            window.onload = loadCSData;
-        }
+        document.getElementById('branch-tag').innerHTML = `<i class="fas fa-store"></i> فرع: ${currentBranch}`;
+
+        // 2. جلب البيانات عند التحميل
+        window.onload = loadCSData;
 
         async function loadCSData() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ جاري فحص الردود الجديدة...</td></tr>';
-            
+            const list = document.getElementById('data-list');
+            list.innerHTML = '<tr><td colspan="7">⏳ جاري فحص التحديثات...</td></tr>';
+
             try {
                 const response = await fetchOrders();
-                // استخراج المصفوفة من أي شكل محتمل للـ API
-                let items = [];
-                if (Array.isArray(response)) items = response;
-                else if (response && response[0]?.data) items = response[0].data;
-                else if (response && response.data) items = response.data;
+                let allItems = [];
+                
+                // التأكد من الوصول للمصفوفة الصحيحة (داخل data أو مباشرة)
+                if (Array.isArray(response)) allItems = response;
+                else if (response && response[0]?.data) allItems = response[0].data;
+                else if (response && response.data) allItems = response.data;
 
-                if (Array.isArray(items)) {
-                    const myFilteredData = items.filter(i => {
-                        const itemUser = String(i.user || "").trim();
-                        const currentSessionBranch = String(userBranch).trim();
-                        const state = String(i.state || "").toLowerCase().trim();
+                // الفلترة: طلبات فرعي فقط + التي تم الرد عليها (ليست pending)
+                const filtered = allItems.filter(item => {
+                    const itemUser = String(item.user || "").trim();
+                    const state = String(item.state || "").toLowerCase().trim();
 
-                        // الشرط: الطلب يخص فرعي + تم الرد عليه (ليس pending أو فارغ)
-                        const isMyOrder = (itemUser === currentSessionBranch);
-                        const isProcessed = (state !== 'pending' && state !== 'null' && state !== '' && state !== '-');
-                        
-                        return isMyOrder && isProcessed;
-                    });
-                    
-                    renderTable(myFilteredData);
-                }
-            } catch (e) {
-                console.error("Fetch Error:", e);
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#e74c3c; padding: 30px;">❌ فشل الاتصال بقاعدة البيانات</td></tr>';
+                    const isMine = (itemUser === currentBranch);
+                    const hasResponse = (state !== 'pending' && state !== 'null' && state !== '' && state !== '-');
+
+                    return isMine && hasResponse;
+                });
+
+                renderTable(filtered);
+            } catch (err) {
+                console.error(err);
+                list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ فشل الاتصال بالخادم</td></tr>';
             }
         }
 
-        function renderTable(items) {
-            const tbody = document.getElementById('table-body');
-            
-            if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 50px; color: #94a3b8;">
-                    <i class="fas fa-info-circle fa-2x" style="display:block; margin-bottom:10px; opacity:0.2;"></i>
-                    لا توجد ردود نهائية لطلباتك حالياً.<br>
-                    <small>الطلبات التي لا تزال (Pending) لن تظهر هنا.</small>
+        function renderTable(data) {
+            const list = document.getElementById('data-list');
+            if (data.length === 0) {
+                list.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#94a3b8;">
+                    لا توجد ردود جديدة لطلبات فرع (${currentBranch}) حالياً.
                 </td></tr>`;
                 return;
             }
 
-            // ترتيب تنازلي (الأحدث يظهر أولاً بناءً على الـ ID)
-            items.sort((a, b) => b.id - a.id);
+            // ترتيب من الأحدث للأقدم
+            data.sort((a, b) => b.id - a.id);
 
-            tbody.innerHTML = items.map(i => {
-                const isPurchase = String(i.type).includes("شراء");
-                let statusText = '';
-                let statusClass = '';
+            list.innerHTML = data.map(i => {
+                const isBuy = String(i.type).includes("شراء");
+                const state = String(i.state || "").trim().toLowerCase();
+                
+                let sLabel = i.state;
+                let sClass = 'ordered';
 
-                // معالجة الحالات
-                const s = String(i.state || "").trim().toLowerCase();
-                if (s === 'ordered') { statusText = 'تم الطلب ✅'; statusClass = 'stat-ordered'; }
-                else if (s === 'unavailable') { statusText = 'غير متوفر ❌'; statusClass = 'stat-unavailable'; }
-                else if (s === 'transferred') { statusText = 'تم التحويل 🔄'; statusClass = 'stat-transferred'; }
-                else { statusText = i.state; statusClass = 'stat-ordered'; }
+                if (state === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
+                else if (state === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
+                else if (state === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
 
                 return `
                     <tr>
-                        <td><span class="type-badge ${isPurchase ? 'type-purchase' : 'type-transfer'}">${isPurchase ? 'شراء' : 'تحويل'}</span></td>
+                        <td><span class="badge ${isBuy ? 'bg-purchase' : 'bg-transfer'}">${isBuy ? 'شراء' : 'تحويل'}</span></td>
                         <td style="text-align:right;">
-                            <div style="font-weight:bold; color:#1e293b;">${i.item_name || i.item || '---'}</div>
-                            <div style="font-size:0.75rem; color:#64748b;"><i class="fas fa-barcode"></i> ${i.item_code || '---'}</div>
+                            <b>${i.item_name || i.item || '---'}</b><br>
+                            <small style="color:#64748b;">${i.item_code || '---'}</small>
                         </td>
                         <td style="text-align:right;">
-                            <div style="font-weight:600;">${i.cust_name || 'عميل عام'}</div>
-                            <div style="font-size:0.75rem; color:#64748b;"><i class="fas fa-phone"></i> ${i.cust_code || '---'}</div>
+                            ${i.cust_name || 'عميل عام'}<br>
+                            <small style="color:#64748b;">${i.cust_code || '---'}</small>
                         </td>
-                        <td style="font-weight:bold;">${i.qty || 1}</td>
-                        <td><span style="font-size:0.8rem; color:#475569; font-weight:600;">${isPurchase ? 'المشتريات' : (i.branch || '---')}</span></td>
-                        <td><i style="color:#64748b; font-size:0.8rem;">${(i.company && i.company !== 'null') ? i.company : 'لا توجد ملاحظات'}</i></td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td><b>${i.qty || 1}</b></td>
+                        <td>${isBuy ? 'المشتريات' : (i.branch || '---')}</td>
+                        <td style="font-style:italic; color:#64748b;">${(i.company && i.company !== 'null') ? i.company : '---'}</td>
+                        <td><span class="status-pill ${sClass}">${sLabel}</span></td>
                     </tr>
                 `;
             }).join('');
