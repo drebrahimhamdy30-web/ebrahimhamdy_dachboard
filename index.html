@@ -8,6 +8,7 @@
         .login-box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -15,45 +16,60 @@
         <h2>تسجيل الدخول</h2>
         <input type="text" id="username" placeholder="اسم المستخدم">
         <input type="password" id="password" placeholder="كلمة المرور">
-        <button onclick="handleLogin()">دخول</button>
+        <button id="loginBtn" onclick="handleLogin()">دخول</button>
     </div>
 
     <script src="api.js"></script>
 
 <script>
     async function handleLogin() {
-        const user = document.getElementById('username').value;
-        const pass = document.getElementById('password').value;
+        const userField = document.getElementById('username');
+        const passField = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+
+        const user = userField.value.trim();
+        const pass = passField.value.trim();
 
         if (!user || !pass) {
             alert("برجاء إدخال اسم المستخدم وكلمة المرور");
             return;
         }
 
+        // تحسين تجربة المستخدم: تعطيل الزر أثناء التحميل
+        loginBtn.disabled = true;
+        loginBtn.innerText = "جاري التحقق...";
+
         try {
             // استدعاء دالة الدخول من ملف api.js
             const result = await login(user, pass);
 
-            if(result.success) {
-                // --- التعديل الجوهري هنا ---
-                // نقوم بحفظ اسم المستخدم (الفرع) في الـ localStorage
-                // لكي تتعرف عليه باقي الصفحات مثل "خدمة العملاء"
-                localStorage.setItem('userBranch', user.trim());
-                
-                // يمكنك أيضاً حفظ حالة تسجيل الدخول إذا كنت تستخدمها في checkAuth
+            // نتحقق أولاً هل النتيجة موجودة ولديها حالة نجاح
+            if(result && result.success) {
+                // حفظ البيانات
+                localStorage.setItem('userBranch', user);
+                localStorage.setItem('activeUser', user);
                 localStorage.setItem('isLoggedIn', 'true');
                 
                 // التوجه لصفحة الطلبات
                 window.location.href = "main.html"; 
             } else {
-                alert(result.message);
+                // إذا عاد السيرفر برد مدروس (كلمة سر خطأ مثلاً)
+                alert(result && result.message ? result.message : "خطأ في بيانات الدخول");
+                loginBtn.disabled = false;
+                loginBtn.innerText = "دخول";
             }
         } catch (error) {
-            console.error("خطأ:", error);
-            alert("تعذر الاتصال بالسيرفر، تأكد من تشغيل الـ Workflow");
+            // هنا يقع الخطأ إذا كان الـ n8n مغلق أو الرابط خطأ
+            console.error("خطأ اتصال:", error);
+            
+            // تنبيه: إذا كنت تدخل رغم ظهور الخطأ، فهذا يعني أن دالة login 
+            // في ملف api.js تنجح ولكن الـ catch في هذا الملف تعمل لسبب تقني (مثل timeout)
+            alert("فشل الاتصال بالسيرفر. تحقق من الـ Workflow أو اتصال الإنترنت.");
+            
+            loginBtn.disabled = false;
+            loginBtn.innerText = "دخول";
         }
     }
 </script>
-    </script>
 </body>
 </html>
