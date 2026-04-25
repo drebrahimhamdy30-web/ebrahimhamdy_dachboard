@@ -6,6 +6,11 @@ function injectNavbar() {
             <a href="purchases.html" class="${currentPage === 'purchases.html' ? 'active' : ''}"><i class="fas fa-shopping-cart"></i> مشتريات</a>
             <a href="transfers.html" class="${currentPage === 'transfers.html' ? 'active' : ''}"><i class="fas fa-exchange-alt"></i> تحويلات</a>
             <a href="customer_service.html" class="${currentPage === 'customer_service.html' ? 'active' : ''}"><i class="fas fa-headset"></i> خدمة العملاء</a>
+            
+            <a href="shortages.html" class="${currentPage === 'shortages.html' ? 'active' : ''}">
+                <i class="fas fa-exclamation-triangle"></i> النواقص
+            </a>
+
             <a href="inventory.html" class="${currentPage === 'inventory.html' ? 'active' : ''}"><i class="fas fa-list"></i> جرد</a> 
             <a href="notifications.html" class="${currentPage === 'notifications.html' ? 'active' : ''}"><i class="fas fa-bell"></i> إشعارات</a> 
         </div>
