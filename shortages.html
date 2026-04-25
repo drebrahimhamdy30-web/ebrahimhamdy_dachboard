@@ -48,7 +48,7 @@
                     متابعة نواقص فرع: <span id="current-branch-name" style="color: var(--primary-blue);">...</span>
                 </h3>
                 <button onclick="loadShortages()" class="btn-refresh">
-                    <i class="fas fa-sync-alt"></i> تحديث
+                    <i class="fas fa-sync-alt"></i> تحديث القائمة
                 </button>
             </div>
 
@@ -75,10 +75,12 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        // التحقق من تسجيل الدخول وجلب اسم الفرع
+        // 1. التحقق من الهوية (الحل اللي استخدمناه قبل كدة لضمان وجود الفرع)
         const activeUser = checkAuth();
-        const userBranch = (localStorage.getItem('userBranch') || "").trim();
-        document.getElementById('current-branch-name').innerText = userBranch || "عام";
+        // نسحب userBranch ولو مش موجود ناخد activeUser كاحتياطي
+        const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
+        
+        document.getElementById('current-branch-name').innerText = userBranch;
         
         if (activeUser) { 
             window.onload = loadShortages; 
@@ -87,22 +89,28 @@
         async function loadShortages() {
             const tbody = document.getElementById('shortage-list');
             try {
-                // جلب البيانات من السيرفر
                 const response = await fetchOrders(); 
                 const allItems = (response[0]?.data) ? response[0].data : (response.data || response);
                 
-                // الفلترة: 
-                // 1. يجب أن تكون الحالة "غير متوفر يحتاج متابعة"
-                // 2. يجب أن يكون فرع الطلب هو نفس فرع المستخدم الحالي
                 const shortages = allItems.filter(item => {
-                    const isShortageStatus = String(item.cust_state).trim() === "غير متوفر يحتاج متابعة";
-                    const isMyBranch = String(item.user).trim() === userBranch;
-                    return isShortageStatus && isMyBranch;
+                    // تطهير البيانات لضمان دقة المقارنة (التخلص من مسافات شيت جوجل)
+                    const itemState = String(item.cust_state || "").trim();
+                    const itemBranch = String(item.user || "").trim();
+                    const currentSessionBranch = userBranch.trim();
+
+                    const isShortage = itemState === "غير متوفر يحتاج متابعة";
+                    
+                    // الحل السحري: إذا كان المستخدم "عام" يرى كل النواقص، وإذا كان فرع محدد يرى نواقصه فقط
+                    if (currentSessionBranch === "عام" || currentSessionBranch === "Admin") {
+                        return isShortage;
+                    }
+                    
+                    return isShortage && (itemBranch === currentSessionBranch);
                 });
 
                 renderShortages(shortages);
             } catch (e) {
-                console.error(e);
+                console.error("Error loading shortages:", e);
                 tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:20px;">❌ فشل تحميل البيانات، تأكد من الاتصال بالسيرفر</td></tr>';
             }
         }
@@ -115,7 +123,7 @@
                     <tr>
                         <td colspan="6" style="padding:50px; color:#64748b;">
                             <i class="fas fa-check-double" style="font-size: 2rem; color: var(--success-green); display: block; margin-bottom: 10px;"></i>
-                            لا توجد نواقص تحتاج متابعة لفرعك حالياً
+                            لا توجد نواقص معلقة حالياً لـ (${userBranch})
                         </td>
                     </tr>`;
                 return;
@@ -139,24 +147,21 @@
 
         async function markAsAvailable(event, id) {
             const btn = event.target.closest('button');
-            
             if(!confirm("هل تأكدت من توفر الصنف وإبلاغ العميل فعلياً؟")) return;
 
             btn.disabled = true;
             const originalContent = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
 
-            // تحديث البيانات عبر API الخاص بـ n8n
             const success = await updateData({
                 id: id,
                 type: "cs_action",
-                decision: "متوفر وتم ابلاغ العميل", // نغير القيمة للقيمة النهائية
+                decision: "متوفر وتم ابلاغ العميل",
                 done: "تم",
                 updatedAt: new Date().toISOString()
             });
 
             if (success) {
-                // إعادة تحميل القائمة لتختفي الطلبية المنفذة
                 loadShortages(); 
             } else {
                 alert("⚠️ فشل التحديث، حاول مرة أخرى");
