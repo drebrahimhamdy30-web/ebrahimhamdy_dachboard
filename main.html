@@ -103,17 +103,19 @@
 
     <script src="api.js"></script>
     <script src="nav.js"></script>
-    <script>
-        // استرجاع بيانات المستخدم
-        const activeUser = checkAuth();
-        const userBranch = localStorage.getItem('userBranch') || "المعمورة";
 
+    <script>
+        // 1. استرجاع بيانات الهوية والتحقق من تسجيل الدخول
+        const activeUser = checkAuth(); // دالة من api.js
+        const userBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
+
+        // تنفيذ الإعدادات الأولية عند تحميل الصفحة
         if (activeUser) {
-            // تعيين فرع المستخدم كقيمة افتراضية وتحديث الواجهة
             document.getElementById('branch').value = userBranch;
             handleTypeChange();
         }
 
+        // 2. التحكم في ظهور الحقول بناءً على نوع الطلب
         function handleTypeChange() {
             const type = document.getElementById('type').value;
             const branchSelect = document.getElementById('branch');
@@ -124,7 +126,7 @@
             const extraSection = document.getElementById('extra-section');
             const noteSection = document.getElementById('note-section');
 
-            // إعادة ضبط الحالة الافتراضية
+            // تصفير الحالات
             branchDiv.classList.remove('hidden');
             itemSection.classList.remove('hidden');
             itemNameDiv.classList.remove('hidden');
@@ -142,20 +144,24 @@
                 noteSection.classList.remove('hidden');
             } else if (type === "شراء") {
                 branchSelect.value = userBranch;
-                branchSelect.disabled = true; // الشراء للفرع الحالي دائماً
+                branchSelect.disabled = true; // الشراء يتم للفرع الحالي
                 branchLabel.innerText = "فرع الطلب (ثابت)";
             } else if (type === "تحويل") {
                 branchLabel.innerText = "طلب تحويل من فرع:";
             }
         }
 
+        // 3. إرسال الطلب إلى n8n
         async function submitOrder() {
             const btn = document.getElementById('submitBtn');
             const type = document.getElementById('type').value;
             const branchVal = document.getElementById('branch').value;
+            
+            const itemCode = document.getElementById('item_code').value.trim();
+            const itemName = document.getElementById('item_name').value.trim();
 
-            // التحقق من المدخلات الأساسية
-            if (type !== "إشعار" && !document.getElementById('item_code').value && !document.getElementById('item_name').value) {
+            // التحقق من صحة المدخلات
+            if (type !== "إشعار" && !itemCode && !itemName) {
                 alert("برجاء إدخال كود أو اسم الصنف");
                 return;
             }
@@ -163,43 +169,37 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
 
+            // تجهيز البيانات بصيغة متوافقة مع JSON.parse في n8n
+            const payload = {
+                action: "insert_order",
+                type: type,
+                user: activeUser,
+                branch: userBranch, 
+                target_branch: branchVal,
+                item_code: itemCode,
+                item: itemName,
+                customer_code: document.getElementById('customer_code').value.trim(),
+                customer_name: document.getElementById('customer_name').value.trim(),
+                qty: document.getElementById('qty').value || 1,
+                note: document.getElementById('note_text').value.trim(),
+                state: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
             try {
-                let success = false;
-                if (type === "إشعار") {
-                    success = await postNotification({
-                        action: "insert",
-                        type: "إشعار",
-                        branch: userBranch,
-                        target_branch: branchVal,
-                        note: document.getElementById('note_text').value,
-                        done: false,
-                        user: activeUser,
-                        createdAt: new Date().toLocaleString('ar-EG')
-                    });
-                } else {
-                    success = await postData({
-                        user: (type === "تحويل") ? userBranch : activeUser, // في التحويل الـ user هو الفرع الطالب
-                        type: type,
-                        branch: branchVal, // الفرع الموجه إليه الطلب
-                        item_code: document.getElementById('item_code').value,
-                        item: document.getElementById('item_name').value,
-                        customer_code: document.getElementById('customer_code').value,
-                        customer_name: document.getElementById('customer_name').value,
-                        qty: document.getElementById('qty').value || 1,
-                        state: 'pending',
-                        createdAt: new Date().toLocaleString('ar-EG')
-                    });
-                }
+                // استخدام دالة postData الموحدة في api.js
+                const success = await postData(payload);
 
                 if (success) {
                     alert("تم الإرسال بنجاح ✅");
                     document.getElementById('orderForm').reset();
                     handleTypeChange();
                 } else {
-                    alert("فشل الإرسال ❌ حاول مرة أخرى");
+                    alert("فشل الإرسال ❌ تأكد من أن الـ Workflow يعمل");
                 }
-            } catch (e) {
-                alert("خطأ في الاتصال بالسيرفر");
+            } catch (error) {
+                console.error("Submission error:", error);
+                alert("خطأ تقني في الاتصال");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الطلب الآن';
