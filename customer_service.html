@@ -11,31 +11,24 @@
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
         .container { padding: 25px; max-width: 1200px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        
-        /* تنسيق الجدول */
         .table-container { overflow-x: auto; margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; }
         th { background: var(--light-bg); color: #64748b; padding: 15px; border-bottom: 2px solid var(--main-green); font-size: 0.9rem; }
         td { padding: 15px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: #1e293b; }
-        
-        /* الشارات badges */
         .badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
         .bg-purchase { background: #dbeafe; color: #1e40af; }
         .bg-transfer { background: #f3e8ff; color: #6b21a8; }
-        
-        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: 600; }
+        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: 600; min-width: 80px; display: inline-block; }
         .ordered { background: #dcfce7; color: #166534; }
         .unavailable { background: #fee2e2; color: #991b1b; }
         .transferred { background: #fef9c3; color: #854d0e; }
-        
+        .pending { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
         .branch-info { background: var(--main-green); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
-        .refresh-btn { background: #fff; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .refresh-btn:hover { background: #f8fafc; }
+        .refresh-btn { background: #fff; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="nav-bar"></div>
-
     <div class="container">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -43,13 +36,10 @@
                     <i class="fas fa-headset" style="color: var(--main-green);"></i> متابعة ردود طلبات فرعي
                 </h2>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <span id="branch-tag" class="branch-info">جاري التعرف على الفرع...</span>
-                    <button onclick="loadCSData()" class="refresh-btn">
-                        <i class="fas fa-sync-alt"></i> تحديث
-                    </button>
+                    <span id="branch-tag" class="branch-info">جاري التعرف...</span>
+                    <button onclick="loadCSData()" class="refresh-btn"><i class="fas fa-sync-alt"></i> تحديث</button>
                 </div>
             </div>
-
             <div class="table-container">
                 <table>
                     <thead>
@@ -63,9 +53,7 @@
                             <th>الحالة</th>
                         </tr>
                     </thead>
-                    <tbody id="data-list">
-                        <tr><td colspan="7">⏳ جاري تحميل البيانات...</td></tr>
-                    </tbody>
+                    <tbody id="data-list"></tbody>
                 </table>
             </div>
         </div>
@@ -74,86 +62,64 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        // 1. تحديد اسم الفرع بدقة
-        // نبحث في الـ localStorage بـ 3 مسميات شائعة، وإذا لم نجد نستخدم "المعمورة" كافتراض
-        const currentBranch = (localStorage.getItem('userBranch') || 
-                               localStorage.getItem('branch') || 
-                               localStorage.getItem('activeBranch') || 
-                               "المعمورة").trim();
-
+        // جلب اسم الفرع
+        const currentBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
         document.getElementById('branch-tag').innerHTML = `<i class="fas fa-store"></i> فرع: ${currentBranch}`;
 
-        // 2. جلب البيانات عند التحميل
         window.onload = loadCSData;
 
         async function loadCSData() {
             const list = document.getElementById('data-list');
-            list.innerHTML = '<tr><td colspan="7">⏳ جاري فحص التحديثات...</td></tr>';
+            list.innerHTML = '<tr><td colspan="7">⏳ جاري جلب البيانات...</td></tr>';
 
             try {
                 const response = await fetchOrders();
                 let allItems = [];
-                
-                // التأكد من الوصول للمصفوفة الصحيحة (داخل data أو مباشرة)
                 if (Array.isArray(response)) allItems = response;
                 else if (response && response[0]?.data) allItems = response[0].data;
                 else if (response && response.data) allItems = response.data;
 
-                // الفلترة: طلبات فرعي فقط + التي تم الرد عليها (ليست pending)
+                // --- التعديل هنا: سنعرض كل طلبات الفرع حتى لو pending ---
                 const filtered = allItems.filter(item => {
                     const itemUser = String(item.user || "").trim();
-                    const state = String(item.state || "").toLowerCase().trim();
-
-                    const isMine = (itemUser === currentBranch);
-                    const hasResponse = (state !== 'pending' && state !== 'null' && state !== '' && state !== '-');
-
-                    return isMine && hasResponse;
+                    return itemUser === currentBranch; 
                 });
 
                 renderTable(filtered);
             } catch (err) {
-                console.error(err);
-                list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ فشل الاتصال بالخادم</td></tr>';
+                list.innerHTML = '<tr><td colspan="7" style="color:red;">❌ خطأ في الاتصال</td></tr>';
             }
         }
 
         function renderTable(data) {
             const list = document.getElementById('data-list');
             if (data.length === 0) {
-                list.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#94a3b8;">
-                    لا توجد ردود جديدة لطلبات فرع (${currentBranch}) حالياً.
-                </td></tr>`;
+                list.innerHTML = `<tr><td colspan="7" style="padding:40px;">لا توجد طلبات مسجلة لفرع ${currentBranch}</td></tr>`;
                 return;
             }
 
-            // ترتيب من الأحدث للأقدم
             data.sort((a, b) => b.id - a.id);
 
             list.innerHTML = data.map(i => {
                 const isBuy = String(i.type).includes("شراء");
                 const state = String(i.state || "").trim().toLowerCase();
                 
-                let sLabel = i.state;
-                let sClass = 'ordered';
+                let sLabel = i.state || 'قيد الانتظار';
+                let sClass = 'pending';
 
                 if (state === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
                 else if (state === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
                 else if (state === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
+                else if (state === 'pending' || !state || state === 'null') { sLabel = 'إنتظار ⏳'; sClass = 'pending'; }
 
                 return `
                     <tr>
                         <td><span class="badge ${isBuy ? 'bg-purchase' : 'bg-transfer'}">${isBuy ? 'شراء' : 'تحويل'}</span></td>
-                        <td style="text-align:right;">
-                            <b>${i.item_name || i.item || '---'}</b><br>
-                            <small style="color:#64748b;">${i.item_code || '---'}</small>
-                        </td>
-                        <td style="text-align:right;">
-                            ${i.cust_name || 'عميل عام'}<br>
-                            <small style="color:#64748b;">${i.cust_code || '---'}</small>
-                        </td>
+                        <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b><br><small>${i.item_code || ''}</small></td>
+                        <td style="text-align:right;">${i.cust_name || 'عميل عام'}<br><small>${i.cust_code || ''}</small></td>
                         <td><b>${i.qty || 1}</b></td>
                         <td>${isBuy ? 'المشتريات' : (i.branch || '---')}</td>
-                        <td style="font-style:italic; color:#64748b;">${(i.company && i.company !== 'null') ? i.company : '---'}</td>
+                        <td>${(i.company && i.company !== 'null') ? i.company : '---'}</td>
                         <td><span class="status-pill ${sClass}">${sLabel}</span></td>
                     </tr>
                 `;
