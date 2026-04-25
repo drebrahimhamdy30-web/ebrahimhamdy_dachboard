@@ -105,24 +105,38 @@
             }
         }
 
-        function renderItems() {
+      function renderItems() {
             const tbody = document.getElementById('data-list');
             const hideDone = document.getElementById('hideDone').checked;
             
+            // الفلترة لضمان ظهور طلبات المستخدم الحالي فقط
             const filtered = allItems.filter(item => {
-                const isMyBranch = (String(item.user).trim() === String(userBranch).trim());
-                const isNotPending = (item.state !== 'pending' && item.state !== '');
-                const isDone = (item.cs_done === "تم" || item.cs_done === true);
+                // 1. استخراج اسم المستخدم من localStorage (الذي تم تخزينه عند الدخول)
+                const currentUser = String(userBranch).trim();
                 
+                // 2. استخراج اسم كاتب الطلب من البيانات القادمة من السيرفر
+                const orderCreator = String(item.user || "").trim();
+
+                // 3. التحقق من التطابق (يظهر فقط إذا كان هو صاحب الطلب)
+                const isOwner = (orderCreator === currentUser);
+                
+                // 4. استبعاد الطلبات التي لا تزال Pending (بانتظار رد المشتريات)
+                const isResponded = (item.state !== 'pending' && item.state !== '');
+                
+                // 5. التحقق من فلتر "إخفاء المكتمل"
+                const isDone = (item.cs_done === "تم" || item.cs_done === true);
                 if (hideDone && isDone) return false;
-                return isMyBranch && isNotPending;
+
+                // يجب أن تتحقق كل الشروط ليظهر السطر
+                return isOwner && isResponded;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding:30px; color:#94a3b8;">لا توجد طلبات جديدة تحتاج إجراء حالياً</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="6" style="padding:30px; color:#94a3b8;">لا توجد طلبات تخص المستخدم (${userBranch}) تحتاج إجراء حالياً</td></tr>`;
                 return;
             }
 
+            // عرض البيانات المفلترة
             tbody.innerHTML = filtered.map(item => {
                 const isDone = (item.cs_done === "تم" || item.cs_done === true);
                 const s = String(item.state || "").trim().toLowerCase();
@@ -146,7 +160,7 @@
                         <td>
                             ${!isDone ? 
                                 `<button onclick="submitCSAction(event, '${item.id}')" class="btn-done">تم</button>` : 
-                                `<span style="color:var(--success-green); font-weight:bold;"><i class="fas fa-check-circle"></i></span>`
+                                `<span style="color:var(--success-green); font-weight:bold;"><i class="fas fa-check-circle"></i> مكتمل</span>`
                             }
                         </td>
                     </tr>
