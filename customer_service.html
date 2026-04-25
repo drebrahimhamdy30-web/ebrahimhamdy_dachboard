@@ -10,36 +10,30 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; background: white; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #edf2f7; }
         th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 2px solid #27ae60; }
-        .type-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-        .type-purchase { background: #e3f2fd; color: #1976d2; }
-        .type-transfer { background: #f3e5f5; color: #7b1fa2; }
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
-        .stat-ordered { background: #d4edda; color: #155724; }
-        .stat-unavailable { background: #f8d7da; color: #721c24; }
-        .stat-transferred { background: #fff3cd; color: #856404; }
+        
+        .type-badge { padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .type-purchase { background: #e3f2fd; color: #1976d2; border: 1px solid #bbdefb; }
+        .type-transfer { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+        
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        .stat-ordered { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .stat-unavailable { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .stat-transferred { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        
+        .branch-name { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #475569; }
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <div class="nav-links">
-            <a href="main.html"><i class="fas fa-plus"></i> مدخلات</a>
-            <a href="purchases.html"><i class="fas fa-shopping-cart"></i> مشتريات</a>
-            <a href="transfers.html"><i class="fas fa-exchange-alt"></i> تحويلات</a>
-            <a href="customer_service.html" class="active"><i class="fas fa-headset"></i> خدمة العملاء</a>
-            <a href="notifications.html"><i class="fas fa-bell"></i> إشعارات</a> 
-        </div>
-        <div class="user-info" style="color: white; font-size: 0.8rem;">
-            <span id="nav-user"></span>
-            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; padding: 2px 8px;">خروج</button>
-        </div>
-    </div>
+    <div class="nav-bar"></div>
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #2c3e50;"><i class="fas fa-headset"></i> متابعة طلبات العملاء (المنفذة والنواقص)</h3>
-                <button onclick="loadCSData()" style="background: #27ae60; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer;">
-                    تحديث <i class="fas fa-sync"></i>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2c3e50;">
+                    <i class="fas fa-headset" style="color: #27ae60;"></i> متابعة طلبات العملاء (المنفذة والنواقص)
+                </h3>
+                <button onclick="loadCSData()" style="background: #27ae60; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">
+                    <i class="fas fa-sync-alt"></i> تحديث البيانات
                 </button>
             </div>
 
@@ -47,17 +41,17 @@
                 <table id="cs-table">
                     <thead>
                         <tr>
-                            <th>النوع</th>
-                            <th>الفرع</th>
-                            <th>الصنف</th>
-                            <th>العميل</th>
-                            <th>الكمية</th>
-                            <th>المورد / الرد</th>
-                            <th>الحالة النهائية</th>
+                            <th style="width: 8%;">النوع</th>
+                            <th style="width: 10%;">الفرع</th>
+                            <th style="width: 25%;">الصنف</th>
+                            <th style="width: 20%;">العميل</th>
+                            <th style="width: 7%;">الكمية</th>
+                            <th style="width: 15%;">المورد / الرد</th>
+                            <th style="width: 15%;">الحالة النهائية</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="7" style="text-align:center; padding: 30px;">جاري تحميل البيانات...</td></tr>
+                        <tr><td colspan="7" style="text-align:center; padding: 40px; color: #94a3b8;">جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -65,23 +59,24 @@
     </div>
 
     <script src="api.js"></script>
+    <script src="nav.js"></script>
     <script>
         const activeUser = checkAuth();
+        
         if (activeUser) {
-            document.getElementById('nav-user').innerText = activeUser;
             window.onload = loadCSData;
         }
 
         async function loadCSData() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">⏳ جاري جلب البيانات...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ جاري جلب آخر التحديثات...</td></tr>';
             
             try {
                 const response = await fetchOrders();
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
 
                 if (Array.isArray(items)) {
-                    // الفلترة: استبعاد "انتظار" وعرض المشتريات والتحويلات فقط
+                    // الفلترة: عرض المشتريات والتحويلات التي تغيرت حالتها من "انتظار"
                     const filtered = items.filter(i => 
                         (i.state !== 'pending' && i.state !== '-' && i.state !== '') && 
                         (String(i.type).includes("شراء") || String(i.type).includes("تحويل"))
@@ -89,14 +84,15 @@
                     renderTable(filtered);
                 }
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">خطأ في الاتصال</td></tr>';
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#e74c3c; padding: 30px;">❌ خطأ في تحميل البيانات</td></tr>';
             }
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">لا توجد طلبات منفذة حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px; color: #64748b;">لا توجد طلبات تم الرد عليها حتى الآن</td></tr>';
                 return;
             }
 
@@ -105,26 +101,26 @@
                 let statusText = '';
                 let statusClass = '';
 
-                // توحيد مسميات الحالة للعرض
+                // توحيد الحالات للعرض الجمالي
                 if (i.state === 'ordered') { statusText = 'تم الطلب ✅'; statusClass = 'stat-ordered'; }
                 else if (i.state === 'unavailable') { statusText = 'غير متوفر ❌'; statusClass = 'stat-unavailable'; }
-                else if (i.state === 'transferred') { statusText = 'تم التحويل ✅'; statusClass = 'stat-transferred'; }
+                else if (i.state === 'transferred') { statusText = 'تم التحويل 🔄'; statusClass = 'stat-transferred'; }
                 else { statusText = i.state; statusClass = 'stat-ordered'; }
 
                 return `
                     <tr>
                         <td><span class="type-badge ${isPurchase ? 'type-purchase' : 'type-transfer'}">${isPurchase ? 'شراء' : 'تحويل'}</span></td>
-                        <td style="font-weight:600;">${i.branch || i.user || '-'}</td>
+                        <td><span class="branch-name">${i.branch || i.user || '-'}</span></td>
                         <td style="text-align:right;">
-                            <div style="font-weight:bold;">${i.item || i.item_name}</div>
-                            <div style="font-size:0.7rem; color:gray;">${i.item_code || ''}</div>
+                            <div style="font-weight:bold; color:#1e293b;">${i.item || i.item_name}</div>
+                            <div style="font-size:0.75rem; color:#64748b;"><i class="fas fa-barcode"></i> ${i.item_code || '---'}</div>
                         </td>
                         <td style="text-align:right;">
-                            <div>${i.cust_name || 'عميل عام'}</div>
-                            <div style="font-size:0.7rem; color:gray;">${i.cust_code || ''}</div>
+                            <div style="font-weight:600;">${i.cust_name || i.customer_name || 'عميل عام'}</div>
+                            <div style="font-size:0.75rem; color:#64748b;"><i class="fas fa-phone-alt"></i> ${i.cust_code || i.customer_code || '---'}</div>
                         </td>
-                        <td style="font-weight:bold;">${i.qty || 1}</td>
-                        <td><i style="color:#666;">${i.company || 'لا توجد ملاحظات'}</i></td>
+                        <td style="font-weight:bold; color:#2c3e50;">${i.qty || 1}</td>
+                        <td><i style="color:#475569; font-size:0.8rem;">${i.company || 'لا توجد ملاحظات'}</i></td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     </tr>
                 `;
