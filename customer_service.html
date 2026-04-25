@@ -3,33 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خدمة العملاء - المعمورة</title>
+    <title>خدمة العملاء - الردود النهائية</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --main-green: #27ae60; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f1f5f9; margin: 0; }
+        :root { --main-green: #27ae60; --light-slate: #f1f5f9; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
         .container { padding: 20px; max-width: 1200px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--main-green); color: #64748b; }
-        td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .badge-buy { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; }
+        th { background: #f8fafc; padding: 15px; border-bottom: 2px solid var(--main-green); color: #64748b; font-size: 0.9rem; }
+        td { padding: 15px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+        
+        .badge { padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
+        .bg-purchase { background: #dbeafe; color: #1e40af; }
+        .bg-transfer { background: #f3e8ff; color: #6b21a8; }
+        
+        .status-pill { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; display: inline-block; min-width: 90px; }
         .ordered { background: #dcfce7; color: #166534; }
-        .pending { background: #f1f5f9; color: #64748b; }
-        .branch-tag { background: var(--main-green); color: white; padding: 6px 12px; border-radius: 8px; font-weight: bold; }
+        .unavailable { background: #fee2e2; color: #991b1b; }
+        .transferred { background: #fef9c3; color: #854d0e; }
+        
+        .branch-tag { background: var(--main-green); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
+        .refresh-btn { background: #fff; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .refresh-btn:hover { background: #f8fafc; }
     </style>
 </head>
 <body>
     <div class="nav-bar"></div>
+
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3><i class="fas fa-headset"></i> متابعة ردود طلباتي</h3>
-                <div>
-                    <span id="branch-name" class="branch-tag">جاري التحميل...</span>
-                    <button onclick="loadCSData()" style="padding: 6px 12px; cursor: pointer; margin-right: 10px;">تحديث</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin:0; color: #334155;"><i class="fas fa-check-circle" style="color: var(--main-green);"></i> متابعة الردود النهائية</h3>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span id="branch-display" class="branch-tag">جاري التحميل...</span>
+                    <button onclick="loadCSData()" class="refresh-btn"><i class="fas fa-sync-alt"></i> تحديث</button>
                 </div>
             </div>
 
@@ -37,15 +47,17 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>النوع</th>
-                            <th>الصنف</th>
-                            <th>العميل</th>
-                            <th>الكمية</th>
-                            <th>الملاحظات</th>
-                            <th>الحالة</th>
+                            <th style="width: 10%;">النوع</th>
+                            <th style="width: 30%;">الصنف</th>
+                            <th style="width: 20%;">العميل</th>
+                            <th style="width: 10%;">الكمية</th>
+                            <th style="width: 15%;">الملاحظات</th>
+                            <th style="width: 15%;">الحالة</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body"></tbody>
+                    <tbody id="table-body">
+                        <tr><td colspan="6" style="padding: 40px; color: #94a3b8;">جاري فحص البيانات...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -54,103 +66,90 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
+        // 1. تحديد اسم الفرع (المعمورة)
         const myBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
-        document.getElementById('branch-name').innerText = "فرع: " + myBranch;
+        document.getElementById('branch-display').innerHTML = `<i class="fas fa-store"></i> فرع: ${myBranch}`;
 
         window.onload = loadCSData;
 
-async function loadCSData() {
-    const tbody = document.getElementById('table-body');
-    tbody.innerHTML = '<tr><td colspan="6">⏳ جاري جلب الردود النهائية...</td></tr>';
+        async function loadCSData() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr><td colspan="6" style="padding: 30px;">⏳ يتم الآن جلب الردود فقط...</td></tr>';
 
-    try {
-        const response = await fetchOrders();
-        let actualData = [];
+            try {
+                const response = await fetchOrders();
+                let actualData = [];
 
-        // فك تشفير الغلاف (نفس المنطق اللي شغال معاك حالياً)
-        if (Array.isArray(response)) {
-            if (response[0] && Array.isArray(response[0].data)) {
-                actualData = response[0].data;
-            } else {
-                actualData = response;
-            }
-        } else if (response && Array.isArray(response.data)) {
-            actualData = response.data;
-        }
+                // 2. فك تشفير غلاف البيانات (n8n/API structure)
+                if (Array.isArray(response)) {
+                    if (response[0] && Array.isArray(response[0].data)) {
+                        actualData = response[0].data;
+                    } else {
+                        actualData = response;
+                    }
+                } else if (response && Array.isArray(response.data)) {
+                    actualData = response.data;
+                }
 
-        // الفلترة: (شرط الفرع) + (شرط الحالة ليست انتظار)
-        const respondedOrders = actualData.filter(item => {
-            const userField = String(item.user || "").trim();
-            const stateField = String(item.state || "").trim().toLowerCase();
+                // 3. الفلترة: طلبات فرعي + (ليست pending وليست فارغة)
+                const finalResponses = actualData.filter(item => {
+                    const userField = String(item.user || "").trim();
+                    const stateField = String(item.state || "").trim().toLowerCase();
 
-            const isMyBranch = (userField === myBranch);
-            
-            // استبعاد أي طلب حالته pending أو فارغة أو null
-            const hasFinalResponse = (
-                stateField !== 'pending' && 
-                stateField !== '' && 
-                stateField !== 'null' && 
-                stateField !== '-'
-            );
+                    const isMine = (userField === myBranch);
+                    // شرط إخفاء الـ pending والـ null
+                    const isFinished = (
+                        stateField !== 'pending' && 
+                        stateField !== 'null' && 
+                        stateField !== '' && 
+                        stateField !== '-'
+                    );
 
-            return isMyBranch && hasFinalResponse;
-        });
+                    return isMine && isFinished;
+                });
 
-        if (respondedOrders.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px; color:#94a3b8;">
-                لا توجد ردود نهائية لفرع ${myBranch} حالياً.<br>
-                <small>الطلبات التي لا تزال (Pending) يتم إخفاؤها تلقائياً.</small>
-            </td></tr>`;
-            return;
-        }
+                // 4. عرض النتائج
+                if (finalResponses.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="padding:50px; color:#94a3b8; text-align:center;">
+                        <i class="fas fa-info-circle fa-2x" style="display:block; margin-bottom:10px; opacity:0.3;"></i>
+                        لا توجد ردود نهائية لفرعك حالياً.<br>
+                        <small>بانتظار رد المشتريات على طلبات الـ (Pending).</small>
+                    </td></tr>`;
+                    return;
+                }
 
-        // ترتيب الأحدث أولاً
-        respondedOrders.sort((a, b) => b.id - a.id);
+                // ترتيب الأحدث أولاً
+                finalResponses.sort((a, b) => b.id - a.id);
 
-        tbody.innerHTML = respondedOrders.map(i => {
-            const isBuy = String(i.type).includes("شراء");
-            const s = String(i.state || "").trim().toLowerCase();
-            
-            let sLabel = i.state;
-            let sClass = 'ordered';
+                tbody.innerHTML = finalResponses.map(i => {
+                    const isBuy = String(i.type).includes("شراء");
+                    const s = String(i.state || "").trim().toLowerCase();
+                    
+                    let sLabel = i.state;
+                    let sClass = 'ordered';
 
-            if (s === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
-            else if (s === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
-            else if (s === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
+                    if (s === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
+                    else if (s === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
+                    else if (s === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
 
-            return `
-                <tr>
-                    <td><span class="badge-buy">${isBuy ? 'شراء' : 'تحويل'}</span></td>
-                    <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b></td>
-                    <td>${i.cust_name || 'عميل عام'}</td>
-                    <td><b>${i.qty || 1}</b></td>
-                    <td>${i.company && i.company !== 'null' ? i.company : '---'}</td>
-                    <td><span class="status-pill ${sClass}">${sLabel}</span></td>
-                </tr>
-            `;
-        }).join('');
-
-    } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ فشل في تحديث البيانات</td></tr>';
-    }
-}
-
-                myOrders.sort((a, b) => b.id - a.id);
-                tbody.innerHTML = myOrders.map(i => `
-                    <tr>
-                        <td><span class="badge-buy">${i.type || 'شراء'}</span></td>
-                        <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b></td>
-                        <td>${i.cust_name || 'عميل عام'}</td>
-                        <td>${i.qty || 1}</td>
-                        <td>${i.company && i.company !== 'null' ? i.company : '---'}</td>
-                        <td><span class="status-pill ${i.state === 'ordered' ? 'ordered' : 'pending'}">
-                            ${i.state === 'ordered' ? 'تم الطلب ✅' : (i.state || 'إنتظار ⏳')}
-                        </span></td>
-                    </tr>
-                `).join('');
+                    return `
+                        <tr>
+                            <td><span class="badge ${isBuy ? 'bg-purchase' : 'bg-transfer'}">${isBuy ? 'شراء' : 'تحويل'}</span></td>
+                            <td style="text-align:right;">
+                                <b>${i.item_name || i.item || '---'}</b><br>
+                                <small style="color:#64748b;">${i.item_code || ''}</small>
+                            </td>
+                            <td style="text-align:right;">${i.cust_name || 'عميل عام'}</td>
+                            <td><b>${i.qty || 1}</b></td>
+                            <td style="font-style:italic; color:#64748b;">${(i.company && i.company !== 'null') ? i.company : '---'}</td>
+                            <td><span class="status-pill ${sClass}">${sLabel}</span></td>
+                        </tr>
+                    `;
+                }).join('');
 
             } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ فشل في الاتصال بالبيانات</td></tr>';
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:30px;">❌ حدث خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
     </script>
