@@ -59,36 +59,81 @@
 
         window.onload = loadCSData;
 
-        async function loadCSData() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="6">⏳ جاري جلب البيانات...</td></tr>';
+async function loadCSData() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '<tr><td colspan="6">⏳ جاري جلب الردود النهائية...</td></tr>';
 
-            try {
-                const response = await fetchOrders();
-                let actualData = [];
+    try {
+        const response = await fetchOrders();
+        let actualData = [];
 
-                // --- معالجة "الغلاف" القادم من السيرفر ---
-                if (Array.isArray(response)) {
-                    // إذا كانت المصفوفة تحتوي على عنصر واحد جواه مصفوفة data (كما يظهر في صورتك)
-                    if (response[0] && Array.isArray(response[0].data)) {
-                        actualData = response[0].data;
-                    } else {
-                        actualData = response;
-                    }
-                } else if (response && Array.isArray(response.data)) {
-                    actualData = response.data;
-                }
+        // فك تشفير الغلاف (نفس المنطق اللي شغال معاك حالياً)
+        if (Array.isArray(response)) {
+            if (response[0] && Array.isArray(response[0].data)) {
+                actualData = response[0].data;
+            } else {
+                actualData = response;
+            }
+        } else if (response && Array.isArray(response.data)) {
+            actualData = response.data;
+        }
 
-                // الفلترة
-                const myOrders = actualData.filter(item => {
-                    const userField = String(item.user || "").trim();
-                    return userField === myBranch;
-                });
+        // الفلترة: (شرط الفرع) + (شرط الحالة ليست انتظار)
+        const respondedOrders = actualData.filter(item => {
+            const userField = String(item.user || "").trim();
+            const stateField = String(item.state || "").trim().toLowerCase();
 
-                if (myOrders.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px; color:#94a3b8;">لا توجد طلبات مسجلة لفرع ${myBranch} حالياً.</td></tr>`;
-                    return;
-                }
+            const isMyBranch = (userField === myBranch);
+            
+            // استبعاد أي طلب حالته pending أو فارغة أو null
+            const hasFinalResponse = (
+                stateField !== 'pending' && 
+                stateField !== '' && 
+                stateField !== 'null' && 
+                stateField !== '-'
+            );
+
+            return isMyBranch && hasFinalResponse;
+        });
+
+        if (respondedOrders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="padding:40px; color:#94a3b8;">
+                لا توجد ردود نهائية لفرع ${myBranch} حالياً.<br>
+                <small>الطلبات التي لا تزال (Pending) يتم إخفاؤها تلقائياً.</small>
+            </td></tr>`;
+            return;
+        }
+
+        // ترتيب الأحدث أولاً
+        respondedOrders.sort((a, b) => b.id - a.id);
+
+        tbody.innerHTML = respondedOrders.map(i => {
+            const isBuy = String(i.type).includes("شراء");
+            const s = String(i.state || "").trim().toLowerCase();
+            
+            let sLabel = i.state;
+            let sClass = 'ordered';
+
+            if (s === 'ordered') { sLabel = 'تم الطلب ✅'; sClass = 'ordered'; }
+            else if (s === 'unavailable') { sLabel = 'غير متوفر ❌'; sClass = 'unavailable'; }
+            else if (s === 'transferred') { sLabel = 'تم التحويل 🔄'; sClass = 'transferred'; }
+
+            return `
+                <tr>
+                    <td><span class="badge-buy">${isBuy ? 'شراء' : 'تحويل'}</span></td>
+                    <td style="text-align:right;"><b>${i.item_name || i.item || '---'}</b></td>
+                    <td>${i.cust_name || 'عميل عام'}</td>
+                    <td><b>${i.qty || 1}</b></td>
+                    <td>${i.company && i.company !== 'null' ? i.company : '---'}</td>
+                    <td><span class="status-pill ${sClass}">${sLabel}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ فشل في تحديث البيانات</td></tr>';
+    }
+}
 
                 myOrders.sort((a, b) => b.id - a.id);
                 tbody.innerHTML = myOrders.map(i => `
