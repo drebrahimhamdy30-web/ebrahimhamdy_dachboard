@@ -86,32 +86,46 @@
             window.onload = loadShortages; 
         }
 
-        async function loadShortages() {
+async function loadShortages() {
             const tbody = document.getElementById('shortage-list');
+            const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
+            
             try {
                 const response = await fetchOrders(); 
                 const allItems = (response[0]?.data) ? response[0].data : (response.data || response);
                 
                 const shortages = allItems.filter(item => {
-                    // تطهير البيانات لضمان دقة المقارنة (التخلص من مسافات شيت جوجل)
+                    // 1. تطهير البيانات وتجهيز المتغيرات
                     const itemState = String(item.cust_state || "").trim();
                     const itemBranch = String(item.user || "").trim();
                     const currentSessionBranch = userBranch.trim();
+                    
+                    // تحويل الرصيد لرقم (لو null أو غير موجود يعتبر صفر)
+                    const stockQuantity = parseFloat(item.stq) || 0;
 
-                    const isShortage = itemState === "غير متوفر يحتاج متابعة";
+                    // 2. تطبيق الشروط:
+                    // أ- يجب أن تكون الحالة "يحتاج متابعة"
+                    const needsFollowUp = itemState === "غير متوفر يحتاج متابعة";
                     
-                    // الحل السحري: إذا كان المستخدم "عام" يرى كل النواقص، وإذا كان فرع محدد يرى نواقصه فقط
+                    // ب- شرط الرصيد الجديد (يظهر فقط لو الرصيد أكبر من صفر)
+                    const isNowAvailable = stockQuantity > 0;
+
+                    // ج- شرط الفرع (لو المستخدم "عام" يرى الكل، لو فرع محدد يرى نواقصه فقط)
+                    let isVisibleForBranch = false;
                     if (currentSessionBranch === "عام" || currentSessionBranch === "Admin") {
-                        return isShortage;
+                        isVisibleForBranch = true;
+                    } else {
+                        isVisibleForBranch = (itemBranch === currentSessionBranch);
                     }
-                    
-                    return isShortage && (itemBranch === currentSessionBranch);
+
+                    // النتيجة النهائية: متابعة + رصيد > 0 + تبعية الفرع
+                    return needsFollowUp && isNowAvailable && isVisibleForBranch;
                 });
 
                 renderShortages(shortages);
             } catch (e) {
                 console.error("Error loading shortages:", e);
-                tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:20px;">❌ فشل تحميل البيانات، تأكد من الاتصال بالسيرفر</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:20px;">❌ فشل تحميل البيانات</td></tr>';
             }
         }
 
