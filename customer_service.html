@@ -3,31 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خدمة العملاء - اتخاذ إجراء</title>
+    <title>خدمة العملاء - الإجراءات السريعة</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --main-green: #27ae60; --primary-blue: #1a73e8; }
+        :root { --primary-blue: #3498db; --success-green: #27ae60; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
         .container { padding: 20px; max-width: 1300px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--main-green); color: #64748b; font-size: 0.85rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--success-green); color: #64748b; font-size: 0.85rem; }
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
         
-        /* أزرار الإجراءات */
-        .btn-action { background: var(--primary-blue); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-        .btn-action:hover { opacity: 0.9; }
-
-        /* النافذة المنبثقة Modal */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; width: 400px; margin: 15% auto; padding: 20px; border-radius: 12px; position: relative; }
-        .modal-header { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; }
-        select { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ddd; font-family: inherit; }
-        .save-btn { width: 100%; padding: 12px; background: var(--main-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .row-done { background-color: #f8fafc; opacity: 0.7; }
+        .status-pill { padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; }
+        .ordered { background: #dcfce7; color: #166534; }
+        .unavailable { background: #fee2e2; color: #991b1b; }
         
-        .branch-tag { background: var(--main-green); color: white; padding: 6px 15px; border-radius: 8px; font-weight: bold; }
+        /* تنسيق قائمة الاختيارات */
+        select.cs-select { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 6px; 
+            font-family: inherit; 
+            font-size: 0.85rem;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .btn-done { 
+            background: var(--success-green); 
+            color: white; 
+            border: none; 
+            padding: 8px 18px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        .btn-done:disabled { background: #cbd5e0; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -35,24 +50,32 @@
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3><i class="fas fa-tasks"></i> إدارة طلبات فرع <span id="branch-display">...</span></h3>
-                <button onclick="loadCSData()" class="btn-action" style="background:#64748b;"><i class="fas fa-sync-alt"></i> تحديث</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: #2d3748;">
+                    <i class="fas fa-headset"></i> معالجة طلبات <span id="display-branch" style="color: var(--success-green);">...</span>
+                </h3>
+                <button onclick="loadCSData()" class="btn-done" style="background: var(--primary-blue);">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem;">
+                <label><input type="checkbox" id="hideDone" checked onchange="renderItems()"> إخفاء ما تم تنفيذه</label>
             </div>
 
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th>الصنف</th>
-                            <th>العميل</th>
-                            <th>الكمية</th>
-                            <th>رد المشتريات</th>
-                            <th>الحالة الحالية</th>
-                            <th>إجراء خدمة العملاء</th>
+                            <th style="width: 25%;">الصنف</th>
+                            <th style="width: 15%;">العميل</th>
+                            <th style="width: 15%;">رد المشتريات</th>
+                            <th style="width: 10%;">الحالة</th>
+                            <th style="width: 25%;">إجراء خدمة العملاء</th>
+                            <th style="width: 10%;">حفظ</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
+                    <tbody id="data-list">
                         <tr><td colspan="6">جاري التحميل...</td></tr>
                     </tbody>
                 </table>
@@ -60,105 +83,101 @@
         </div>
     </div>
 
-    <div id="actionModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">تحديث حالة الطلب</div>
-            <p id="item-info" style="font-size: 0.9rem; color: #666;"></p>
-            <input type="hidden" id="selected-id">
-            
-            <label>اختر الإجراء المتخذ:</label>
-            <select id="cs-decision">
-                <option value="متوفر وتم ابلاغ العميل">متوفر وتم ابلاغ العميل ✅</option>
-                <option value="غير متوفر يحتاج متابعة">غير متوفر يحتاج متابعة 🔍</option>
-                <option value="إلغاء لعدم التوفر">إلغاء لعدم التوفر ❌</option>
-            </select>
-            
-            <button class="save-btn" onclick="submitAction()">حفظ وإرسال التحديث</button>
-            <button onclick="closeModal()" style="width:100%; margin-top:5px; background:none; border:none; color:red; cursor:pointer;">إلغاء</button>
-        </div>
-    </div>
-
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        const myBranch = (localStorage.getItem('userBranch') || "المعمورة").trim();
-        document.getElementById('branch-display').innerText = myBranch;
+        const activeUser = checkAuth();
+        const userBranch = localStorage.getItem('userBranch') || activeUser || '';
+        document.getElementById('display-branch').innerText = userBranch;
+        
+        let allItems = [];
 
-        window.onload = loadCSData;
+        if (activeUser) { window.onload = loadCSData; }
 
         async function loadCSData() {
-            const tbody = document.getElementById('table-body');
+            const tbody = document.getElementById('data-list');
             try {
-                const response = await fetchOrders();
-                let data = [];
-                // معالجة هيكل البيانات كما فعلنا سابقاً
-                if (Array.isArray(response)) data = response[0]?.data || response;
-                else if (response?.data) data = response.data;
+                const response = await fetchOrders(); 
+                allItems = (response[0]?.data) ? response[0].data : (response.data || response);
+                renderItems();
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" style="color:red;">❌ فشل الاتصال بالسيرفر</td></tr>';
+            }
+        }
 
-                // فلترة: طلبات فرعي + التي تم الرد عليها فقط (ليست pending)
-                const filtered = data.filter(i => String(i.user).trim() === myBranch && i.state !== 'pending');
+        function renderItems() {
+            const tbody = document.getElementById('data-list');
+            const hideDone = document.getElementById('hideDone').checked;
+            
+            const filtered = allItems.filter(item => {
+                const isMyBranch = (String(item.user).trim() === String(userBranch).trim());
+                const isNotPending = (item.state !== 'pending' && item.state !== '');
+                const isDone = (item.cs_done === "تم" || item.cs_done === true);
+                
+                if (hideDone && isDone) return false;
+                return isMyBranch && isNotPending;
+            });
 
-                tbody.innerHTML = filtered.map(i => `
-                    <tr>
-                        <td style="text-align:right;"><b>${i.item_name || i.item}</b></td>
-                        <td>${i.cust_name || 'عميل عام'}</td>
-                        <td>${i.qty || 1}</td>
-                        <td><i style="color:#666">${i.company || '---'}</i></td>
-                        <td><span style="color:var(--main-green); font-weight:bold;">${i.state}</span></td>
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding:30px; color:#94a3b8;">لا توجد طلبات جديدة تحتاج إجراء حالياً</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(item => {
+                const isDone = (item.cs_done === "تم" || item.cs_done === true);
+                const s = String(item.state || "").trim().toLowerCase();
+
+                return `
+                    <tr class="${isDone ? 'row-done' : ''}">
+                        <td style="text-align:right;"><b>${item.item_name || item.item}</b></td>
+                        <td>${item.cust_name || 'عميل عام'}</td>
+                        <td><small>${item.company || '---'}</small></td>
+                        <td><span class="status-pill ${s === 'ordered' ? 'ordered' : 'unavailable'}">
+                            ${s === 'ordered' ? 'تم الطلب' : 'غير متوفر'}
+                        </span></td>
                         <td>
-                            <button class="btn-action" onclick="openModal('${i.id}', '${i.item_name || i.item}')">
-                                <i class="fas fa-edit"></i> إجراء
-                            </button>
+                            <select id="select-${item.id}" class="cs-select" ${isDone ? 'disabled' : ''}>
+                                <option value="" disabled ${!item.cs_decision ? 'selected' : ''}>اختر إجراء...</option>
+                                <option value="متوفر وتم ابلاغ العميل" ${item.cs_decision === 'متوفر وتم ابلاغ العميل' ? 'selected' : ''}>متوفر وتم ابلاغ العميل ✅</option>
+                                <option value="غير متوفر يحتاج متابعة" ${item.cs_decision === 'غير متوفر يحتاج متابعة' ? 'selected' : ''}>غير متوفر يحتاج متابعة 🔍</option>
+                                <option value="إلغاء لعدم التوفر" ${item.cs_decision === 'إلغاء لعدم التوفر' ? 'selected' : ''}>إلغاء لعدم التوفر ❌</option>
+                            </select>
+                        </td>
+                        <td>
+                            ${!isDone ? 
+                                `<button onclick="submitCSAction(event, '${item.id}')" class="btn-done">تم</button>` : 
+                                `<span style="color:var(--success-green); font-weight:bold;"><i class="fas fa-check-circle"></i></span>`
+                            }
                         </td>
                     </tr>
-                `).join('');
-            } catch (e) { tbody.innerHTML = '<tr><td colspan="6">خطأ في التحميل</td></tr>'; }
+                `;
+            }).join('');
         }
 
-        // وظائف الـ Modal
-        function openModal(id, itemName) {
-            document.getElementById('selected-id').value = id;
-            document.getElementById('item-info').innerText = "الصنف: " + itemName;
-            document.getElementById('actionModal').style.display = 'block';
-        }
-
-        function closeModal() {
-            document.getElementById('actionModal').style.display = 'none';
-        }
-
-        async function submitAction() {
-            const id = document.getElementById('selected-id').value;
-            const decision = document.getElementById('cs-decision').value;
+        async function submitCSAction(event, id) {
+            const btn = event.target;
+            const decision = document.getElementById(`select-${id}`).value;
             
-            const btn = document.querySelector('.save-btn');
-            btn.innerText = "⏳ جاري التحديث...";
+            if (!decision) { alert("برجاء اختيار إجراء من القائمة"); return; }
+
             btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            try {
-                // نرسل الطلب لـ n8n (نفس رابط الـ Webhook ولكن بطريقة POST)
-                const result = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        update_type: "cs_feedback",
-                        row_id: id,
-                        decision: decision,
-                        branch: myBranch
-                    })
-                });
+            // إرسال التحديث لـ n8n بنفس أسلوب صفحة الإشعارات
+            const success = await updateData({
+                id: id,
+                type: "cs_action", 
+                decision: decision, // القرار المختار من القائمة
+                done: "تم",
+                updatedAt: new Date().toISOString()
+            });
 
-                if (result.ok) {
-                    alert("تم تحديث الحالة بنجاح");
-                    closeModal();
-                    loadCSData(); // تحديث الجدول
-                } else {
-                    alert("فشل في تحديث البيانات");
-                }
-            } catch (error) {
-                alert("خطأ في الاتصال بالسيرفر");
-            } finally {
-                btn.innerText = "حفظ وإرسال التحديث";
+            if (success) {
+                loadCSData(); 
+            } else {
+                alert("⚠️ فشل التحديث");
                 btn.disabled = false;
+                btn.innerText = "تم";
             }
         }
     </script>
