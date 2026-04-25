@@ -20,31 +20,40 @@
 
     <script src="api.js"></script>
 
-    <script>
-        async function handleLogin() {
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+<script>
+    async function handleLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
 
-            if (!user || !pass) {
-                alert("برجاء إدخال اسم المستخدم وكلمة المرور");
-                return;
-            }
-
-            try {
-                // استدعاء دالة الدخول من ملف api.js
-                const result = await login(user, pass);
-
-                if(result.success) {
-                    // التوجه لصفحة الطلبات (تأكد من اسم الملف purchases.html أو main.html)
-                    window.location.href = "main.html"; 
-                } else {
-                    alert(result.message);
-                }
-            } catch (error) {
-                console.error("خطأ:", error);
-                alert("تعذر الاتصال بالسيرفر، تأكد من تشغيل الـ Workflow");
-            }
+        if (!user || !pass) {
+            alert("برجاء إدخال اسم المستخدم وكلمة المرور");
+            return;
         }
+
+        try {
+            // استدعاء دالة الدخول من ملف api.js
+            const result = await login(user, pass);
+
+            if(result.success) {
+                // --- التعديل الجوهري هنا ---
+                // نقوم بحفظ اسم المستخدم (الفرع) في الـ localStorage
+                // لكي تتعرف عليه باقي الصفحات مثل "خدمة العملاء"
+                localStorage.setItem('userBranch', user.trim());
+                
+                // يمكنك أيضاً حفظ حالة تسجيل الدخول إذا كنت تستخدمها في checkAuth
+                localStorage.setItem('isLoggedIn', 'true');
+                
+                // التوجه لصفحة الطلبات
+                window.location.href = "main.html"; 
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error("خطأ:", error);
+            alert("تعذر الاتصال بالسيرفر، تأكد من تشغيل الـ Workflow");
+        }
+    }
+</script>
     </script>
 </body>
 </html>
