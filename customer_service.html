@@ -73,33 +73,39 @@
             window.onload = loadCSData;
         }
 
-        async function loadCSData() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ جاري جلب تحديثات طلباتك...</td></tr>';
-            
-            try {
-                const response = await fetchOrders();
-                let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
+async function loadCSData() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">⏳ جاري جلب تحديثات طلباتك...</td></tr>';
+    
+    try {
+        const response = await fetchOrders();
+        // التأكد من الوصول للمصفوفة الصحيحة داخل data
+        let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
 
-                if (Array.isArray(items)) {
-                    // الفلترة: 
-                    // 1. يجب أن يكون الفرع الطالب (user) هو نفسه فرع المستخدم الحالي
-                    // 2. الحالة ليست انتظار (ليست null أو فارغة أو pending)
-                    const myRequests = items.filter(i => {
-                        const isMyBranch = (String(i.user).trim() === String(userBranchName).trim());
-                        const s = String(i.state || '').toLowerCase().trim();
-                        const isResponded = (s !== 'pending' && s !== 'null' && s !== '' && s !== '-');
-                        
-                        return isMyBranch && isResponded;
-                    });
-                    
-                    renderTable(myRequests);
-                }
-            } catch (e) {
-                console.error(e);
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#e74c3c; padding: 30px;">❌ خطأ في تحميل البيانات</td></tr>';
-            }
+        if (Array.isArray(items)) {
+            const myRequests = items.filter(i => {
+                // تنظيف النصوص من المسافات والتأكد من وجود قيم
+                const itemUser = String(i.user || '').trim();
+                const currentBranch = String(userBranchName).trim();
+                const status = String(i.state || '').toLowerCase().trim();
+
+                // الشرط الأول: الطلب يخص فرعك (المعمورة)
+                const isMyBranch = (itemUser === currentBranch);
+                
+                // الشرط الثاني: الحالة ليست فارغة وليست قيد الانتظار
+                // ملاحظة: لو كنت تريد رؤية "كل" طلباتك حتى الانتظار، قم بإلغاء "isResponded" من الـ return
+                const isResponded = (status !== 'pending' && status !== 'null' && status !== '' && status !== '-');
+                
+                return isMyBranch && isResponded;
+            });
+            
+            renderTable(myRequests);
         }
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#e74c3c; padding: 30px;">❌ خطأ في تحميل البيانات</td></tr>';
+    }
+}
 
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
