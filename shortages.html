@@ -35,6 +35,9 @@
         }
         .btn-update:hover { background: #219150; transform: scale(1.02); }
         .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        
+        /* تنسيق خاص لخانة التاريخ */
+        .date-cell { font-size: 0.8rem; color: #64748b; direction: ltr; }
     </style>
 </head>
 <body>
@@ -56,16 +59,17 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 15%;">تاريخ الطلب</th>
                             <th style="width: 25%;">الصنف</th>
                             <th style="width: 10%;">الفرع</th>
-                            <th style="width: 20%;">اسم العميل</th>
-                            <th style="width: 15%;">كود العميل</th>
-                            <th style="width: 15%;">الحالة الحالية</th>
-                            <th style="width: 15%;">إجراء</th>
+                            <th style="width: 15%;">اسم العميل</th>
+                            <th style="width: 10%;">كود العميل</th>
+                            <th style="width: 12%;">الحالة</th>
+                            <th style="width: 13%;">إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="shortage-list">
-                        <tr><td colspan="6" style="padding:40px; color:#94a3b8;">جاري فحص النواقص...</td></tr>
+                        <tr><td colspan="7" style="padding:40px; color:#94a3b8;">جاري فحص النواقص...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -75,9 +79,7 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        // 1. التحقق من الهوية (الحل اللي استخدمناه قبل كدة لضمان وجود الفرع)
         const activeUser = checkAuth();
-        // نسحب userBranch ولو مش موجود ناخد activeUser كاحتياطي
         const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
         
         document.getElementById('current-branch-name').innerText = userBranch;
@@ -86,31 +88,22 @@
             window.onload = loadShortages; 
         }
 
-async function loadShortages() {
+        async function loadShortages() {
             const tbody = document.getElementById('shortage-list');
-            const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
+            const currentSessionBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
             
             try {
                 const response = await fetchOrders(); 
                 const allItems = (response[0]?.data) ? response[0].data : (response.data || response);
                 
                 const shortages = allItems.filter(item => {
-                    // 1. تطهير البيانات وتجهيز المتغيرات
                     const itemState = String(item.cust_state || "").trim();
                     const itemBranch = String(item.user || "").trim();
-                    const currentSessionBranch = userBranch.trim();
-                    
-                    // تحويل الرصيد لرقم (لو null أو غير موجود يعتبر صفر)
                     const stockQuantity = parseFloat(item.stq) || 0;
 
-                    // 2. تطبيق الشروط:
-                    // أ- يجب أن تكون الحالة "يحتاج متابعة"
                     const needsFollowUp = itemState === "غير متوفر يحتاج متابعة";
-                    
-                    // ب- شرط الرصيد الجديد (يظهر فقط لو الرصيد أكبر من صفر)
                     const isNowAvailable = stockQuantity > 0;
 
-                    // ج- شرط الفرع (لو المستخدم "عام" يرى الكل، لو فرع محدد يرى نواقصه فقط)
                     let isVisibleForBranch = false;
                     if (currentSessionBranch === "عام" || currentSessionBranch === "Admin") {
                         isVisibleForBranch = true;
@@ -118,14 +111,13 @@ async function loadShortages() {
                         isVisibleForBranch = (itemBranch === currentSessionBranch);
                     }
 
-                    // النتيجة النهائية: متابعة + رصيد > 0 + تبعية الفرع
                     return needsFollowUp && isNowAvailable && isVisibleForBranch;
                 });
 
                 renderShortages(shortages);
             } catch (e) {
                 console.error("Error loading shortages:", e);
-                tbody.innerHTML = '<tr><td colspan="6" style="color:red; padding:20px;">❌ فشل تحميل البيانات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ فشل تحميل البيانات</td></tr>';
             }
         }
 
@@ -135,7 +127,7 @@ async function loadShortages() {
             if (items.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="padding:50px; color:#64748b;">
+                        <td colspan="7" style="padding:50px; color:#64748b;">
                             <i class="fas fa-check-double" style="font-size: 2rem; color: var(--success-green); display: block; margin-bottom: 10px;"></i>
                             لا توجد نواقص معلقة حالياً لـ (${userBranch})
                         </td>
@@ -143,20 +135,32 @@ async function loadShortages() {
                 return;
             }
 
-            tbody.innerHTML = items.map(item => `
-                <tr>
-                    <td style="text-align:right;"><b>${item.item_name || item.item || '---'}</b></td>
-                    <td><span class="branch-tag">${item.user}</span></td>
-                    <td>${item.cust_name || '---'}</td>
-                    <td><code>${item.cust_code || '---'}</code></td>
-                    <td><span class="shortage-tag">قيد المتابعة 🔍</span></td>
-                    <td>
-                        <button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
-                            <i class="fas fa-check"></i> توفر وتم الإبلاغ
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = items.map(item => {
+                // تنسيق التاريخ من حقل createdAt
+                let displayDate = "---";
+                if (item.createdAt) {
+                    const dateObj = new Date(item.createdAt);
+                    displayDate = dateObj.toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric' }) + 
+                                  " " + 
+                                  dateObj.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+
+                return `
+                    <tr>
+                        <td class="date-cell">${displayDate}</td>
+                        <td style="text-align:right;"><b>${item.item_name || item.item || '---'}</b></td>
+                        <td><span class="branch-tag">${item.user}</span></td>
+                        <td>${item.cust_name || '---'}</td>
+                        <td><code>${item.cust_code || '---'}</code></td>
+                        <td><span class="shortage-tag">قيد المتابعة 🔍</span></td>
+                        <td>
+                            <button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
+                                <i class="fas fa-check"></i> توفر وتم الإبلاغ
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function markAsAvailable(event, id) {
