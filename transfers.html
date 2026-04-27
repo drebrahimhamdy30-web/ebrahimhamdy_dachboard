@@ -27,6 +27,7 @@
         
         .code-text { font-family: monospace; color: #7f8c8d; font-size: 0.75rem; }
         .name-text { font-weight: 600; color: #2c3e50; }
+        .date-cell { font-size: 0.75rem; color: #64748b; line-height: 1.4; direction: ltr; }
     </style>
 </head>
 <body>
@@ -74,18 +75,19 @@
                 <table id="transfers-table">
                     <thead>
                         <tr>
+                            <th style="width: 10%;">التاريخ</th>
                             <th style="width: 12%;">الفرع</th>
                             <th style="width: 20%;">الصنف</th>
                             <th style="width: 10%;">كود الصنف</th>
                             <th style="width: 15%;">العميل</th>
-                            <th style="width: 7%;">الكمية</th>
-                            <th style="width: 15%;">ملاحظة / رد</th>
-                            <th style="width: 12%;">الحالة</th>
-                            <th style="width: 9%;">إجراء</th>
+                            <th style="width: 5%;">كمية</th>
+                            <th style="width: 13%;">ملاحظة / رد</th>
+                            <th style="width: 10%;">الحالة</th>
+                            <th style="width: 5%;">إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align:center; padding: 40px; color: #94a3b8;">جاري تحميل التحويلات...</td></tr>
+                        <tr><td colspan="9" style="text-align:center; padding: 40px; color: #94a3b8;">جاري تحميل التحويلات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -106,7 +108,7 @@
 
         async function loadTransfers() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px;">⏳ جاري جلب البيانات...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 30px;">⏳ جاري جلب البيانات...</td></tr>';
             try {
                 const response = await fetchOrders(); 
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
@@ -116,7 +118,7 @@
                     applyFilters(); 
                 }
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red; padding: 30px;">❌ خطأ في الاتصال بالسيرفر</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red; padding: 30px;">❌ خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
 
@@ -143,8 +145,8 @@
             const selectedBranch = document.getElementById('branch-select-filter').value;
 
             const filtered = rawData.filter(item => {
-                const isTarget = (item.branch === userBranchName); // فرعي هو المطلوب منه
-                const isSource = (item.user === userBranchName);   // فرعي هو الذي طلب
+                const isTarget = (item.branch === userBranchName); 
+                const isSource = (item.user === userBranchName);   
 
                 let dirMatch = false;
                 if (directionVal === 'all') dirMatch = (isTarget || isSource);
@@ -169,20 +171,29 @@
             tbody.innerHTML = '';
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 40px; color: #94a3b8;">لا توجد طلبات تحويل مطابقة للاختيار</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 40px; color: #94a3b8;">لا توجد طلبات تحويل مطابقة للاختيار</td></tr>';
                 return;
             }
 
             items.forEach((item) => {
                 const canReply = (item.branch === userBranchName);
                 const currentState = item.state || 'pending';
-                const tr = document.createElement('tr');
                 
+                // تنسيق التاريخ
+                let displayDate = "---";
+                if (item.createdAt) {
+                    const dateObj = new Date(item.createdAt);
+                    displayDate = `<div>${dateObj.toLocaleDateString('ar-EG', {month:'numeric', day:'numeric'})}</div>
+                                  <div style="font-size:0.7rem; opacity:0.6;">${dateObj.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit', hour12:true})}</div>`;
+                }
+
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
+                    <td class="date-cell">${displayDate}</td>
                     <td>
                         <div class="name-text">${canReply ? item.user : item.branch}</div>
                         <span class="badge ${canReply ? 'inbound' : 'outbound'}">
-                            ${canReply ? 'طلب وارد من' : 'طلب مرسل إلى'}
+                            ${canReply ? 'وارد من' : 'مرسل إلى'}
                         </span>
                     </td>
                     <td class="name-text" style="text-align:right;">${item.item_name || item.item || '-'}</td>
@@ -204,8 +215,8 @@
                     </td>
                     <td>
                         ${canReply ? 
-                            `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-save"></i> حفظ</button>` : 
-                            '<span style="color:#94a3b8; font-size:0.8rem;"><i class="fas fa-clock"></i> بانتظار الرد</span>'}
+                            `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-save"></i></button>` : 
+                            '<span style="color:#94a3b8; font-size:0.75rem;"><i class="fas fa-clock"></i> معلق</span>'}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -215,9 +226,9 @@
         async function saveTransfer(id, btn) {
             const status = document.getElementById(`stat-${id}`).value;
             const notes = document.getElementById(`note-${id}`).value;
-            const originalContent = btn.innerHTML;
-
+            
             btn.disabled = true;
+            const oldContent = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             const success = await updateData({ 
@@ -229,12 +240,12 @@
             });
 
             if (success) {
-                btn.style.background = "#27ae60";
-                btn.innerHTML = '<i class="fas fa-check"></i> تم';
-                setTimeout(() => loadTransfers(), 1000);
+                btn.style.background = "#2ecc71";
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => loadTransfers(), 800);
             } else {
                 btn.disabled = false;
-                btn.innerHTML = originalContent;
+                btn.innerHTML = oldContent;
                 alert("⚠️ حدث خطأ أثناء التحديث");
             }
         }
