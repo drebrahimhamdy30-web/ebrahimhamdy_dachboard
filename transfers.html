@@ -227,15 +227,21 @@
             });
         }
 
-        async function saveTransfer(id, btn) {
-            const status = document.getElementById(`stat-${id}`).value;
+async function saveTransfer(id, btn) {
+            const statusValue = document.getElementById(`stat-${id}`).value;
             const notes = document.getElementById(`note-${id}`).value;
             const originalContent = btn.innerHTML;
+
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
+            // تم إرجاع المسمى إلى status ليتوافق مع الـ API الخاص بك
             const success = await updateData({ 
-                id: id, state: status, company: notes, type: "تحويل", action: "update_status" 
+                id: id, 
+                status: statusValue, 
+                company: notes, 
+                type: "تحويل", 
+                action: "update_status" 
             });
 
             if (success) {
