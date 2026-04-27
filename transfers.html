@@ -18,7 +18,8 @@
         .outbound { background: #fff3e0; color: #f57c00; border: 1px solid #ffe0b2; }
         .code-text { font-family: monospace; color: #7f8c8d; font-size: 0.75rem; }
         .name-text { font-weight: 600; color: #2c3e50; }
-        .date-text { font-size: 0.75rem; color: #64748b; }
+        .date-container { font-size: 0.75rem; color: #64748b; line-height: 1.2; text-align: center; }
+        .time-text { color: #94a3b8; font-size: 0.7rem; }
     </style>
 </head>
 <body>
@@ -78,7 +79,7 @@
                 <table id="transfers-table">
                     <thead>
                         <tr>
-                            <th style="width: 10%;">التاريخ</th>
+                            <th style="width: 12%;">التاريخ والوقت</th>
                             <th style="width: 12%;">الفرع</th>
                             <th style="width: 18%;">الصنف</th>
                             <th style="width: 10%;">كود الصنف</th>
@@ -102,7 +103,6 @@
     <script>
         let rawData = [];
         const activeUser = checkAuth();
-        // جلب اسم الفرع الحالي من التخزين المحلي
         const userBranchName = localStorage.getItem('userBranch') || "غير محدد";
 
         if (activeUser) {
@@ -118,7 +118,6 @@
                 const response = await fetchOrders(); 
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
                 if (Array.isArray(items)) {
-                    // تصفية البيانات لتشمل التحويلات فقط
                     rawData = items.filter(item => item.type === "تحويل");
                     populateBranchFilter(rawData);
                     applyFilters(); 
@@ -129,12 +128,10 @@
             }
         }
 
-        // إنشاء فلتر الفروع بشكل ديناميكي بناءً على البيانات المتوفرة
         function populateBranchFilter(data) {
             const branchSelect = document.getElementById('branch-select-filter');
             const branches = new Set();
             data.forEach(item => {
-                // إضافة الفروع من حقلي 'user' و 'branch' لضمان شمولية جميع الفروع (المعمورة، سيدي بشر، إلخ)
                 if (item.user && item.user !== userBranchName) branches.add(item.user);
                 if (item.branch && item.branch !== userBranchName) branches.add(item.branch);
             });
@@ -188,13 +185,24 @@
                 const canReply = (item.branch === userBranchName);
                 const currentState = item.state || 'pending';
                 
-                // تنسيق التاريخ ليظهر بشكل مقروء (يوم/شهر)
+                // استخراج التاريخ والوقت
                 const dateObj = item.createdAt ? new Date(item.createdAt) : null;
-                const formattedDate = dateObj ? `${dateObj.getDate()}/${dateObj.getMonth() + 1}` : '-';
+                let dateStr = '-';
+                let timeStr = '';
+                
+                if (dateObj) {
+                    dateStr = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+                    timeStr = dateObj.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="date-text">${formattedDate}</td>
+                    <td>
+                        <div class="date-container">
+                            <div>${dateStr}</div>
+                            <div class="time-text">${timeStr}</div>
+                        </div>
+                    </td>
                     <td>
                         <div class="name-text">${canReply ? item.user : item.branch}</div>
                         <span class="badge ${canReply ? 'inbound' : 'outbound'}">
@@ -238,7 +246,6 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             try {
-                // تحديث حالة الطلب عبر API
                 const success = await updateOrderStatus(id, { 
                     state: state, 
                     company: note 
