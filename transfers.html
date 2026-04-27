@@ -119,26 +119,32 @@
             window.onload = loadTransfers;
         }
 
-        async function loadTransfers() {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 20px;">⏳ جاري جلب البيانات...</td></tr>';
+async function loadTransfers() {
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">⏳ جاري التحميل...</td></tr>';
 
-            try {
-                const response = await fetchOrders(); 
-                // التعامل مع شكل البيانات القادم من fetchOrders
-                let items = Array.isArray(response) ? response : [];
-
-                if (items.length > 0) {
-                    rawData = items.filter(item => item.type === "تحويل");
-                    populateBranchFilter(rawData);
-                    applyFilters(); 
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا توجد بيانات متاحة</td></tr>';
-                }
-            } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">❌ خطأ في الاتصال</td></tr>';
+    try {
+        const items = await fetchOrders(); // هذه الدالة تجلب البيانات من api.js
+        
+        // تأكد أن البيانات ليست فارغة
+        if (items && items.length > 0) {
+            // فلترة لعرض التحويلات فقط
+            rawData = items.filter(item => item.type === "تحويل");
+            
+            if (rawData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا توجد طلبات تحويل حالياً</td></tr>';
+                return;
             }
+            
+            applyFilters(); // استدعاء الفلترة لعرض البيانات
+        } else {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا توجد بيانات في السيرفر</td></tr>';
         }
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">❌ فشل جلب البيانات من السيرفر</td></tr>';
+    }
+}
 
         function populateBranchFilter(data) {
             const branchSelect = document.getElementById('branch-select-filter');
