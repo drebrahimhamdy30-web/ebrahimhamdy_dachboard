@@ -16,7 +16,7 @@
         .btn-action { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: 0.3s; }
         .btn-action:hover { background: #219150; }
         
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; display: block; margin-top: 4px; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; display: block; margin-top: 4px; text-align: center; }
         .inbound { background: #e3f2fd; color: #1976d2; border: 1px solid #bbdefb; }
         .outbound { background: #fff3e0; color: #f57c00; border: 1px solid #ffe0b2; }
         
@@ -35,7 +35,7 @@
         </div>
         <div class="user-info" style="color: white; font-size: 0.8rem;">
             <span id="nav-user"></span>
-            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; padding: 2px 8px;">خروج</button>
+            <button onclick="logout()" style="background:transparent; border:1px solid #fff; color:white; border-radius:4px; padding: 2px 8px; margin-right: 10px; cursor: pointer;">خروج</button>
         </div>
     </div>
 
@@ -116,7 +116,8 @@
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px;">⏳ جاري جلب البيانات...</td></tr>';
             try {
-                const response = await fetchOrders(); 
+                const response = await fetchOrders();
+                // معالجة شكل البيانات القادمة من السيرفر
                 let items = (response && response[0]?.data) ? response[0].data : (response.data || response);
                 if (Array.isArray(items)) {
                     rawData = items.filter(item => item.type === "تحويل");
@@ -124,6 +125,7 @@
                     applyFilters(); 
                 }
             } catch (error) {
+                console.error("Fetch Error:", error);
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red; padding: 30px;">❌ خطأ في الاتصال بالسيرفر</td></tr>';
             }
         }
@@ -213,4 +215,43 @@
                     <td>
                         ${canReply ? 
                             `<button class="btn-action" onclick="saveTransfer('${item.id}', this)"><i class="fas fa-save"></i> حفظ</button>` : 
-                            '<span style="color:#94a3b8; font-size:0.8rem
+                            '<span style="color:#94a3b8; font-size:0.8rem">بانتظار الرد</span>'
+                        }
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function saveTransfer(id, btn) {
+            const note = document.getElementById(`note-${id}`).value;
+            const state = document.getElementById(`stat-${id}`).value;
+            
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+
+            try {
+                // نستخدم updateOrderStatus الموجودة في api.js
+                const success = await updateOrderStatus(id, { 
+                    state: state, 
+                    company: note 
+                });
+
+                if (success) {
+                    alert("✅ تم حفظ التعديلات بنجاح");
+                    loadTransfers(); 
+                } else {
+                    alert("❌ فشل التحديث - حاول مرة أخرى");
+                }
+            } catch (error) {
+                console.error("Error updating transfer:", error);
+                alert("❌ حدث خطأ أثناء الاتصال بالسيرفر");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
+</body>
+</html>
