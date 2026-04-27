@@ -9,7 +9,7 @@
     <style>
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
-        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 2px solid #e2e8f0; }
+        th { background-color: #f8fafc; color: #4a5568; font-weight: 700; border-top: 2px solid #27ae60; }
         tr:hover { background-color: #f7fafc; }
         .stat-sel { padding: 6px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #cbd5e0; background: white; cursor: pointer; }
         .comp-in { padding: 8px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #cbd5e0; width: 90%; transition: 0.3s; }
@@ -19,7 +19,8 @@
         .data-sub { font-size: 0.75rem; color: #64748b; margin-top: 3px; }
         .data-main { font-weight: 600; color: #1e293b; }
         .badge-branch { background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; }
-        .date-cell { font-size: 0.75rem; color: #64748b; line-height: 1.4; }
+        .date-cell { font-size: 0.75rem; color: #64748b; line-height: 1.4; font-weight: bold; }
+        .time-text { font-size: 0.7rem; color: #94a3b8; display: block; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -31,7 +32,7 @@
                 <h3 style="margin: 0; font-size: 1.2rem; color: #2c3e50;">
                     <i class="fas fa-shopping-basket" style="color: #27ae60;"></i> سجل المشتريات والطلبيات
                 </h3>
-                <button onclick="loadOrders()" class="btn-done" style="background: #3498db; padding: 8px 20px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                <button onclick="loadOrders()" style="background: #3498db; padding: 8px 20px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                     <i class="fas fa-sync-alt"></i> تحديث
                 </button>
             </div>
@@ -53,7 +54,7 @@
                 <table id="orders-table">
                     <thead>
                         <tr>
-                            <th style="width: 12%;">التاريخ</th>
+                            <th style="width: 12%;">التاريخ والوقت</th>
                             <th style="width: 8%;">الفرع</th>
                             <th style="width: 22%;">بيانات الصنف</th>
                             <th style="width: 18%;">بيانات العميل</th>
@@ -83,7 +84,7 @@
 
         async function loadOrders() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">⏳ جاري جلب البيانات من السيرفر...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">⏳ جاري جلب البيانات...</td></tr>';
             
             try {
                 const response = await fetchOrders();
@@ -99,19 +100,19 @@
                         customer_name: item.cust_name || 'عميل عام',
                         qty: item.qty || 0,
                         company: (item.company && item.company !== 'null') ? item.company : '',
-                        state: (item.state === '-' || !item.state) ? 'pending' : item.state,
+                        // توحيد الحقل ليكون status دائماً
+                        status: (item.status === '-' || !item.status) ? (item.state || 'pending') : item.status, 
                         type: item.type || '',
-                        createdAt: item.createdAt // التأكد من جلب التاريخ من السيرفر
+                        createdAt: item.createdAt 
                     })).filter(i => String(i.type).includes("شراء"));
 
                     generateBranches(rawData);
                     applyFilter();
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">لا توجد طلبات شراء حالياً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px;">لا توجد طلبات شراء</td></tr>';
                 }
             } catch (e) {
-                console.error(e);
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#e74c3c; padding:30px;">❌ خطأ في تحميل البيانات، يرجى إعادة المحاولة</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#e74c3c; padding:30px;">❌ خطأ في تحميل البيانات</td></tr>';
             }
         }
 
@@ -119,18 +120,18 @@
             const container = document.getElementById('branchList');
             const branches = [...new Set(data.map(i => i.branch))].filter(b => b !== '-').sort();
             container.innerHTML = branches.map(b => `
-                <label style="font-size: 0.8rem; background: white; padding: 6px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #cbd5e0; display: flex; align-items: center; gap: 6px; transition: 0.2s;">
+                <label style="font-size: 0.8rem; background: white; padding: 6px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #cbd5e0; display: flex; align-items: center; gap: 6px;">
                     <input type="checkbox" class="branch-cb" value="${b}" checked onchange="applyFilter()"> ${b}
                 </label>
             `).join('');
         }
 
         function applyFilter() {
-            const status = document.getElementById('statusFilter').value;
+            const statusVal = document.getElementById('statusFilter').value;
             const selectedBranches = Array.from(document.querySelectorAll('.branch-cb:checked')).map(c => c.value);
             
             const filtered = rawData.filter(i => {
-                const sMatch = (status === 'all' || i.state === status);
+                const sMatch = (statusVal === 'all' || i.status === statusVal);
                 const bMatch = selectedBranches.includes(i.branch);
                 return sMatch && bMatch;
             });
@@ -140,22 +141,25 @@
         function renderTable(items) {
             const tbody = document.getElementById('table-body');
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px; color: #64748b;">لا توجد نتائج تطابق اختياراتك</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px; color: #64748b;">لا توجد نتائج تطابق التصفية</td></tr>';
                 return;
             }
 
             tbody.innerHTML = items.map(i => {
-                // تنسيق التاريخ
                 let displayDate = "---";
+                let displayTime = "";
                 if (i.createdAt) {
                     const dateObj = new Date(i.createdAt);
-                    displayDate = `<div>${dateObj.toLocaleDateString('ar-EG', {month:'numeric', day:'numeric'})}</div>
-                                  <div style="font-size:0.7rem; opacity:0.7;">${dateObj.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit', hour12:true})}</div>`;
+                    displayDate = dateObj.toLocaleDateString('ar-EG', {month:'numeric', day:'numeric'});
+                    displayTime = dateObj.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit', hour12:true});
                 }
 
                 return `
                     <tr>
-                        <td class="date-cell">${displayDate}</td>
+                        <td class="date-cell">
+                            <div>${displayDate}</div>
+                            <span class="time-text">${displayTime}</span>
+                        </td>
                         <td><span class="badge-branch">${i.branch}</span></td>
                         <td style="text-align:right;">
                             <div class="data-main">${i.item_name}</div>
@@ -166,12 +170,12 @@
                             <div class="data-sub"><i class="fas fa-phone-alt"></i> ${i.customer_code}</div>
                         </td>
                         <td><b style="color:#e67e22; font-size:1.1rem;">${i.qty}</b></td>
-                        <td><input type="text" value="${i.company}" id="comp-${i.id}" class="comp-in" placeholder="المورد أو ملاحظة..."></td>
+                        <td><input type="text" value="${i.company}" id="comp-${i.id}" class="comp-in"></td>
                         <td>
                             <select id="stat-${i.id}" class="stat-sel">
-                                <option value="pending" ${i.state==='pending'?'selected':''}>⏳ انتظار</option>
-                                <option value="ordered" ${i.state==='ordered'?'selected':''}>✅ تم الطلب</option>
-                                <option value="unavailable" ${i.state==='unavailable'?'selected':''}>❌ نقص</option>
+                                <option value="pending" ${i.status==='pending'?'selected':''}>⏳ انتظار</option>
+                                <option value="ordered" ${i.status==='ordered'?'selected':''}>✅ تم الطلب</option>
+                                <option value="unavailable" ${i.status==='unavailable'?'selected':''}>❌ نقص</option>
                             </select>
                         </td>
                         <td><button class="btn-save" onclick="saveRow('${i.id}', this)"><i class="fas fa-save"></i></button></td>
@@ -181,16 +185,16 @@
         }
 
         async function saveRow(id, btn) {
-            const status = document.getElementById(`stat-${id}`).value;
-            const company = document.getElementById(`comp-${id}`).value;
+            const currentStatus = document.getElementById(`stat-${id}`).value;
+            const currentCompany = document.getElementById(`comp-${id}`).value;
             
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             const success = await updateData({ 
                 id: id, 
-                status: status, 
-                company: company, 
+                status: currentStatus, // المفتاح الذي ينتظره n8n
+                company: currentCompany, 
                 type: "شراء", 
                 action: "update_status" 
             });
@@ -202,11 +206,12 @@
                     btn.style.background = "#28a745";
                     btn.innerHTML = '<i class="fas fa-save"></i>';
                     btn.disabled = false;
+                    // تحديث البيانات محلياً لمنع التضارب عند الفلترة
                     const item = rawData.find(x => x.id == id);
-                    if(item) { item.state = status; item.company = company; }
+                    if(item) { item.status = currentStatus; item.company = currentCompany; }
                 }, 1000);
             } else {
-                alert("⚠️ فشل في حفظ التعديلات");
+                alert("⚠️ فشل في الحفظ");
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-save"></i>';
             }
