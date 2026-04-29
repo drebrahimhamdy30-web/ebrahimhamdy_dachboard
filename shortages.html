@@ -13,7 +13,7 @@
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #fffaf0; padding: 12px; border-bottom: 2px solid var(--warn-orange); color: #7f8c8d; font-size: 0.85rem; }
+        th { background: #fffaf0; padding: 12px; border-bottom: 2px solid var(--warn-orange); color: #7f8c8d; font-size: 0.85rem; text-align: center; }
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
         
         .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ffeeba; }
@@ -21,41 +21,21 @@
         .branch-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
 
         .btn-update { 
-            background: var(--success-green); 
-            color: white; 
-            border: none; 
-            padding: 8px 15px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin: auto;
-            transition: 0.3s;
+            background: var(--success-green); color: white; border: none; padding: 8px 15px; border-radius: 6px; 
+            cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; margin: auto; transition: 0.3s;
         }
         .btn-update:hover { background: #219150; transform: scale(1.02); }
-        .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+        .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         
         .date-cell { font-size: 0.8rem; color: #64748b; direction: ltr; }
+        .row-completed { background-color: #f8fafc; opacity: 0.8; }
 
-        /* تنسيق الـ Checkbox الجديد */
-        .show-completed-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #f8fafc;
-            padding: 8px 15px;
-            border-radius: 20px;
-            border: 1px solid #e2e8f0;
-            cursor: pointer;
-            font-size: 0.85rem;
-            color: #475569;
+        /* تنسيق مفتاح الفلتر */
+        .filter-wrapper {
+            display: flex; align-items: center; gap: 10px; background: #f8fafc; 
+            padding: 8px 15px; border-radius: 25px; border: 1px solid #e2e8f0; cursor: pointer;
         }
-        .show-completed-container input { cursor: pointer; width: 16px; height: 16px; }
-        
-        /* تظليل الصفوف المكتملة */
-        .row-completed { background-color: #fcfdfd; opacity: 0.8; }
+        .filter-wrapper input { width: 18px; height: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -70,13 +50,13 @@
                 </h3>
                 
                 <div style="display: flex; gap: 15px; align-items: center;">
-                    <label class="show-completed-container">
-                        <input type="checkbox" id="show-completed-toggle" onchange="loadShortages()">
-                        عرض العمليات المكتملة
+                    <label class="filter-wrapper">
+                        <input type="checkbox" id="show-completed-toggle" onchange="applyFollowUpFilter()">
+                        <span style="font-size: 0.9rem; font-weight: 500;">عرض العمليات المكتملة</span>
                     </label>
 
-                    <button onclick="loadShortages()" class="btn-refresh">
-                        <i class="fas fa-sync-alt"></i> تحديث القائمة
+                    <button onclick="loadShortages(true)" class="btn-refresh">
+                        <i class="fas fa-sync-alt"></i> تحديث البيانات
                     </button>
                 </div>
             </div>
@@ -105,77 +85,82 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
+        let cachedData = []; // لتخزين البيانات ومنع التحميل المتكرر
         const activeUser = checkAuth();
         const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
         
         document.getElementById('current-branch-name').innerText = userBranch;
         
         if (activeUser) { 
-            window.onload = loadShortages; 
+            window.onload = () => loadShortages(); 
         }
 
-        async function loadShortages() {
+        async function loadShortages(forceRefresh = false) {
+            const tbody = document.getElementById('shortage-list');
+            
+            // نجلب من السيرفر فقط إذا كان الكاش فارغ أو ضغطنا "تحديث"
+            if (cachedData.length === 0 || forceRefresh) {
+                tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;">⏳ جاري جلب البيانات من السيرفر...</td></tr>';
+                try {
+                    const response = await fetchOrders(); 
+                    cachedData = (response[0]?.data) ? response[0].data : (response.data || response);
+                } catch (e) {
+                    console.error("Fetch Error:", e);
+                    tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ فشل الاتصال بالسيرفر</td></tr>';
+                    return;
+                }
+            }
+            applyFollowUpFilter(); 
+        }
+
+        function applyFollowUpFilter() {
             const tbody = document.getElementById('shortage-list');
             const showCompleted = document.getElementById('show-completed-toggle').checked;
-            const currentSessionBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
             
-            try {
-                const response = await fetchOrders(); 
-                const allItems = (response[0]?.data) ? response[0].data : (response.data || response);
+            const filtered = cachedData.filter(item => {
+                const itemState = String(item.cust_state || "").trim();
+                const itemDecision = String(item.decision || "").trim();
+                const itemBranch = String(item.user || "").trim();
+                const stockQty = parseFloat(item.stq) || 0;
+
+                // 1. شرط الفرع
+                const isMyBranch = (userBranch === "عام" || userBranch === "Admin" || itemBranch === userBranch);
+                if (!isMyBranch) return false;
+
+                // 2. شرط "تحتاج متابعة" (المعلق)
+                const isPending = (itemState === "غير متوفر يحتاج متابعة" && stockQty > 0 && itemDecision !== "متوفر وتم ابلاغ العميل");
                 
-                const shortages = allItems.filter(item => {
-                    const itemState = String(item.cust_state || "").trim();
-                    const itemDecision = String(item.decision || "").trim();
-                    const itemBranch = String(item.user || "").trim();
-                    const stockQuantity = parseFloat(item.stq) || 0;
+                // 3. شرط "المكتمل"
+                const isDone = (itemDecision === "متوفر وتم ابلاغ العميل");
 
-                    // الحالات المطلوبة
-                    const isPendingShortage = (itemState === "غير متوفر يحتاج متابعة" && stockQuantity > 0 && itemDecision !== "متوفر وتم ابلاغ العميل");
-                    const isCompletedShortage = (itemDecision === "متوفر وتم ابلاغ العميل");
+                return showCompleted ? (isPending || isDone) : isPending;
+            });
 
-                    // فلترة الفرع
-                    let isVisibleForBranch = (currentSessionBranch === "عام" || currentSessionBranch === "Admin" || itemBranch === currentSessionBranch);
-
-                    if (!isVisibleForBranch) return false;
-
-                    // المنطق الجديد للفلتر:
-                    if (showCompleted) {
-                        return isPendingShortage || isCompletedShortage;
-                    } else {
-                        return isPendingShortage;
-                    }
-                });
-
-                renderShortages(shortages);
-            } catch (e) {
-                console.error("Error loading shortages:", e);
-                tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ فشل تحميل البيانات</td></tr>';
-            }
+            renderTable(filtered);
         }
 
-        function renderShortages(items) {
+        function renderTable(items) {
             const tbody = document.getElementById('shortage-list');
             
             if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات للعرض</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات تطابق الفلتر حالياً</td></tr>`;
                 return;
             }
 
-            // ترتيب النواقص المعلقة أولاً ثم المكتملة
+            // ترتيب: المعلق بالأعلى، ثم المكتمل بالأسفل
             items.sort((a, b) => {
-                if (a.decision === "متوفر وتم ابلاغ العميل" && b.decision !== "متوفر وتم ابلاغ العميل") return 1;
-                if (a.decision !== "متوفر وتم ابلاغ العميل" && b.decision === "متوفر وتم ابلاغ العميل") return -1;
-                return new Date(b.createdAt) - new Date(a.createdAt);
+                const aDone = a.decision === "متوفر وتم ابلاغ العميل" ? 1 : 0;
+                const bDone = b.decision === "متوفر وتم ابلاغ العميل" ? 1 : 0;
+                return aDone - bDone || new Date(b.createdAt) - new Date(a.createdAt);
             });
 
             tbody.innerHTML = items.map(item => {
                 const isDone = (item.decision === "متوفر وتم ابلاغ العميل");
                 let displayDate = "---";
                 if (item.createdAt) {
-                    const dateObj = new Date(item.createdAt);
-                    displayDate = dateObj.toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric' }) + 
-                                  " " + 
-                                  dateObj.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const d = new Date(item.createdAt);
+                    displayDate = d.toLocaleDateString('ar-EG', {month:'numeric', day:'numeric'}) + " " + 
+                                  d.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
                 }
 
                 return `
@@ -186,17 +171,13 @@
                         <td>${item.cust_name || '---'}</td>
                         <td><code>${item.cust_code || '---'}</code></td>
                         <td>
-                            ${isDone ? 
-                                '<span class="completed-tag"><i class="fas fa-check-circle"></i> مكتمل</span>' : 
-                                '<span class="shortage-tag">قيد المتابعة 🔍</span>'}
+                            ${isDone ? '<span class="completed-tag">تم الإبلاغ ✅</span>' : '<span class="shortage-tag">قيد المتابعة 🔍</span>'}
                         </td>
                         <td>
-                            ${isDone ? 
-                                '<span style="color:#27ae60; font-size:0.8rem;">تم الإبلاغ بنجاح</span>' : 
-                                `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
-                                    <i class="fas fa-check"></i> توفر وتم الإبلاغ
-                                </button>`
-                            }
+                            ${isDone ? '<i class="fas fa-check-double" style="color:var(--success-green)"></i>' : 
+                            `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
+                                <i class="fas fa-check"></i> تم الإبلاغ
+                            </button>`}
                         </td>
                     </tr>
                 `;
@@ -205,11 +186,10 @@
 
         async function markAsAvailable(event, id) {
             const btn = event.target.closest('button');
-            if(!confirm("هل تأكدت من توفر الصنف وإبلاغ العميل فعلياً؟")) return;
+            if(!confirm("هل تم إبلاغ العميل فعلياً بتوفر الصنف؟")) return;
 
             btn.disabled = true;
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             const success = await updateData({
                 id: id,
@@ -220,11 +200,14 @@
             });
 
             if (success) {
-                loadShortages(); 
+                // تحديث الكاش محلياً بدل إعادة التحميل لتسريع الأداء
+                const idx = cachedData.findIndex(x => x.id == id);
+                if(idx !== -1) cachedData[idx].decision = "متوفر وتم ابلاغ العميل";
+                applyFollowUpFilter();
             } else {
-                alert("⚠️ فشل التحديث، حاول مرة أخرى");
+                alert("⚠️ فشل الاتصال، حاول مرة أخرى");
                 btn.disabled = false;
-                btn.innerHTML = originalContent;
+                btn.innerHTML = '<i class="fas fa-check"></i> تم الإبلاغ';
             }
         }
     </script>
