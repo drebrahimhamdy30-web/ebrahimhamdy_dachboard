@@ -89,13 +89,13 @@
                     <thead>
                         <tr>
                             <th style="width: 10%;">التاريخ</th>
-                            <th style="width: 12%;">الفرع</th>
-                            <th style="width: 20%;">الصنف</th>
+                            <th style="width: 12%;">طلب وار من </th>
+                            <th style="width: 22%;">الصنف</th>
                             <th style="width: 10%;">كود الصنف</th>
                             <th style="width: 15%;">العميل</th>
                             <th style="width: 7%;">الكمية</th>
                             <th style="width: 15%;">ملاحظة / رد</th>
-                            <th style="width: 12%;">الحالة</th>
+                            <th style="width: 10%;">الحالة</th>
                             <th style="width: 9%;">إجراء</th>
                         </tr>
                     </thead>
@@ -195,10 +195,8 @@
                         <span class="time-text">${timeStr}</span>
                     </td>
                     <td>
-                        <div class="name-text">${isRequestForMe ? item.user : item.branch}</div>
-                        <span class="badge ${isRequestForMe ? 'inbound' : 'outbound'}">
-                            ${isRequestForMe ? 'طلب وارد من' : 'طلب مرسل إلى'}
-                        </span>
+<div class="name-text" style="font-size: 0.95rem; color: #2980b9;">
+            ${isRequestForMe ? item.user : item.branch}
                     </td>
                     <td class="name-text" style="text-align:right;">${item.item_name || item.item || '-'}</td>
                     <td class="code-text">${item.item_code || '-'}</td>
