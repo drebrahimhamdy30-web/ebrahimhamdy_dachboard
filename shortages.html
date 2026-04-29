@@ -14,14 +14,13 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th { background: #fffaf0; padding: 12px; border-bottom: 2px solid var(--warn-orange); color: #7f8c8d; font-size: 0.85rem; text-align: center; }
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ffeeba; }
-        .completed-tag { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #c3e6cb; }
-        .branch-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-        .btn-update { background: var(--success-green); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; margin: auto; transition: 0.3s; }
+        .completed-tag { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .btn-update { background: var(--success-green); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .date-cell { font-size: 0.8rem; color: #64748b; direction: ltr; }
-        .row-completed { background-color: #f8fafc; opacity: 0.9; }
-        .filter-wrapper { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 8px 15px; border-radius: 25px; border: 1px solid #e2e8f0; cursor: pointer; }
+        .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .filter-wrapper { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 8px 12px; border-radius: 20px; border: 1px solid #e2e8f0; cursor: pointer; font-size: 0.85rem; }
+        .row-completed { background-color: #f0fff4; }
     </style>
 </head>
 <body>
@@ -29,33 +28,40 @@
     <div class="container">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                <h3 style="margin: 0; color: #2c3e50;">
-                    <i class="fas fa-exclamation-triangle" style="color: var(--warn-orange);"></i> 
-                    متابعة نواقص فرع: <span id="current-branch-name" style="color: var(--primary-blue);">...</span>
-                </h3>
-                <div style="display: flex; gap: 15px; align-items: center;">
+                <h3 style="margin: 0; color: #2c3e50;">متابعة النواقص: <span id="current-branch-name" style="color: var(--primary-blue);">...</span></h3>
+                
+                <div class="filter-group">
+                    <!-- Checkbox 1: فلترة الكاش الحالي -->
                     <label class="filter-wrapper">
-                        <input type="checkbox" id="show-completed-toggle" onchange="applyFollowUpFilter()">
-                        <span style="font-size: 0.9rem; font-weight: 500;">عرض العمليات المكتملة</span>
+                        <input type="checkbox" id="show-recent-updates" onchange="applyFilters()">
+                        إظهار آخر التعديلات (الكاش)
                     </label>
+
+                    <!-- Checkbox 2: جلب كل المكتمل من الجدول -->
+                    <label class="filter-wrapper">
+                        <input type="checkbox" id="show-all-completed" onchange="loadShortages(true)">
+                        إظهار كل المكتمل بالجدول
+                    </label>
+
                     <button onclick="loadShortages(true)" class="btn-refresh"><i class="fas fa-sync-alt"></i> تحديث</button>
                 </div>
             </div>
+
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 15%;">تاريخ الطلب</th>
-                            <th style="width: 25%;">الصنف</th>
-                            <th style="width: 10%;">الفرع</th>
-                            <th style="width: 15%;">اسم العميل</th>
-                            <th style="width: 10%;">كود العميل</th>
-                            <th style="width: 12%;">الحالة</th>
-                            <th style="width: 13%;">إجراء</th>
+                            <th>تاريخ الطلب</th>
+                            <th>الصنف</th>
+                            <th>الفرع</th>
+                            <th>العميل</th>
+                            <th>كود العميل</th>
+                            <th>الحالة</th>
+                            <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="shortage-list">
-                        <tr><td colspan="7" style="padding:40px; color:#94a3b8;">جاري فحص النواقص...</td></tr>
+                        <tr><td colspan="7" style="padding:40px;">جاري التحميل...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -66,45 +72,51 @@
     <script src="nav.js"></script>
     <script>
         let cachedData = []; 
-        const activeUser = checkAuth();
-        const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
+        const userBranch = (localStorage.getItem('userBranch') || "عام").trim();
         document.getElementById('current-branch-name').innerText = userBranch;
         
-        if (activeUser) { window.onload = () => loadShortages(); }
+        window.onload = () => loadShortages();
 
         async function loadShortages(forceRefresh = false) {
             const tbody = document.getElementById('shortage-list');
+            const showAllCompleted = document.getElementById('show-all-completed').checked;
+
             if (cachedData.length === 0 || forceRefresh) {
-                tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;">⏳ جاري التحميل...</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;">⏳ جاري جلب البيانات...</td></tr>';
                 try {
+                    // هنا نرسل طلب للسيرفر، وإذا كان الـ Checkbox الثاني مفعل، السيرفر سيعيد كل شيء
                     const response = await fetchOrders(); 
                     cachedData = (response[0]?.data) ? response[0].data : (response.data || response);
                 } catch (e) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ خطأ في السيرفر</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="color:red;">❌ فشل الاتصال</td></tr>';
                     return;
                 }
             }
-            applyFollowUpFilter(); 
+            applyFilters(); 
         }
 
-        function applyFollowUpFilter() {
-            const tbody = document.getElementById('shortage-list');
-            const showCompleted = document.getElementById('show-completed-toggle').checked;
-            
+        function applyFilters() {
+            const showRecent = document.getElementById('show-recent-updates').checked;
+            const showAllCompleted = document.getElementById('show-all-completed').checked;
+
             const filtered = cachedData.filter(item => {
-                const itemState = String(item.cust_state || "").trim();
                 const itemDecision = String(item.decision || "").trim();
                 const itemBranch = String(item.user || "").trim();
                 const stockQty = parseFloat(item.stq) || 0;
 
-                const isMyBranch = (userBranch === "عام" || userBranch === "Admin" || itemBranch === userBranch);
-                if (!isMyBranch) return false;
+                // فلترة الفرع
+                if (userBranch !== "عام" && userBranch !== "Admin" && itemBranch !== userBranch) return false;
 
-                // تم تعديل الشرط هنا ليكون أكثر مرونة لضمان ظهور البيانات
-                const isPending = (itemState === "غير متوفر يحتاج متابعة" && itemDecision !== "متوفر وتم ابلاغ العميل");
                 const isDone = (itemDecision === "متوفر وتم ابلاغ العميل");
+                // النواقص النشطة هي التي رصيدها > 0 ولم تنتهِ بعد
+                const isPending = (!isDone && stockQty > 0);
 
-                return showCompleted ? (isPending || isDone) : isPending;
+                // المنطق:
+                // إذا طلبنا "كل المكتمل" أو "آخر التعديلات" نظهر المنتهي
+                if (showAllCompleted || showRecent) {
+                    return isPending || isDone;
+                }
+                return isPending;
             });
 
             renderTable(filtered);
@@ -113,26 +125,25 @@
         function renderTable(items) {
             const tbody = document.getElementById('shortage-list');
             if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات مطابقة حالياً</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px;">لا توجد بيانات للعرض حالياً</td></tr>`;
                 return;
             }
 
+            // ترتيب: غير المكتمل أولاً
             items.sort((a, b) => (a.decision === "متوفر وتم ابلاغ العميل" ? 1 : -1));
 
             tbody.innerHTML = items.map(item => {
                 const isDone = (item.decision === "متوفر وتم ابلاغ العميل");
-                let displayDate = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "---";
-
                 return `
                     <tr class="${isDone ? 'row-completed' : ''}">
-                        <td class="date-cell">${displayDate}</td>
-                        <td style="text-align:right;"><b>${item.item_name || item.item || '---'}</b></td>
-                        <td><span class="branch-tag">${item.user || item.branch}</span></td>
+                        <td>${item.createdAt ? new Date(item.createdAt).toLocaleDateString('ar-EG') : '---'}</td>
+                        <td style="text-align:right;"><b>${item.item_name || item.item}</b></td>
+                        <td><span class="branch-tag">${item.user}</span></td>
                         <td>${item.cust_name || '---'}</td>
-                        <td><code>${item.cust_code || '---'}</code></td>
+                        <td>${item.cust_code || '---'}</td>
                         <td>${isDone ? '<span class="completed-tag">مكتمل ✅</span>' : '<span class="shortage-tag">متابعة 🔍</span>'}</td>
                         <td>
-                            ${isDone ? '<i class="fas fa-check-double" style="color:green"></i>' : 
+                            ${isDone ? '<span style="color:green">تم الإبلاغ</span>' : 
                             `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">تم الإبلاغ</button>`}
                         </td>
                     </tr>`;
@@ -151,9 +162,10 @@
                 updatedAt: new Date().toISOString()
             });
             if (success) {
+                // تحديث الحالة في الكاش فوراً
                 const idx = cachedData.findIndex(x => x.id == id);
                 if(idx !== -1) cachedData[idx].decision = "متوفر وتم ابلاغ العميل";
-                applyFollowUpFilter();
+                applyFilters();
             } else {
                 alert("فشل التحديث");
                 btn.disabled = false;
