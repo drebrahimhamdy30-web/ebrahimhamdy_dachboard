@@ -194,8 +194,11 @@
                         <span class="time-text">${timeStr}</span>
                     </td>
                     <td>
-<div class="name-text" style="font-size: 0.95rem; color: #2980b9;">
-            ${isRequestForMe ? item.user : item.branch}
+                        <div class="name-text">${isRequestForMe ? item.user : item.branch}</div>
+                        <!-- أبقيت الـ Badge كما في كودك الأصلي لضمان عدم حدوث أخطاء -->
+                        <span class="badge ${isRequestForMe ? 'inbound' : 'outbound'}">
+                            ${isRequestForMe ? 'وارد' : 'صادر'}
+                        </span>
                     </td>
                     <td class="name-text" style="text-align:right;">${item.item_name || item.item || '-'}</td>
                     <td class="code-text">${item.item_code || '-'}</td>
