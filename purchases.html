@@ -184,38 +184,45 @@
             }).join('');
         }
 
-        async function saveRow(id, btn) {
-            const currentStatus = document.getElementById(`stat-${id}`).value;
-            const currentCompany = document.getElementById(`comp-${id}`).value;
-            
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+async function saveRow(id, btn) {
+    const currentStatus = document.getElementById(`stat-${id}`).value;
+    const currentCompany = document.getElementById(`comp-${id}`).value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-            const success = await updateData({ 
-                id: id, 
-                status: currentStatus, // المفتاح الذي ينتظره n8n
-                company: currentCompany, 
-                type: "شراء", 
-                action: "update_status" 
-            });
+    const success = await updateData({ 
+        id: id, 
+        status: currentStatus, 
+        company: currentCompany, 
+        type: "شراء", 
+        action: "update_status" 
+    });
 
-            if (success) {
-                btn.style.background = "#2ecc71";
-                btn.innerHTML = '<i class="fas fa-check"></i>';
-                setTimeout(() => {
-                    btn.style.background = "#28a745";
-                    btn.innerHTML = '<i class="fas fa-save"></i>';
-                    btn.disabled = false;
-                    // تحديث البيانات محلياً لمنع التضارب عند الفلترة
-                    const item = rawData.find(x => x.id == id);
-                    if(item) { item.status = currentStatus; item.company = currentCompany; }
-                }, 1000);
-            } else {
-                alert("⚠️ فشل في الحفظ");
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-save"></i>';
-            }
+    if (success) {
+        // 1. تغيير شكل الزر ليعطي مؤشر نجاح
+        btn.style.background = "#2ecc71";
+        btn.innerHTML = '<i class="fas fa-check"></i> تم';
+
+        // 2. تحديث البيانات في المصفوفة (rawData) عشان لما يفلتر يقرأ الحالة الجديدة
+        const item = rawData.find(x => x.id == id);
+        if(item) { 
+            item.status = currentStatus; 
+            item.company = currentCompany; 
         }
+
+        // 3. (الجزء الأهم) الانتظار ثانية ثم إعادة تطبيق الفلتر
+        // هذا السطر هو المسؤول عن "إخفاء" الصنف إذا لم يعد مطابقاً للفلتر الحالي
+        setTimeout(() => {
+            applyFilter(); 
+        }, 1000);
+
+    } else {
+        alert("⚠️ فشل في الحفظ");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i>';
+    }
+}
     </script>
 </body>
 </html>
