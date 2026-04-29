@@ -17,6 +17,7 @@
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
         
         .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ffeeba; }
+        .completed-tag { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #c3e6cb; }
         .branch-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
 
         .btn-update { 
@@ -36,8 +37,25 @@
         .btn-update:hover { background: #219150; transform: scale(1.02); }
         .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
         
-        /* تنسيق خاص لخانة التاريخ */
         .date-cell { font-size: 0.8rem; color: #64748b; direction: ltr; }
+
+        /* تنسيق الـ Checkbox الجديد */
+        .show-completed-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .show-completed-container input { cursor: pointer; width: 16px; height: 16px; }
+        
+        /* تظليل الصفوف المكتملة */
+        .row-completed { background-color: #fcfdfd; opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -45,14 +63,22 @@
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
                 <h3 style="margin: 0; color: #2c3e50;">
                     <i class="fas fa-exclamation-triangle" style="color: var(--warn-orange);"></i> 
                     متابعة نواقص فرع: <span id="current-branch-name" style="color: var(--primary-blue);">...</span>
                 </h3>
-                <button onclick="loadShortages()" class="btn-refresh">
-                    <i class="fas fa-sync-alt"></i> تحديث القائمة
-                </button>
+                
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <label class="show-completed-container">
+                        <input type="checkbox" id="show-completed-toggle" onchange="loadShortages()">
+                        عرض العمليات المكتملة
+                    </label>
+
+                    <button onclick="loadShortages()" class="btn-refresh">
+                        <i class="fas fa-sync-alt"></i> تحديث القائمة
+                    </button>
+                </div>
             </div>
 
             <div style="overflow-x: auto;">
@@ -90,6 +116,7 @@
 
         async function loadShortages() {
             const tbody = document.getElementById('shortage-list');
+            const showCompleted = document.getElementById('show-completed-toggle').checked;
             const currentSessionBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
             
             try {
@@ -98,20 +125,25 @@
                 
                 const shortages = allItems.filter(item => {
                     const itemState = String(item.cust_state || "").trim();
+                    const itemDecision = String(item.decision || "").trim();
                     const itemBranch = String(item.user || "").trim();
                     const stockQuantity = parseFloat(item.stq) || 0;
 
-                    const needsFollowUp = itemState === "غير متوفر يحتاج متابعة";
-                    const isNowAvailable = stockQuantity > 0;
+                    // الحالات المطلوبة
+                    const isPendingShortage = (itemState === "غير متوفر يحتاج متابعة" && stockQuantity > 0 && itemDecision !== "متوفر وتم ابلاغ العميل");
+                    const isCompletedShortage = (itemDecision === "متوفر وتم ابلاغ العميل");
 
-                    let isVisibleForBranch = false;
-                    if (currentSessionBranch === "عام" || currentSessionBranch === "Admin") {
-                        isVisibleForBranch = true;
+                    // فلترة الفرع
+                    let isVisibleForBranch = (currentSessionBranch === "عام" || currentSessionBranch === "Admin" || itemBranch === currentSessionBranch);
+
+                    if (!isVisibleForBranch) return false;
+
+                    // المنطق الجديد للفلتر:
+                    if (showCompleted) {
+                        return isPendingShortage || isCompletedShortage;
                     } else {
-                        isVisibleForBranch = (itemBranch === currentSessionBranch);
+                        return isPendingShortage;
                     }
-
-                    return needsFollowUp && isNowAvailable && isVisibleForBranch;
                 });
 
                 renderShortages(shortages);
@@ -125,18 +157,19 @@
             const tbody = document.getElementById('shortage-list');
             
             if (items.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" style="padding:50px; color:#64748b;">
-                            <i class="fas fa-check-double" style="font-size: 2rem; color: var(--success-green); display: block; margin-bottom: 10px;"></i>
-                            لا توجد نواقص معلقة حالياً لـ (${userBranch})
-                        </td>
-                    </tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات للعرض</td></tr>`;
                 return;
             }
 
+            // ترتيب النواقص المعلقة أولاً ثم المكتملة
+            items.sort((a, b) => {
+                if (a.decision === "متوفر وتم ابلاغ العميل" && b.decision !== "متوفر وتم ابلاغ العميل") return 1;
+                if (a.decision !== "متوفر وتم ابلاغ العميل" && b.decision === "متوفر وتم ابلاغ العميل") return -1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
             tbody.innerHTML = items.map(item => {
-                // تنسيق التاريخ من حقل createdAt
+                const isDone = (item.decision === "متوفر وتم ابلاغ العميل");
                 let displayDate = "---";
                 if (item.createdAt) {
                     const dateObj = new Date(item.createdAt);
@@ -146,17 +179,24 @@
                 }
 
                 return `
-                    <tr>
+                    <tr class="${isDone ? 'row-completed' : ''}">
                         <td class="date-cell">${displayDate}</td>
                         <td style="text-align:right;"><b>${item.item_name || item.item || '---'}</b></td>
                         <td><span class="branch-tag">${item.user}</span></td>
                         <td>${item.cust_name || '---'}</td>
                         <td><code>${item.cust_code || '---'}</code></td>
-                        <td><span class="shortage-tag">قيد المتابعة 🔍</span></td>
                         <td>
-                            <button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
-                                <i class="fas fa-check"></i> توفر وتم الإبلاغ
-                            </button>
+                            ${isDone ? 
+                                '<span class="completed-tag"><i class="fas fa-check-circle"></i> مكتمل</span>' : 
+                                '<span class="shortage-tag">قيد المتابعة 🔍</span>'}
+                        </td>
+                        <td>
+                            ${isDone ? 
+                                '<span style="color:#27ae60; font-size:0.8rem;">تم الإبلاغ بنجاح</span>' : 
+                                `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
+                                    <i class="fas fa-check"></i> توفر وتم الإبلاغ
+                                </button>`
+                            }
                         </td>
                     </tr>
                 `;
@@ -169,7 +209,7 @@
 
             btn.disabled = true;
             const originalContent = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
 
             const success = await updateData({
                 id: id,
