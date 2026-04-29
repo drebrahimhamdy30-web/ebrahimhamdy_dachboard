@@ -11,36 +11,21 @@
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; }
         .container { padding: 20px; max-width: 1300px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th { background: #fffaf0; padding: 12px; border-bottom: 2px solid var(--warn-orange); color: #7f8c8d; font-size: 0.85rem; text-align: center; }
         td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        
         .shortage-tag { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #ffeeba; }
         .completed-tag { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid #c3e6cb; }
         .branch-tag { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-
-        .btn-update { 
-            background: var(--success-green); color: white; border: none; padding: 8px 15px; border-radius: 6px; 
-            cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; margin: auto; transition: 0.3s;
-        }
-        .btn-update:hover { background: #219150; transform: scale(1.02); }
+        .btn-update { background: var(--success-green); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; margin: auto; transition: 0.3s; }
         .btn-refresh { background: var(--primary-blue); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        
         .date-cell { font-size: 0.8rem; color: #64748b; direction: ltr; }
-        .row-completed { background-color: #f8fafc; opacity: 0.8; }
-
-        /* تنسيق مفتاح الفلتر */
-        .filter-wrapper {
-            display: flex; align-items: center; gap: 10px; background: #f8fafc; 
-            padding: 8px 15px; border-radius: 25px; border: 1px solid #e2e8f0; cursor: pointer;
-        }
-        .filter-wrapper input { width: 18px; height: 18px; cursor: pointer; }
+        .row-completed { background-color: #f8fafc; opacity: 0.9; }
+        .filter-wrapper { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 8px 15px; border-radius: 25px; border: 1px solid #e2e8f0; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="nav-bar"></div>
-
     <div class="container">
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
@@ -48,19 +33,14 @@
                     <i class="fas fa-exclamation-triangle" style="color: var(--warn-orange);"></i> 
                     متابعة نواقص فرع: <span id="current-branch-name" style="color: var(--primary-blue);">...</span>
                 </h3>
-                
                 <div style="display: flex; gap: 15px; align-items: center;">
                     <label class="filter-wrapper">
                         <input type="checkbox" id="show-completed-toggle" onchange="applyFollowUpFilter()">
                         <span style="font-size: 0.9rem; font-weight: 500;">عرض العمليات المكتملة</span>
                     </label>
-
-                    <button onclick="loadShortages(true)" class="btn-refresh">
-                        <i class="fas fa-sync-alt"></i> تحديث البيانات
-                    </button>
+                    <button onclick="loadShortages(true)" class="btn-refresh"><i class="fas fa-sync-alt"></i> تحديث</button>
                 </div>
             </div>
-
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -85,28 +65,22 @@
     <script src="api.js"></script>
     <script src="nav.js"></script>
     <script>
-        let cachedData = []; // لتخزين البيانات ومنع التحميل المتكرر
+        let cachedData = []; 
         const activeUser = checkAuth();
         const userBranch = (localStorage.getItem('userBranch') || localStorage.getItem('activeUser') || "عام").trim();
-        
         document.getElementById('current-branch-name').innerText = userBranch;
         
-        if (activeUser) { 
-            window.onload = () => loadShortages(); 
-        }
+        if (activeUser) { window.onload = () => loadShortages(); }
 
         async function loadShortages(forceRefresh = false) {
             const tbody = document.getElementById('shortage-list');
-            
-            // نجلب من السيرفر فقط إذا كان الكاش فارغ أو ضغطنا "تحديث"
             if (cachedData.length === 0 || forceRefresh) {
-                tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;">⏳ جاري جلب البيانات من السيرفر...</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="padding:40px;">⏳ جاري التحميل...</td></tr>';
                 try {
                     const response = await fetchOrders(); 
                     cachedData = (response[0]?.data) ? response[0].data : (response.data || response);
                 } catch (e) {
-                    console.error("Fetch Error:", e);
-                    tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ فشل الاتصال بالسيرفر</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="color:red; padding:20px;">❌ خطأ في السيرفر</td></tr>';
                     return;
                 }
             }
@@ -123,14 +97,11 @@
                 const itemBranch = String(item.user || "").trim();
                 const stockQty = parseFloat(item.stq) || 0;
 
-                // 1. شرط الفرع
                 const isMyBranch = (userBranch === "عام" || userBranch === "Admin" || itemBranch === userBranch);
                 if (!isMyBranch) return false;
 
-                // 2. شرط "تحتاج متابعة" (المعلق)
-                const isPending = (itemState === "غير متوفر يحتاج متابعة" && stockQty > 0 && itemDecision !== "متوفر وتم ابلاغ العميل");
-                
-                // 3. شرط "المكتمل"
+                // تم تعديل الشرط هنا ليكون أكثر مرونة لضمان ظهور البيانات
+                const isPending = (itemState === "غير متوفر يحتاج متابعة" && itemDecision !== "متوفر وتم ابلاغ العميل");
                 const isDone = (itemDecision === "متوفر وتم ابلاغ العميل");
 
                 return showCompleted ? (isPending || isDone) : isPending;
@@ -141,56 +112,37 @@
 
         function renderTable(items) {
             const tbody = document.getElementById('shortage-list');
-            
             if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات تطابق الفلتر حالياً</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="padding:50px; color:#64748b;">لا توجد بيانات مطابقة حالياً</td></tr>`;
                 return;
             }
 
-            // ترتيب: المعلق بالأعلى، ثم المكتمل بالأسفل
-            items.sort((a, b) => {
-                const aDone = a.decision === "متوفر وتم ابلاغ العميل" ? 1 : 0;
-                const bDone = b.decision === "متوفر وتم ابلاغ العميل" ? 1 : 0;
-                return aDone - bDone || new Date(b.createdAt) - new Date(a.createdAt);
-            });
+            items.sort((a, b) => (a.decision === "متوفر وتم ابلاغ العميل" ? 1 : -1));
 
             tbody.innerHTML = items.map(item => {
                 const isDone = (item.decision === "متوفر وتم ابلاغ العميل");
-                let displayDate = "---";
-                if (item.createdAt) {
-                    const d = new Date(item.createdAt);
-                    displayDate = d.toLocaleDateString('ar-EG', {month:'numeric', day:'numeric'}) + " " + 
-                                  d.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
-                }
+                let displayDate = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : "---";
 
                 return `
                     <tr class="${isDone ? 'row-completed' : ''}">
                         <td class="date-cell">${displayDate}</td>
                         <td style="text-align:right;"><b>${item.item_name || item.item || '---'}</b></td>
-                        <td><span class="branch-tag">${item.user}</span></td>
+                        <td><span class="branch-tag">${item.user || item.branch}</span></td>
                         <td>${item.cust_name || '---'}</td>
                         <td><code>${item.cust_code || '---'}</code></td>
+                        <td>${isDone ? '<span class="completed-tag">مكتمل ✅</span>' : '<span class="shortage-tag">متابعة 🔍</span>'}</td>
                         <td>
-                            ${isDone ? '<span class="completed-tag">تم الإبلاغ ✅</span>' : '<span class="shortage-tag">قيد المتابعة 🔍</span>'}
+                            ${isDone ? '<i class="fas fa-check-double" style="color:green"></i>' : 
+                            `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">تم الإبلاغ</button>`}
                         </td>
-                        <td>
-                            ${isDone ? '<i class="fas fa-check-double" style="color:var(--success-green)"></i>' : 
-                            `<button onclick="markAsAvailable(event, '${item.id}')" class="btn-update">
-                                <i class="fas fa-check"></i> تم الإبلاغ
-                            </button>`}
-                        </td>
-                    </tr>
-                `;
+                    </tr>`;
             }).join('');
         }
 
         async function markAsAvailable(event, id) {
             const btn = event.target.closest('button');
-            if(!confirm("هل تم إبلاغ العميل فعلياً بتوفر الصنف؟")) return;
-
+            if(!confirm("تأكيد إبلاغ العميل؟")) return;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
             const success = await updateData({
                 id: id,
                 type: "cs_action",
@@ -198,16 +150,13 @@
                 done: "تم",
                 updatedAt: new Date().toISOString()
             });
-
             if (success) {
-                // تحديث الكاش محلياً بدل إعادة التحميل لتسريع الأداء
                 const idx = cachedData.findIndex(x => x.id == id);
                 if(idx !== -1) cachedData[idx].decision = "متوفر وتم ابلاغ العميل";
                 applyFollowUpFilter();
             } else {
-                alert("⚠️ فشل الاتصال، حاول مرة أخرى");
+                alert("فشل التحديث");
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> تم الإبلاغ';
             }
         }
     </script>
