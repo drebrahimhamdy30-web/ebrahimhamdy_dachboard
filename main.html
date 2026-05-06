@@ -210,7 +210,9 @@
             <label id="branch-label">توجيه إلى فرع</label>
             <div class="field-icon-wrap">
               <i class="fas fa-store field-icon"></i>
+
               <select id="branch" class="form-select">
+                <option value="" disabled selected>اختر الفرع...</option>
                 <option value="المعمورة">المعمورة</option>
                 <option value="سان ستيفانو">سان ستيفانو</option>
                 <option value="سيدى بشر">سيدى بشر</option>
@@ -482,67 +484,74 @@
       document.getElementById('dept-div').style.display   = (type === 'قسم') ? '' : 'none';
       document.getElementById('person-div').style.display = (type === 'فرد') ? '' : 'none';
     }
+function handleTypeInit() {
+  document.getElementById('section-original').classList.remove('visible');
+  document.getElementById('section-contract').classList.remove('visible');
+  document.getElementById('section-missing').classList.remove('visible');
+  document.getElementById('block-alert').classList.remove('show');
 
-    function handleTypeInit() {
-      document.getElementById('section-original').classList.remove('visible');
-      document.getElementById('section-contract').classList.remove('visible');
-      document.getElementById('section-missing').classList.remove('visible');
-      document.getElementById('block-alert').classList.remove('show');
+  // إعادة إظهار كل الفروع
+  Array.from(document.getElementById('branch').options).forEach(opt => {
+    opt.hidden = false;
+  });
+  document.getElementById('branch').value = '';
 
-      if (currentType === 'تعاقد') {
-        document.getElementById('section-contract').classList.add('visible');
-        return;
-      }
-      if (currentType === 'عدم_وصول') {
-        document.getElementById('section-missing').classList.add('visible');
-        return;
-      }
+  if (currentType === 'تعاقد') {
+    document.getElementById('section-contract').classList.add('visible');
+    return;
+  }
+  if (currentType === 'عدم_وصول') {
+    document.getElementById('section-missing').classList.add('visible');
+    return;
+  }
 
-      document.getElementById('section-original').classList.add('visible');
+  document.getElementById('section-original').classList.add('visible');
 
-      const branchEl     = document.getElementById('branch');
-      const branchDiv    = document.getElementById('branch-div');
-      const branchLabel  = document.getElementById('branch-label');
-      const itemSection  = document.getElementById('item-section');
-      const itemNameDiv  = document.getElementById('item-name-div');
-      const extraSection = document.getElementById('extra-section');
-      const noteSection  = document.getElementById('note-section');
-      const orderTypeDiv = document.getElementById('order-type-div');
+  const branchEl     = document.getElementById('branch');
+  const branchDiv    = document.getElementById('branch-div');
+  const branchLabel  = document.getElementById('branch-label');
+  const itemSection  = document.getElementById('item-section');
+  const itemNameDiv  = document.getElementById('item-name-div');
+  const extraSection = document.getElementById('extra-section');
+  const noteSection  = document.getElementById('note-section');
+  const orderTypeDiv = document.getElementById('order-type-div');
 
-      [itemSection, extraSection, itemNameDiv, branchDiv].forEach(el => {
-        el.classList.remove('form-section');
-        el.style.display = '';
-      });
-      noteSection.classList.remove('visible');
-      branchEl.disabled = false;
-      branchLabel.textContent = "توجيه إلى فرع";
+  [itemSection, extraSection, itemNameDiv, branchDiv].forEach(el => {
+    el.classList.remove('form-section');
+    el.style.display = '';
+  });
+  noteSection.classList.remove('visible');
+  branchEl.disabled = false;
+  branchLabel.textContent = "توجيه إلى فرع";
 
-      // إخفاء نوع الطلب وإعادة تعيينه
-      orderTypeDiv.style.display = 'none';
-      document.querySelectorAll('.order-type-radio').forEach(r => r.checked = false);
-      document.getElementById('order-type-wrap').classList.remove('order-type-error');
+  orderTypeDiv.style.display = 'none';
+  document.querySelectorAll('.order-type-radio').forEach(r => r.checked = false);
+  document.getElementById('order-type-wrap').classList.remove('order-type-error');
 
-      if (currentType === "شراء") {
-        branchEl.value    = userBranch;
-        branchEl.disabled = true;
-        branchLabel.textContent   = "فرع الطلب (ثابت)";
-        orderTypeDiv.style.display = ''; // ←── إظهار نوع الطلب
-      } else if (currentType === "جرد") {
-        itemNameDiv.style.display  = 'none';
-        extraSection.style.display = 'none';
-      } else if (currentType === "إشعار") {
-        itemSection.style.display  = 'none';
-        extraSection.style.display = 'none';
-        branchLabel.textContent = "إرسال إلى فرع";
-        noteSection.classList.add('visible');
-        document.getElementById('note-target-type').value   = '';
-        document.getElementById('dept-div').style.display   = 'none';
-        document.getElementById('person-div').style.display = 'none';
-      } else if (currentType === "تحويل") {
-        branchLabel.textContent = "طلب تحويل من فرع";
-      }
-    }
-
+  if (currentType === "شراء") {
+    branchEl.value         = userBranch;
+    branchEl.disabled      = true;
+    branchLabel.textContent = "فرع الطلب (ثابت)";
+    orderTypeDiv.style.display = '';
+  } else if (currentType === "جرد") {
+    itemNameDiv.style.display  = 'none';
+    extraSection.style.display = 'none';
+  } else if (currentType === "إشعار") {
+    itemSection.style.display  = 'none';
+    extraSection.style.display = 'none';
+    branchLabel.textContent = "إرسال إلى فرع";
+    noteSection.classList.add('visible');
+    document.getElementById('note-target-type').value   = '';
+    document.getElementById('dept-div').style.display   = 'none';
+    document.getElementById('person-div').style.display = 'none';
+  } else if (currentType === "تحويل") {
+    branchLabel.textContent = "طلب تحويل من فرع";
+    branchEl.value = '';
+    Array.from(branchEl.options).forEach(opt => {
+      opt.hidden = (opt.value === userBranch);
+    });
+  }
+}
     function getOrderType() {
       const selected = document.querySelector('.order-type-radio:checked');
       return selected ? selected.value : '';
@@ -563,7 +572,11 @@
       } else {
         if (!itemCode && !itemName) { alert("برجاء إدخال كود أو اسم الصنف"); return; }
       }
-
+     // validation فرع التحويل 
+if (currentType === "تحويل" && !document.getElementById('branch').value) {
+  alert("برجاء اختيار فرع التحويل");
+  return;
+}
       // validation نوع الطلب
       let orderType = '';
       if (currentType === "شراء") {
