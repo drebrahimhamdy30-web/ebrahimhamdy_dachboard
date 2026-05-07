@@ -22,6 +22,16 @@
         <label class="check-label" style="border-right:2px solid var(--border);padding-right:14px;margin-right:6px;">
           <input type="checkbox" id="hideDone" checked onchange="applyFilter()"> قيد الانتظار فقط
         </label>
+        <span class="filter-label">موجه إلى:</span>
+        <select id="assignedFilter" class="form-select" style="width:auto;" onchange="applyFilter()">
+          <option value="all">الكل</option>
+          <option value="مبيعات">مبيعات</option>
+          <option value="مشتريات">مشتريات</option>
+          <option value="حسابات">حسابات</option>
+          <option value="مدخل بيانات">مدخل بيانات</option>
+          <option value="ادارة الفرع">ادارة الفرع</option>
+          <option value="فرد">فرد</option>
+        </select>
       </div>
 
       <div id="notif-container">
@@ -33,18 +43,17 @@
   <script src="api.js"></script>
   <script src="nav.js"></script>
   <script>
-// بعد ✅
-let activeUser = null;
-let userBranch = '';
-let allItems = [];
+    let activeUser = null;
+    let userBranch = '';
+    let allItems   = [];
 
-checkAuth().then(user => {
-  activeUser = user;
-  if (user) {
-    userBranch = (localStorage.getItem('userBranch') || '').trim();
-    window.onload = loadNotifications;
-  }
-});
+    checkAuth().then(user => {
+      activeUser = user;
+      if (user) {
+        userBranch = (localStorage.getItem('userBranch') || '').trim();
+        window.onload = loadNotifications;
+      }
+    });
 
     async function loadNotifications() {
       const container = document.getElementById('notif-container');
@@ -59,17 +68,31 @@ checkAuth().then(user => {
     }
 
     function applyFilter() {
-      const container = document.getElementById('notif-container');
-      const current = String(userBranch).trim();
+      const current     = String(userBranch).trim();
+      const assignedVal = document.getElementById('assignedFilter').value;
+
       const filtered = allItems.filter(item => {
-        const isDone = (item.done === "تم" || item.done === true || item.done === "true");
+        const isDone       = (item.done === "تم" || item.done === true || item.done === "true");
         if (document.getElementById('hideDone').checked && isDone) return false;
-        const isSent = (String(item.branch).trim() === current);
-        const isReceived = (String(item.target_branch).trim() === current);
-        const showSent = document.getElementById('showSent').checked;
+
+        const isSent       = (String(item.branch).trim()        === current);
+        const isReceived   = (String(item.target_branch).trim() === current);
+        const showSent     = document.getElementById('showSent').checked;
         const showReceived = document.getElementById('showReceived').checked;
-        return (showSent && isSent) || (showReceived && isReceived);
+        const dirMatch     = (showSent && isSent) || (showReceived && isReceived);
+        if (!dirMatch) return false;
+
+        if (assignedVal !== 'all') {
+          if (assignedVal === 'فرد') {
+            if (String(item.target_type || '').trim() !== 'فرد') return false;
+          } else {
+            if (String(item.assigned_to || '').trim() !== assignedVal) return false;
+          }
+        }
+
+        return true;
       });
+
       renderNotifications(filtered);
     }
 
@@ -82,8 +105,11 @@ checkAuth().then(user => {
       container.innerHTML = '';
       items.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
       items.forEach(item => {
-        const isDone = (item.done === "تم" || item.done === true || item.done === "true");
-        const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('ar-EG', {hour:'2-digit', minute:'2-digit', day:'numeric', month:'numeric'}) : '؟';
+        const isDone  = (item.done === "تم" || item.done === true || item.done === "true");
+        const dateStr = item.createdAt
+          ? new Date(item.createdAt).toLocaleString('ar-EG', {hour:'2-digit', minute:'2-digit', day:'numeric', month:'numeric'})
+          : '؟';
+
         const div = document.createElement('div');
         div.className = `notif-card ${isDone ? 'done' : ''}`;
         div.innerHTML = `
@@ -92,10 +118,15 @@ checkAuth().then(user => {
             <span style="color:var(--text-muted);font-size:0.72rem;white-space:nowrap;margin-right:10px;">${dateStr}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div style="font-size:0.82rem;display:flex;align-items:center;gap:6px;">
+            <div style="font-size:0.82rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span class="branch-tag">${item.branch}</span>
               <i class="fas fa-arrow-left" style="color:var(--text-muted);font-size:0.75rem;"></i>
               <span class="branch-tag">${item.target_branch}</span>
+              ${(item.assigned_to && item.assigned_to !== 'null')
+                ? `<span style="font-size:0.78rem;color:var(--accent-dark);font-weight:700;background:#e0f2fe;padding:3px 8px;border-radius:20px;">
+                     ${item.target_type === 'قسم' ? '🏢' : '👤'} ${item.assigned_to}
+                   </span>`
+                : ''}
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;">
               <input type="text" id="comm-${item.id}"
@@ -112,17 +143,26 @@ checkAuth().then(user => {
     }
 
     async function handleDone(event, id) {
-      const btn = event.target;
+      const btn     = event.target;
       const comment = document.getElementById(`comm-${id}`).value;
-      const orig = btn.textContent;
-      btn.disabled = true;
+      const orig    = btn.textContent;
+      btn.disabled  = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-      const success = await updateData({ id, type: "إشعار", action: "update_status", comment, done: "تم", updatedAt: new Date().toISOString() });
+
+      const success = await updateData({
+        id,
+        type:      "إشعار",
+        action:    "update_status",
+        comment,
+        done:      "تم",
+        updatedAt: new Date().toISOString()
+      });
+
       if (success) {
         loadNotifications();
       } else {
         alert("⚠️ فشل في تحديث الحالة");
-        btn.disabled = false;
+        btn.disabled  = false;
         btn.textContent = orig;
       }
     }
