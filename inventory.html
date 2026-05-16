@@ -198,6 +198,7 @@
       tbody.innerHTML = `<tr class="loading-row"><td colspan="${cols.length + 2}">⏳ جاري جلب البيانات...</td></tr>`;
 
       try {
+        const items = await fetchInventory();
 rawData = items.filter(item => {
   const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
   const branchMatch = (item.branch || '') === userBranch;
