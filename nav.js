@@ -30,6 +30,9 @@ function injectNavbar() {
         <a href="offers.html" class="${currentPage === 'offers.html' ? 'active' : ''}">
   <i class="fas fa-tags"></i> عروض
 </a>
+<a href="sales_contracts.html" class="${currentPage === 'sales_contracts.html' ? 'active' : ''}">
+  <i class="fas fa-file-invoice"></i> فواتيرالتعاقد
+</a>
         <span id="notif-badge" style="
           display:none;
           position:absolute;
@@ -50,7 +53,7 @@ function injectNavbar() {
         إشعارات
       </a>
       <a href="contracts.html" class="${currentPage === 'contracts.html' ? 'active' : ''}">
-        <i class="fas fa-file-contract"></i> تعاقدات
+        <i class="fas fa-file-contract"></i> لنا فواتير تعاقد لدى العملاء
       </a>
       <a href="missing_items.html" class="${currentPage === 'missing_items.html' ? 'active' : ''}">
         <i class="fas fa-truck"></i> لم يصل
