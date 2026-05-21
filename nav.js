@@ -60,7 +60,7 @@ function injectNavbar() {
     <i class="fas fa-truck"></i> لم يصل
   </a>
   <a href="inventory_min.html" class="${currentPage === 'inventory_min.html' ? 'active' : ''}">
-    <i class="fas fa-boxes"></i> حدود المخزون
+    <i class="fas fa-boxes"></i> الحد الادنى للمخزون
   </a>
 </nav>
 <div class="user-info">
