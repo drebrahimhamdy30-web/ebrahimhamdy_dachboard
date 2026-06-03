@@ -75,14 +75,16 @@
         </div>
       </div>
 
-      <!-- سطر ٢ -->
-      <div class="tabs-machines-row">
-        <div class="tabs-bar">
-          <button class="tab-btn active" onclick="switchTab('pending', this)">⏳ لم يُرحَّل</button>
-          <button class="tab-btn" onclick="switchTab('posted', this)">✅ مرحَّل</button>
-          <button class="tab-btn" onclick="switchTab('all', this)">📋 الكل</button>
-          <button class="tab-btn" style="border-color:#f59e0b;color:#b45309;" onclick="switchTab('extra', this)">⚠️ زيادات</button>
-        </div>
+      <!-- سطر ٢: التابات -->
+      <div class="tabs-bar" style="margin-bottom:10px;">
+        <button class="tab-btn active" onclick="switchTab('pending', this)">⏳ لم يُرحَّل</button>
+        <button class="tab-btn" onclick="switchTab('posted', this)">✅ مرحَّل</button>
+        <button class="tab-btn" onclick="switchTab('all', this)">📋 الكل</button>
+        <button class="tab-btn" style="border-color:#f59e0b;color:#b45309;" onclick="switchTab('extra', this)">⚠️ زيادات</button>
+      </div>
+
+      <!-- سطر ٣: المربعات + ترحيل الكل -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
         <div class="machine-summary" id="machine-summary-wrap"></div>
         <div id="bulk-post-wrap"></div>
       </div>
