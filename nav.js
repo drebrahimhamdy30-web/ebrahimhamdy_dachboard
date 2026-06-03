@@ -2,7 +2,7 @@ function injectNavbar() {
   var currentPage      = window.location.pathname.split("/").pop();
   var contractPages    = ['sales_contracts.html', 'claims.html', 'contracts.html', 'contracts_stats.html'];
   var csPages          = ['customer_service.html', 'shortages.html'];
-  var purchasesPages   = ['purchases.html', 'cosmo_order.html'];
+  var purchasesPages   = ['purchases.html', 'cosmo_order.html', 'inventory_management.html'];
   var visaPages        = ['visa_transactions.html', 'bank_monitor.html'];
   var isContractPage   = contractPages.includes(currentPage);
   var isCSPage         = csPages.includes(currentPage);
@@ -22,14 +22,14 @@ function injectNavbar() {
       '<a href="main.html" class="' + (currentPage === 'main.html' ? 'active' : '') + '">' +
         '<i class="fas fa-plus-circle"></i> مدخلات</a>' +
 
-      // ===== Dropdown: مشتريات =====
+      // ===== Dropdown: إدارة المخزون =====
       '<a id="purchases-toggle" href="#" style="' +
         'color:' + (isPurchasesPage ? 'var(--primary)' : '#94a3b8') + ';' +
         'background:' + (isPurchasesPage ? 'var(--accent)' : 'transparent') + ';' +
         'padding:7px 12px;border-radius:8px;font-size:0.8rem;' +
         'font-weight:' + (isPurchasesPage ? '700' : '500') + ';' +
         'display:flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap;cursor:pointer;">' +
-        '<i class="fas fa-shopping-cart"></i> مشتريات' +
+        '<i class="fas fa-warehouse"></i> إدارة المخزون' +
         '<i class="fas fa-chevron-down" style="font-size:0.6rem;margin-right:2px;"></i>' +
       '</a>' +
 
@@ -106,12 +106,15 @@ function injectNavbar() {
   var navBar = document.querySelector('.nav-bar');
   if (navBar) navBar.innerHTML = navContent;
 
-  // Dropdown: مشتريات
+  // Dropdown: إدارة المخزون
   var purchasesItems = [
     { href: 'purchases.html', icon: 'fa-shopping-cart', label: 'مشتريات', active: currentPage === 'purchases.html' }
   ];
   purchasesItems.push(
     { href: 'cosmo_order.html', icon: 'fa-shopping-basket', label: 'طلبيات الكوزمو', active: currentPage === 'cosmo_order.html' }
+  );
+  purchasesItems.push(
+    { href: 'inventory_management.html', icon: 'fa-warehouse', label: 'إدارة المخزون', active: currentPage === 'inventory_management.html' }
   );
   createFloatingDropdown('purchases-dropdown', purchasesItems);
 
