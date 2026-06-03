@@ -3,9 +3,11 @@ function injectNavbar() {
   var contractPages    = ['sales_contracts.html', 'claims.html', 'contracts.html', 'contracts_stats.html'];
   var csPages          = ['customer_service.html', 'shortages.html'];
   var purchasesPages   = ['purchases.html', 'cosmo_order.html'];
+  var visaPages        = ['visa_transactions.html', 'bank_monitor.html'];
   var isContractPage   = contractPages.includes(currentPage);
   var isCSPage         = csPages.includes(currentPage);
   var isPurchasesPage  = purchasesPages.includes(currentPage);
+  var isVisaPage       = visaPages.includes(currentPage);
   var activeUserVal    = localStorage.getItem('activeUser');
   var displayUser      = activeUserVal ? String(activeUserVal).replace(/['"<>]/g, '') : '';
   var userRole         = localStorage.getItem('userRole') || '';
@@ -68,8 +70,17 @@ function injectNavbar() {
         '<i class="fas fa-chevron-down" style="font-size:0.6rem;margin-right:2px;"></i>' +
       '</a>' +
 
-      '<a href="visa_transactions.html" class="' + (currentPage === 'visa_transactions.html' ? 'active' : '') + '">' +
-        '<i class="fas fa-credit-card"></i> فيزا</a>' +
+      // ===== Dropdown: فيزا =====
+      '<a id="visa-toggle" href="#" style="' +
+        'color:' + (isVisaPage ? 'var(--primary)' : '#94a3b8') + ';' +
+        'background:' + (isVisaPage ? 'var(--accent)' : 'transparent') + ';' +
+        'padding:7px 12px;border-radius:8px;font-size:0.8rem;' +
+        'font-weight:' + (isVisaPage ? '700' : '500') + ';' +
+        'display:flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap;cursor:pointer;">' +
+        '<i class="fas fa-credit-card"></i> فيزا' +
+        '<i class="fas fa-chevron-down" style="font-size:0.6rem;margin-right:2px;"></i>' +
+      '</a>' +
+
       '<a href="missing_items.html" class="' + (currentPage === 'missing_items.html' ? 'active' : '') + '">' +
         '<i class="fas fa-truck"></i> لم يصل من الشركات</a>' +
       '<a href="inventory_min.html" class="' + (currentPage === 'inventory_min.html' ? 'active' : '') + '">' +
@@ -97,11 +108,11 @@ function injectNavbar() {
 
   // Dropdown: مشتريات
   var purchasesItems = [
-    { href: 'purchases.html',   icon: 'fa-shopping-cart',  label: 'مشتريات',        active: currentPage === 'purchases.html' }
+    { href: 'purchases.html', icon: 'fa-shopping-cart', label: 'مشتريات', active: currentPage === 'purchases.html' }
   ];
-purchasesItems.push(
-  { href: 'cosmo_order.html', icon: 'fa-shopping-basket', label: 'طلبيات الكوزمو', active: currentPage === 'cosmo_order.html' }
-);
+  purchasesItems.push(
+    { href: 'cosmo_order.html', icon: 'fa-shopping-basket', label: 'طلبيات الكوزمو', active: currentPage === 'cosmo_order.html' }
+  );
   createFloatingDropdown('purchases-dropdown', purchasesItems);
 
   createFloatingDropdown('cs-dropdown', [
@@ -116,9 +127,16 @@ purchasesItems.push(
     { href: 'contracts_stats.html', icon: 'fa-chart-bar',           label: 'إحصائيات',               active: currentPage === 'contracts_stats.html' }
   ]);
 
+  // Dropdown: فيزا
+  createFloatingDropdown('visa-dropdown', [
+    { href: 'visa_transactions.html', icon: 'fa-credit-card', label: 'معاملات الفيزا', active: currentPage === 'visa_transactions.html' },
+    { href: 'bank_monitor.html',      icon: 'fa-university',  label: 'متابعة البنك',   active: currentPage === 'bank_monitor.html' }
+  ]);
+
   bindToggle('purchases-toggle', 'purchases-dropdown');
   bindToggle('cs-toggle',        'cs-dropdown');
   bindToggle('contracts-toggle', 'contracts-dropdown');
+  bindToggle('visa-toggle',      'visa-dropdown');
 }
 
 function createFloatingDropdown(id, items) {
@@ -154,10 +172,12 @@ function bindToggle(toggleId, menuId) {
   var menu = document.getElementById(menuId);
   if (!btn || !menu) return;
 
+  var allDropdowns = ['purchases-dropdown', 'cs-dropdown', 'contracts-dropdown', 'visa-dropdown'];
+
   btn.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
-    ['purchases-dropdown', 'cs-dropdown', 'contracts-dropdown'].forEach(function(id) {
+    allDropdowns.forEach(function(id) {
       if (id !== menuId) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -175,12 +195,14 @@ function bindToggle(toggleId, menuId) {
   });
 }
 
+var allDropdowns = ['purchases-dropdown', 'cs-dropdown', 'contracts-dropdown', 'visa-dropdown'];
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', function() {
     injectNavbar();
     setTimeout(startNotifWatcher, 2000);
     document.addEventListener('click', function() {
-      ['purchases-dropdown', 'cs-dropdown', 'contracts-dropdown'].forEach(function(id) {
+      allDropdowns.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });
@@ -190,7 +212,7 @@ if (document.readyState === 'loading') {
   injectNavbar();
   setTimeout(startNotifWatcher, 2000);
   document.addEventListener('click', function() {
-    ['purchases-dropdown', 'cs-dropdown', 'contracts-dropdown'].forEach(function(id) {
+    allDropdowns.forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
