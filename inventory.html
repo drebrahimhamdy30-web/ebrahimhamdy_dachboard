@@ -53,6 +53,14 @@
       color:var(--text-secondary); white-space:nowrap; transition:all 0.2s;
     }
     .filter-toggle.all { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .note-cell {
+      font-size:0.78rem; color:var(--text-secondary);
+      max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .note-badge {
+      display:inline-block; background:#fef9c3; color:#a16207;
+      border-radius:20px; padding:2px 8px; font-size:0.7rem; font-weight:600;
+    }
   </style>
 </head>
 <body>
@@ -121,10 +129,10 @@
     </div>
   </div>
 
-<script src="api.js"></script>
-<script src="nav.js" defer></script>
+  <script src="api.js"></script>
+  <script src="nav.js" defer></script>
   <script>
-    const BALANCE_URL = "https://agent.ebrahimhamdy.com/webhook/get_balance";
+    const BALANCE_URL = 'https://agent.ebrahimhamdy.com/webhook/get_balance';
     const PAGE_SIZE   = 20;
 
     const TAB_COLS = {
@@ -132,7 +140,7 @@
       'غوالى':    ['code', 'itm_name_ar', 'itm_name_en'],
       'fastmove': ['code', 'itm_name_ar'],
       'مرتجعات':  ['code', 'itm_name_ar', 'itm_name_en', 'time', 'bill_no'],
-      'erp':      ['code', 'itm_name_ar', 'itm_name_en']
+      'erp':      ['code', 'itm_name_ar', 'itm_name_en', 'note']
     };
 
     const COL_LABELS = {
@@ -140,7 +148,8 @@
       itm_name_ar: 'الاسم عربي',
       itm_name_en: 'الاسم إنجليزي',
       time:        'تاريخ المرتجع',
-      bill_no:     'رقم الفاتورة'
+      bill_no:     'رقم الفاتورة',
+      note:        'ملاحظات'
     };
 
     let activeUser   = null;
@@ -158,7 +167,6 @@
         userBranch = (localStorage.getItem('userBranch') || '').trim();
         userRole   = (localStorage.getItem('userRole')   || 'employee').trim();
         document.getElementById('branch-tag').textContent = userBranch;
-
         loadCurrentTab();
       }
     });
@@ -199,18 +207,18 @@
 
       try {
         const items = await fetchInventory();
-rawData = items.filter(item => {
-  const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
-  const branchMatch = (item.branch || '') === userBranch;
-  return typeMatch && branchMatch;
-});
+        rawData = items.filter(item => {
+          const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
+          const branchMatch = (item.branch || '') === userBranch;
+          return typeMatch && branchMatch;
+        });
 
-// ترتيب بالكود — عشان النسخ المكررة تتجمّع تحت بعضها
-rawData.sort((a, b) => {
-  const codeA = String(a.code || '').trim();
-  const codeB = String(b.code || '').trim();
-  return codeA.localeCompare(codeB, 'ar', { numeric: true });
-});
+        rawData.sort((a, b) => {
+          const codeA = String(a.code || '').trim();
+          const codeB = String(b.code || '').trim();
+          return codeA.localeCompare(codeB, 'ar', { numeric: true });
+        });
+
         buildTableHeader();
         applyFilter();
       } catch(e) {
@@ -250,7 +258,7 @@ rawData.sort((a, b) => {
       filteredData = !search
         ? data
         : data.filter(item =>
-            ['code','itm_name_ar','itm_name_en','bill_no']
+            ['code','itm_name_ar','itm_name_en','bill_no','note']
               .some(k => (item[k] || '').toLowerCase().includes(search))
           );
 
@@ -280,25 +288,23 @@ rawData.sort((a, b) => {
       renderTable(page);
     }
 
-    // بترجّع Map: id الصنف → true لو ده أول نسخة pending لنفس الكود (الرئيسية)
     function computePrimaryFlags(items) {
-      const seenPending = new Set();   // الأكواد اللي لقينا أول pending ليها
+      const seenPending = new Set();
       const flags = new Map();
-      // نمشي بالترتيب الظاهر (الأقدم أول) عشان أول واحد يبقى هو الرئيسي
       items.forEach(item => {
         const isDone = item.done === true || item.done === 'true';
         const isSkip = item.skip === true || item.skip === 'true';
         const code   = String(item.code || '').trim();
 
         if (isDone || isSkip || !code || code === '---') {
-          flags.set(String(item.id), true);   // مش pending أو مفيش كود → يتعامل عادي
+          flags.set(String(item.id), true);
           return;
         }
         if (seenPending.has(code)) {
-          flags.set(String(item.id), false);  // نسخة مكررة تابعة
+          flags.set(String(item.id), false);
         } else {
           seenPending.add(code);
-          flags.set(String(item.id), true);   // أول نسخة pending = الرئيسية
+          flags.set(String(item.id), true);
         }
       });
       return flags;
@@ -308,6 +314,7 @@ rawData.sort((a, b) => {
       const tbody   = document.getElementById('table-body');
       const cols    = TAB_COLS[currentTab] || ['code', 'itm_name_ar'];
       const canEdit = (userRole === 'inventory' || userRole === 'admin');
+      const isERP   = currentTab === 'erp';
 
       if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" style="text-align:center;padding:40px;color:var(--text-muted);">
@@ -331,33 +338,43 @@ rawData.sort((a, b) => {
         }
 
         const colCells = cols.map(c => {
-          const val = c === 'time' ? timeVal : (item[c] || '---');
+          if (c === 'time') {
+            return `<td style="font-size:0.82rem;" id="col-time-${id}">${timeVal || '---'}</td>`;
+          }
+          if (c === 'note') {
+            const noteVal = item.note || '';
+            return `<td id="col-note-${id}">
+              ${noteVal
+                ? `<span class="note-badge" title="${noteVal}">${noteVal.length > 30 ? noteVal.slice(0,30)+'…' : noteVal}</span>`
+                : '<span style="color:var(--text-muted);font-size:0.75rem;">—</span>'}
+            </td>`;
+          }
+          const val = item[c] || '---';
           return `<td style="font-size:0.82rem;" id="col-${c}-${id}">${val}</td>`;
         }).join('');
 
         let actionCell;
         if (!canEdit) {
           actionCell = `<td>
-               <span style="font-size:0.78rem;color:var(--text-muted);">
-                 ${isDone ? '✅ تم الجرد' : isSkip ? '⏭️ تجاهل' : '⏳ لم يُجرد'}
-               </span>
-             </td>`;
+            <span style="font-size:0.78rem;color:var(--text-muted);">
+              ${isDone ? '✅ تم الجرد' : isSkip ? '⏭️ تجاهل' : '⏳ لم يُجرد'}
+            </span>
+          </td>`;
         } else if (!isPrimary) {
-          // نسخة مكررة تابعة — أزرار مقفولة
           actionCell = `<td>
-               <span style="font-size:0.75rem;color:var(--text-muted);background:var(--surface-3);padding:3px 8px;border-radius:8px;">
-                 🔁 نسخة مكررة — تتبع الأولى
-               </span>
-             </td>`;
+            <span style="font-size:0.75rem;color:var(--text-muted);background:var(--surface-3);padding:3px 8px;border-radius:8px;">
+              🔁 نسخة مكررة — تتبع الأولى
+            </span>
+          </td>`;
         } else {
           actionCell = `<td>
-               <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                 <button class="btn-done ${isDone ? 'active' : ''}" id="done-btn-${id}"
-                   onclick="handleAction('${id}', 'done')">✅ تم الجرد</button>
-                 <button class="btn-skip ${isSkip ? 'active' : ''}" id="skip-btn-${id}"
-                   onclick="handleAction('${id}', 'skip')">⏭️ تجاهل</button>
-               </div>
-             </td>`;
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn-done ${isDone ? 'active' : ''}" id="done-btn-${id}"
+                onclick="handleAction('${id}', 'done')">✅ تم الجرد</button>
+              <button class="btn-skip ${isSkip ? 'active' : ''}" id="skip-btn-${id}"
+                onclick="handleAction('${id}', 'skip')">⏭️ تجاهل</button>
+            </div>
+          </td>`;
         }
 
         const tr = document.createElement('tr');
@@ -411,7 +428,6 @@ rawData.sort((a, b) => {
       const clicked = rawData.find(x => x.id == id);
       const code    = String(clicked?.code || '').trim();
 
-      // كل النسخ pending بنفس الكود + نفس القسم (الفرع مضمون لأن rawData متفلتر بالفرع)
       const sameCode = (code && code !== '---')
         ? rawData.filter(x =>
             String(x.code || '').trim() === code &&
@@ -421,7 +437,6 @@ rawData.sort((a, b) => {
           )
         : [clicked];
 
-      // الرئيسية = اللي ضغط عليها (تاخد اختياره) — الباقي تجاهل
       let success = true;
       for (const it of sameCode) {
         const itDone = String(it.id) === String(id) ? isDone : false;
@@ -430,8 +445,8 @@ rawData.sort((a, b) => {
           id:     it.id,
           done:   itDone,
           skip:   itSkip,
-          type:   "جرد",
-          action: "update_status"
+          type:   'جرد',
+          action: 'update_status'
         });
         if (!ok) success = false;
       }
@@ -465,7 +480,7 @@ rawData.sort((a, b) => {
           doneBtn.classList.toggle('active', oldItem.done === true || oldItem.done === 'true');
           skipBtn.classList.toggle('active', oldItem.skip === true || oldItem.skip === 'true');
         }
-        alert("⚠️ فشل الحفظ، يرجى المحاولة مجدداً");
+        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
       }
     }
 
