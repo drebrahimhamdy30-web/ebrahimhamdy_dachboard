@@ -364,11 +364,6 @@
       const source = document.getElementById('new-source').value;
       if (isNaN(amount)) { alert('اكتب المبلغ (موجب وارد / سالب صادر)'); return; }
 
-      // باسورد
-      const pass = prompt('أدخل كلمة المرور للإضافة اليدوية:');
-      if (pass === null) return;
-      if (pass !== ADD_PASS) { alert('❌ كلمة المرور غلط'); return; }
-
       const btn = document.getElementById('add-btn');
       btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       try {
