@@ -357,12 +357,6 @@
       }
     }
 
-    // ===== إضافة يدوية بباسورد =====
-    function colorAmount(input) {
-      const v = parseFloat(input.value);
-      input.classList.remove('positive','negative');
-      if (!isNaN(v)) input.classList.add(v>=0?'positive':'negative');
-    }
 
     async function addTransaction() {
       const desc   = document.getElementById('new-desc').value.trim();
