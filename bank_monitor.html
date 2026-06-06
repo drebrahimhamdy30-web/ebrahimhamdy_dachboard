@@ -357,12 +357,23 @@
       }
     }
 
+    // ===== إضافة يدوية بباسورد =====
+    function colorAmount(input) {
+      const v = parseFloat(input.value);
+      input.classList.remove('positive','negative');
+      if (!isNaN(v)) input.classList.add(v>=0?'positive':'negative');
+    }
 
     async function addTransaction() {
       const desc   = document.getElementById('new-desc').value.trim();
       const amount = parseFloat(document.getElementById('new-amount').value);
       const source = document.getElementById('new-source').value;
       if (isNaN(amount)) { alert('اكتب المبلغ (موجب وارد / سالب صادر)'); return; }
+
+      // باسورد
+      const pass = prompt('أدخل كلمة المرور للإضافة اليدوية:');
+      if (pass === null) return;
+      if (pass !== ADD_PASS) { alert('❌ كلمة المرور غلط'); return; }
 
       const btn = document.getElementById('add-btn');
       btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
