@@ -53,14 +53,6 @@
       color:var(--text-secondary); white-space:nowrap; transition:all 0.2s;
     }
     .filter-toggle.all { background:var(--primary); color:#fff; border-color:var(--primary); }
-    .note-cell {
-      font-size:0.78rem; color:var(--text-secondary);
-      max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .note-badge {
-      display:inline-block; background:#fef9c3; color:#a16207;
-      border-radius:20px; padding:2px 8px; font-size:0.7rem; font-weight:600;
-    }
   </style>
 </head>
 <body>
@@ -118,6 +110,20 @@
         </div>
       </div>
 
+      <!-- بحث عن رصيد أي كود (حتى لو خارج قائمة الجرد) -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:var(--surface-3);border-radius:10px;">
+        <span style="font-size:0.82rem;font-weight:700;color:var(--text-secondary);white-space:nowrap;">
+          <i class="fas fa-magnifying-glass-dollar" style="color:var(--primary);"></i> بحث عن رصيد كود:
+        </span>
+        <input type="text" id="balance-code-input" class="form-input" style="width:160px;"
+          placeholder="اكتب الكود..." inputmode="numeric"
+          onkeydown="if(event.key==='Enter') lookupBalance()">
+        <button class="btn btn-primary" onclick="lookupBalance()" id="balance-lookup-btn">
+          <i class="fas fa-search"></i> بحث
+        </button>
+        <div id="balance-result" style="font-size:0.85rem;"></div>
+      </div>
+
       <div class="table-wrap">
         <table id="inv-table">
           <thead id="inv-thead"></thead>
@@ -129,10 +135,10 @@
     </div>
   </div>
 
-  <script src="api.js"></script>
-  <script src="nav.js" defer></script>
+<script src="api.js"></script>
+<script src="nav.js" defer></script>
   <script>
-    const BALANCE_URL = 'https://agent.ebrahimhamdy.com/webhook/get_balance';
+    const BALANCE_URL = "https://agent.ebrahimhamdy.com/webhook/get_balance";
     const PAGE_SIZE   = 20;
 
     const TAB_COLS = {
@@ -140,7 +146,7 @@
       'غوالى':    ['code', 'itm_name_ar', 'itm_name_en'],
       'fastmove': ['code', 'itm_name_ar'],
       'مرتجعات':  ['code', 'itm_name_ar', 'itm_name_en', 'time', 'bill_no'],
-      'erp':      ['code', 'itm_name_ar', 'itm_name_en', 'note']
+      'erp':      ['code', 'itm_name_ar', 'itm_name_en']
     };
 
     const COL_LABELS = {
@@ -148,8 +154,7 @@
       itm_name_ar: 'الاسم عربي',
       itm_name_en: 'الاسم إنجليزي',
       time:        'تاريخ المرتجع',
-      bill_no:     'رقم الفاتورة',
-      note:        'ملاحظات'
+      bill_no:     'رقم الفاتورة'
     };
 
     let activeUser   = null;
@@ -167,6 +172,7 @@
         userBranch = (localStorage.getItem('userBranch') || '').trim();
         userRole   = (localStorage.getItem('userRole')   || 'employee').trim();
         document.getElementById('branch-tag').textContent = userBranch;
+
         loadCurrentTab();
       }
     });
@@ -207,18 +213,18 @@
 
       try {
         const items = await fetchInventory();
-        rawData = items.filter(item => {
-          const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
-          const branchMatch = (item.branch || '') === userBranch;
-          return typeMatch && branchMatch;
-        });
+rawData = items.filter(item => {
+  const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
+  const branchMatch = (item.branch || '') === userBranch;
+  return typeMatch && branchMatch;
+});
 
-        rawData.sort((a, b) => {
-          const codeA = String(a.code || '').trim();
-          const codeB = String(b.code || '').trim();
-          return codeA.localeCompare(codeB, 'ar', { numeric: true });
-        });
-
+// ترتيب بالكود — عشان النسخ المكررة تتجمّع تحت بعضها
+rawData.sort((a, b) => {
+  const codeA = String(a.code || '').trim();
+  const codeB = String(b.code || '').trim();
+  return codeA.localeCompare(codeB, 'ar', { numeric: true });
+});
         buildTableHeader();
         applyFilter();
       } catch(e) {
@@ -258,7 +264,7 @@
       filteredData = !search
         ? data
         : data.filter(item =>
-            ['code','itm_name_ar','itm_name_en','bill_no','note']
+            ['code','itm_name_ar','itm_name_en','bill_no']
               .some(k => (item[k] || '').toLowerCase().includes(search))
           );
 
@@ -288,23 +294,25 @@
       renderTable(page);
     }
 
+    // بترجّع Map: id الصنف → true لو ده أول نسخة pending لنفس الكود (الرئيسية)
     function computePrimaryFlags(items) {
-      const seenPending = new Set();
+      const seenPending = new Set();   // الأكواد اللي لقينا أول pending ليها
       const flags = new Map();
+      // نمشي بالترتيب الظاهر (الأقدم أول) عشان أول واحد يبقى هو الرئيسي
       items.forEach(item => {
         const isDone = item.done === true || item.done === 'true';
         const isSkip = item.skip === true || item.skip === 'true';
         const code   = String(item.code || '').trim();
 
         if (isDone || isSkip || !code || code === '---') {
-          flags.set(String(item.id), true);
+          flags.set(String(item.id), true);   // مش pending أو مفيش كود → يتعامل عادي
           return;
         }
         if (seenPending.has(code)) {
-          flags.set(String(item.id), false);
+          flags.set(String(item.id), false);  // نسخة مكررة تابعة
         } else {
           seenPending.add(code);
-          flags.set(String(item.id), true);
+          flags.set(String(item.id), true);   // أول نسخة pending = الرئيسية
         }
       });
       return flags;
@@ -314,7 +322,6 @@
       const tbody   = document.getElementById('table-body');
       const cols    = TAB_COLS[currentTab] || ['code', 'itm_name_ar'];
       const canEdit = (userRole === 'inventory' || userRole === 'admin');
-      const isERP   = currentTab === 'erp';
 
       if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" style="text-align:center;padding:40px;color:var(--text-muted);">
@@ -338,43 +345,33 @@
         }
 
         const colCells = cols.map(c => {
-          if (c === 'time') {
-            return `<td style="font-size:0.82rem;" id="col-time-${id}">${timeVal || '---'}</td>`;
-          }
-          if (c === 'note') {
-            const noteVal = item.note || '';
-            return `<td id="col-note-${id}">
-              ${noteVal
-                ? `<span class="note-badge" title="${noteVal}">${noteVal.length > 30 ? noteVal.slice(0,30)+'…' : noteVal}</span>`
-                : '<span style="color:var(--text-muted);font-size:0.75rem;">—</span>'}
-            </td>`;
-          }
-          const val = item[c] || '---';
+          const val = c === 'time' ? timeVal : (item[c] || '---');
           return `<td style="font-size:0.82rem;" id="col-${c}-${id}">${val}</td>`;
         }).join('');
 
         let actionCell;
         if (!canEdit) {
           actionCell = `<td>
-            <span style="font-size:0.78rem;color:var(--text-muted);">
-              ${isDone ? '✅ تم الجرد' : isSkip ? '⏭️ تجاهل' : '⏳ لم يُجرد'}
-            </span>
-          </td>`;
+               <span style="font-size:0.78rem;color:var(--text-muted);">
+                 ${isDone ? '✅ تم الجرد' : isSkip ? '⏭️ تجاهل' : '⏳ لم يُجرد'}
+               </span>
+             </td>`;
         } else if (!isPrimary) {
+          // نسخة مكررة تابعة — أزرار مقفولة
           actionCell = `<td>
-            <span style="font-size:0.75rem;color:var(--text-muted);background:var(--surface-3);padding:3px 8px;border-radius:8px;">
-              🔁 نسخة مكررة — تتبع الأولى
-            </span>
-          </td>`;
+               <span style="font-size:0.75rem;color:var(--text-muted);background:var(--surface-3);padding:3px 8px;border-radius:8px;">
+                 🔁 نسخة مكررة — تتبع الأولى
+               </span>
+             </td>`;
         } else {
           actionCell = `<td>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button class="btn-done ${isDone ? 'active' : ''}" id="done-btn-${id}"
-                onclick="handleAction('${id}', 'done')">✅ تم الجرد</button>
-              <button class="btn-skip ${isSkip ? 'active' : ''}" id="skip-btn-${id}"
-                onclick="handleAction('${id}', 'skip')">⏭️ تجاهل</button>
-            </div>
-          </td>`;
+               <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                 <button class="btn-done ${isDone ? 'active' : ''}" id="done-btn-${id}"
+                   onclick="handleAction('${id}', 'done')">✅ تم الجرد</button>
+                 <button class="btn-skip ${isSkip ? 'active' : ''}" id="skip-btn-${id}"
+                   onclick="handleAction('${id}', 'skip')">⏭️ تجاهل</button>
+               </div>
+             </td>`;
         }
 
         const tr = document.createElement('tr');
@@ -389,6 +386,36 @@
           ${actionCell}`;
         tbody.appendChild(tr);
       });
+    }
+
+    async function lookupBalance() {
+      const input = document.getElementById('balance-code-input');
+      const resEl = document.getElementById('balance-result');
+      const btn   = document.getElementById('balance-lookup-btn');
+      const code  = input.value.trim();
+
+      if (!code) { resEl.innerHTML = '<span style="color:var(--warning);">اكتب الكود أولاً</span>'; return; }
+
+      btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      resEl.innerHTML = '<span style="color:var(--text-muted);">⏳ جاري البحث...</span>';
+
+      try {
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const raw  = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
+
+        if (data && data.found) {
+          resEl.innerHTML =
+            `<span style="font-weight:700;color:var(--text-primary);">${data.itm_name_ar || '---'}</span>` +
+            ` — الرصيد: <b class="balance-val">${data.balance}</b>`;
+        } else {
+          resEl.innerHTML = '<span style="color:var(--warning);">⚠️ الكود غير موجود</span>';
+        }
+      } catch(e) {
+        resEl.innerHTML = '<span style="color:var(--danger);">❌ فشل الاتصال</span>';
+      }
+
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> بحث';
     }
 
     async function fetchBalance(id, code, btn) {
@@ -428,6 +455,7 @@
       const clicked = rawData.find(x => x.id == id);
       const code    = String(clicked?.code || '').trim();
 
+      // كل النسخ pending بنفس الكود + نفس القسم (الفرع مضمون لأن rawData متفلتر بالفرع)
       const sameCode = (code && code !== '---')
         ? rawData.filter(x =>
             String(x.code || '').trim() === code &&
@@ -437,6 +465,7 @@
           )
         : [clicked];
 
+      // الرئيسية = اللي ضغط عليها (تاخد اختياره) — الباقي تجاهل
       let success = true;
       for (const it of sameCode) {
         const itDone = String(it.id) === String(id) ? isDone : false;
@@ -445,8 +474,8 @@
           id:     it.id,
           done:   itDone,
           skip:   itSkip,
-          type:   'جرد',
-          action: 'update_status'
+          type:   "جرد",
+          action: "update_status"
         });
         if (!ok) success = false;
       }
@@ -480,7 +509,7 @@
           doneBtn.classList.toggle('active', oldItem.done === true || oldItem.done === 'true');
           skipBtn.classList.toggle('active', oldItem.skip === true || oldItem.skip === 'true');
         }
-        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
+        alert("⚠️ فشل الحفظ، يرجى المحاولة مجدداً");
       }
     }
 
