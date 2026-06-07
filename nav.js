@@ -1,5 +1,34 @@
 function injectNavbar() {
   var currentPage      = window.location.pathname.split("/").pop();
+  var userRoleEarly    = localStorage.getItem('userRole') || '';
+
+  // ===== تقييد مسؤول الجرد: لا يرى ولا يصل لأي شاشة غير الجرد =====
+  if (userRoleEarly === 'inventory') {
+    if (currentPage !== 'inventory.html') {
+      window.location.replace('inventory.html');
+      return;
+    }
+    var activeUserInv = localStorage.getItem('activeUser');
+    var displayInv    = activeUserInv ? String(activeUserInv).replace(/['"<>]/g, '') : '';
+    var navContentInv =
+      '<div class="nav-logo">' +
+        '<span style="font-weight:900;font-size:1.1rem;letter-spacing:1px;">Phalix</span>' +
+      '</div>' +
+      '<nav class="nav-links">' +
+        '<a href="inventory.html" class="active">' +
+          '<i class="fas fa-clipboard-list"></i> جرد</a>' +
+      '</nav>' +
+      '<div class="user-info">' +
+        '<span id="nav-user">' + displayInv + '</span>' +
+        '<button class="btn-logout" onclick="logout()">' +
+          '<i class="fas fa-sign-out-alt"></i>' +
+        '</button>' +
+      '</div>';
+    var navBarInv = document.querySelector('.nav-bar');
+    if (navBarInv) navBarInv.innerHTML = navContentInv;
+    return;
+  }
+
   var contractPages    = ['sales_contracts.html', 'claims.html', 'contracts.html', 'contracts_stats.html'];
   var csPages          = ['customer_service.html', 'shortages.html'];
   var purchasesPages   = ['purchases.html', 'cosmo_order.html', 'inventory_management.html'];
