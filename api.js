@@ -3,6 +3,7 @@ const POST_URL      = "https://agent.ebrahimhamdy.com/webhook/taskmanagement";
 const LOGIN_URL     = "https://agent.ebrahimhamdy.com/webhook/login";
 const VERIFY_URL    = "https://agent.ebrahimhamdy.com/webhook/verify_token";
 const DASHBOARD_URL = "https://agent.ebrahimhamdy.com/webhook/dashboard";
+const PAYMOB_URL    = "https://agent.ebrahimhamdy.com/webhook/paymobtransaction";
 
 async function fetchFromN8N(category) {
   try {
@@ -73,6 +74,66 @@ async function fetchContracts()        { return await fetchFromN8N('contracts');
 async function fetchMissing()          { return await fetchFromN8N('missing'); }
 async function fetchInventory()        { return await fetchFromN8N('inventory'); }
 async function fetchOffers()           { return await fetchFromN8N('offers'); }
+
+// جلب معاملات باي موب عبر webhook paymobtransaction (نوع paymob_get)
+async function fetchPaymob() {
+  try {
+    const response = await fetch(PAYMOB_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'paymob_get' })
+    });
+    if (!response.ok) return [];
+    const text = await response.text();
+    if (!text || text.trim() === '') return [];
+    const data = JSON.parse(text);
+    if (Array.isArray(data) && data[0]?.data) return data[0].data;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('fetchPaymob error:', e);
+    return [];
+  }
+}
+
+// إرسال أمر كتابة لـ webhook باي موب (paymobtransaction) — مش taskmanagement
+async function postPaymob(data) {
+  try {
+    const response = await fetch(PAYMOB_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.ok;
+  } catch (e) {
+    console.error('postPaymob error:', e);
+    return false;
+  }
+}
+
+// كتابة رقم الفاتورة على معاملة باي موب (ربط) — نوع paymob_update
+async function paymobUpdate({ id, bill_no }) {
+  return await postPaymob({ type: 'paymob_update', id, bill_no });
+}
+
+// إضافة معاملة باي موب يدوي — نوع paymob_insert
+async function paymobInsert({ amount, terminal_id, bill_no, transaction_time }) {
+  return await postPaymob({
+    type: 'paymob_insert',
+    amount, terminal_id, bill_no, transaction_time
+  });
+}
+
+// تعليم كل معاملات يوم معين كـ "تم التحويل" (paid) — نوع paymob_mark_paid
+// dayStr بصيغة YYYY-MM-DD
+async function paymobMarkPaidForDay(dayStr) {
+  return await postPaymob({
+    type:      'paymob_mark_paid',
+    day_start: dayStr + 'T00:00:00',
+    day_end:   dayStr + 'T23:59:59',
+    paid:      true
+  });
+}
 
 async function login(username, password) {
   try {
