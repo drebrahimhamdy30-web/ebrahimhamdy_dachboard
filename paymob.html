@@ -334,8 +334,11 @@
             ? `<span class="day-paid-badge badge-unpaid">⏳ جزئي (${ds.paidCount}/${ds.count})</span>`
             : '<span class="day-paid-badge badge-unpaid">⏳ لم يُحوَّل</span>';
 
-        const markBtn = (isAdmin && !allPaid)
-          ? `<button class="btn btn-success btn-sm" onclick="markDayPaid('${k}', this)" style="margin-right:8px;"><i class="fas fa-check-double"></i> تم التحويل</button>`
+        const markBtn = isAdmin
+          ? (!allPaid
+              ? `<button class="btn btn-success btn-sm" onclick="markDayPaid('${k}', this, true)" style="margin-right:8px;"><i class="fas fa-check-double"></i> تم التحويل</button>`
+              : `<button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;margin-right:8px;" onclick="markDayPaid('${k}', this, false)"><i class="fas fa-undo"></i> إلغاء التحويل</button>`
+            )
           : '';
 
         // إحصائيات اليوم مقسمة على الفروع — من كل معاملات اليوم
@@ -428,16 +431,42 @@
         `<span style="color:var(--text-muted);">عدد المعاملات: <b>${items.length}</b></span>`;
     }
 
-    async function markDayPaid(dayStr, btn) {
-      if (!confirm(`تأكيد: تم تحويل إجمالي يوم ${dayStr}؟`)) return;
+    async function markDayPaid(dayStr, btn, paid) {
+      const msg = paid ? `تأكيد: تم تحويل يوم ${dayStr}؟` : `تأكيد: إلغاء تحويل يوم ${dayStr}؟`;
+      if (!confirm(msg)) return;
       btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-      const ok = await paymobMarkPaidForDay(dayStr);
+
+      const prevDay = new Date(Date.UTC(
+        parseInt(dayStr.slice(0,4)),
+        parseInt(dayStr.slice(5,7)) - 1,
+        parseInt(dayStr.slice(8,10)) - 1,
+        21, 0, 0
+      ));
+      const sameDay = new Date(Date.UTC(
+        parseInt(dayStr.slice(0,4)),
+        parseInt(dayStr.slice(5,7)) - 1,
+        parseInt(dayStr.slice(8,10)),
+        20, 59, 59
+      ));
+
+      const startUTC = prevDay.toISOString().slice(0, 19);
+      const endUTC   = sameDay.toISOString().slice(0, 19);
+
+      const ok = await postPaymob({
+        type:      'paymob_mark_paid',
+        day_start: startUTC,
+        day_end:   endUTC,
+        paid:      paid
+      });
       if (ok) {
-        allData.forEach(p => { if (dayKey(p) === dayStr) p.paid = true; });
+        allData.forEach(p => { if (dayKey(p) === dayStr) p.paid = paid; });
         applyFilter();
       } else {
-        alert('❌ فشل التحويل');
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-double"></i> تم التحويل';
+        alert('❌ فشل التحديث');
+        btn.disabled = false;
+        btn.innerHTML = paid
+          ? '<i class="fas fa-check-double"></i> تم التحويل'
+          : '<i class="fas fa-undo"></i> إلغاء التحويل';
       }
     }
 
