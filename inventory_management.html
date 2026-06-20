@@ -76,9 +76,9 @@
     .btn-refresh-branch:hover { background:var(--accent);color:#fff; }
 
     /* جداول النتائج */
-    .res-wrap { overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-md); }
+    .res-wrap { overflow:auto;max-height:calc(100vh - 230px);border:1px solid var(--border);border-radius:var(--radius-md); }
     .res-table { width:100%;border-collapse:collapse;min-width:720px; }
-    .res-table th { background:var(--primary);color:#fff;padding:11px 8px;font-size:0.74rem;font-weight:800;text-align:center;white-space:nowrap; }
+    .res-table th { background:var(--primary);color:#fff;padding:11px 8px;font-size:0.74rem;font-weight:800;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:5; }
     .res-table td { padding:9px 8px;font-size:0.78rem;border-bottom:1px solid var(--surface-3);text-align:center;vertical-align:middle; }
     .res-table tr:last-child td { border-bottom:none; }
     .res-table tr:hover td { background:var(--surface-2); }
@@ -120,6 +120,7 @@
     .from-to { display:flex;gap:8px;align-items:flex-end; }
     .arrow-ic { color:var(--accent);font-size:1rem;padding-bottom:9px; }
     .qty-input { width:64px;padding:6px 4px;border:1.5px solid var(--accent);border-radius:7px;text-align:center;font-family:var(--font);font-size:0.9rem;font-weight:800;color:var(--accent-dark);outline:none;background:var(--surface); }
+    .cell-stat { font-size:0.6rem;color:var(--text-muted);font-weight:700;margin-bottom:3px;white-space:nowrap;letter-spacing:0.3px; }
     .qty-input:focus { box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
     .needs-hl { color:var(--danger); }
     .src-hl { color:var(--success); }
@@ -254,6 +255,13 @@
                   <input type="checkbox" id="add-purchase-toggle" onchange="computeDisb()" style="width:auto;vertical-align:middle;margin-left:5px;">
                   جمع الشراء مع رصيد المصدر
                   <span class="help-ic">؟<span class="tip">فعّله لو فاتورة الشراء دخلت بعد سحب الرصيد، فيُضاف الكمية المشتراة لرصيد فرع المصدر لإعطاء الرصيد الحقيقي.</span></span>
+                </span>
+              </label>
+              <label class="mini-field auto" style="cursor:pointer;justify-content:flex-end;">
+                <span class="filter-label" style="margin-bottom:7px;">
+                  <input type="checkbox" id="hide-zero-toggle" onchange="renderDisb()" style="width:auto;vertical-align:middle;margin-left:5px;">
+                  إخفاء الأصناف غير المحتاجة
+                  <span class="help-ic">؟<span class="tip">يخفي الأصناف التي إجمالي كمية تحويلها صفر، ولا يُصدّرها في الإكسل.</span></span>
                 </span>
               </label>
             </div>
@@ -1025,9 +1033,12 @@
     function disbFilteredRows(){
       var supplier=document.getElementById('supplier-filter').value;
       var search=(document.getElementById('disb-search').value||'').trim().toLowerCase();
+      var hideZero=document.getElementById('hide-zero-toggle') && document.getElementById('hide-zero-toggle').checked;
+      var from=document.getElementById('from-branch').value;
       return disbComputed.filter(function(r){
         if(supplier && !r.suppliers.includes(supplier)) return false;
         if(search && !r.name.toLowerCase().includes(search) && !r.code.includes(search)) return false;
+        if(hideZero && !disbRowHasQty(r, from)) return false; // إخفاء غير المحتاجة
         return true;
       });
     }
@@ -1092,18 +1103,22 @@
         var rowCls = over ? ' class="over-row"' : (purchaseExceeds ? ' class="warn-row"' : '');
         var badge = r.isNew?'<span class="badge-new">جديد</span>':(r.isMedicine?'<span class="badge-med">دواء</span>':'<span class="badge-cos">تجميل</span>');
 
-        html+='<tr'+rowCls+'>'+
+        html+='<tr'+rowCls+' data-rowcode="'+r.code+'">'+
           '<td class="name-cell"><div style="font-weight:600">'+r.name+' '+badge+'</div>'+
             '<div style="font-size:0.63rem;color:var(--text-muted)">'+r.code+(r.suppliers.length?' · '+r.suppliers.join('، '):'')+'</div></td>';
 
-        // خانات التحويل للوجهتين
+        // خانات التحويل للوجهتين — فوق كل خانة: رصيد − معدل لنفس الفرع الوجهة
         others.forEach(function(b){
           if(r.isNew){
-            html+='<td><input type="number" class="qty-input" min="0" step="1" value="'+disbQtyTo(r,b)+'" onchange="editDisbQty(\''+r.code+'\',\''+b+'\',this.value)"></td>';
+            html+='<td><div class="cell-stat">— · —</div>'+
+              '<input type="number" class="qty-input disb-qty" data-code="'+r.code+'" data-branch="'+b+'" min="0" step="1" value="'+disbQtyTo(r,b)+'" oninput="editDisbQty(this)" onkeydown="qtyKeyNav(event,this)"></td>';
           } else {
             var needCls = r.need[b]?'needs-hl':'';
-            html+='<td><input type="number" class="qty-input '+needCls+'" min="0" step="1" value="'+disbQtyTo(r,b)+'" '+
-              'title="أقصى احتياج: '+Math.floor(r.max[b]||0)+'" onchange="editDisbQty(\''+r.code+'\',\''+b+'\',this.value)"></td>';
+            var bStock = r.inv[b].stock;
+            var bAvg   = r1(r.inv[b].avg);
+            html+='<td><div class="cell-stat" title="رصيد '+bStock+' − معدل '+bAvg+'">'+bStock+' − '+bAvg+'</div>'+
+              '<input type="number" class="qty-input disb-qty '+needCls+'" data-code="'+r.code+'" data-branch="'+b+'" min="0" step="1" value="'+disbQtyTo(r,b)+'" '+
+              'title="أقصى احتياج: '+Math.floor(r.max[b]||0)+'" oninput="editDisbQty(this)" onkeydown="qtyKeyNav(event,this)"></td>';
           }
         });
 
@@ -1135,10 +1150,12 @@
         html+='</tr>';
 
         // صف تنبيه التوازن
+        var colspan = 1 + others.length + 3 + 2 + 1;
         if(over){
-          var colspan = 1 + others.length + 3 + 2 + 1;
-          html+='<tr class="over-note"><td colspan="'+colspan+'" style="background:#fef2f2;color:var(--danger);font-size:0.72rem;font-weight:700;text-align:right;padding:4px 12px">'+
+          html+='<tr class="over-note" data-noterow="'+r.code+'"><td colspan="'+colspan+'" style="background:#fef2f2;color:var(--danger);font-size:0.72rem;font-weight:700;text-align:right;padding:4px 12px">'+
             '⚠️ إجمالي التحويل ('+rowTotal+') تجاوز رصيد المصدر المتاح ('+r.srcBal+') — قلّل كمية إحدى الوجهات.</td></tr>';
+        } else {
+          html+='<tr class="over-note" data-noterow="'+r.code+'" style="display:none"><td colspan="'+colspan+'" style="background:#fef2f2;color:var(--danger);font-size:0.72rem;font-weight:700;text-align:right;padding:4px 12px"></td></tr>';
         }
       });
       html+='</tbody></table></div>';
@@ -1151,10 +1168,63 @@
       container.innerHTML=html;
     }
 
-    function editDisbQty(code, branch, val){
-      var q=parseInt(val)||0; if(q<0) q=0;
+    function editDisbQty(inputEl){
+      var code=inputEl.dataset.code, branch=inputEl.dataset.branch;
+      var q=parseInt(inputEl.value)||0; if(q<0) q=0;
       disbManual[code+'|'+branch]=q;
-      renderDisb(); // إعادة رسم لتحديث الإجمالي وتنبيه التوازن
+
+      var from=document.getElementById('from-branch').value;
+      var r=disbComputed.find(function(x){return x.code===code;});
+      if(!r) return;
+
+      // تحديث صف التنبيه لهذا الصنف فقط (بدون إعادة رسم الجدول)
+      var rowTotal=disbRowTotal(r, from);
+      var over = rowTotal > r.srcBal;
+      var tr=document.querySelector('tr[data-rowcode="'+code+'"]');
+      var note=document.querySelector('tr[data-noterow="'+code+'"]');
+      if(tr){
+        tr.classList.remove('over-row','warn-row');
+        var purchaseExceeds = !r.isNew && (r.qty > r.coverNeedTotal);
+        if(over) tr.classList.add('over-row');
+        else if(purchaseExceeds) tr.classList.add('warn-row');
+      }
+      if(note){
+        if(over){
+          note.style.display='';
+          note.querySelector('td').textContent='⚠️ إجمالي التحويل ('+rowTotal+') تجاوز رصيد المصدر المتاح ('+r.srcBal+') — قلّل كمية إحدى الوجهات.';
+        } else {
+          note.style.display='none';
+        }
+      }
+
+      // تحديث العدّاد العلوي فقط
+      updateDisbCounter();
+    }
+
+    function updateDisbCounter(){
+      var from=document.getElementById('from-branch').value;
+      var rows=disbFilteredRows();
+      var withQty=rows.filter(function(r){return disbRowHasQty(r,from);}).length;
+      var overCount=rows.filter(function(r){return disbRowOver(r,from);}).length;
+      document.getElementById('result-count').textContent=rows.length+' صنف · '+withQty+' للتحويل'+(overCount?' · ⚠️ '+overCount+' تجاوز الرصيد':'');
+      var excelBtn=document.getElementById('excel-btn'); if(excelBtn) excelBtn.disabled=withQty===0;
+    }
+
+    // Tab أو Enter ينقل لخانة الكمية التالية
+    function qtyKeyNav(e, el){
+      if(e.key==='Enter' || (e.key==='Tab' && !e.shiftKey)){
+        var inputs=Array.prototype.slice.call(document.querySelectorAll('.disb-qty'));
+        var i=inputs.indexOf(el);
+        if(i>-1 && i<inputs.length-1){
+          e.preventDefault();
+          var nxt=inputs[i+1];
+          nxt.focus(); nxt.select();
+        }
+      } else if(e.key==='Tab' && e.shiftKey){
+        var inputs2=Array.prototype.slice.call(document.querySelectorAll('.disb-qty'));
+        var j=inputs2.indexOf(el);
+        if(j>0){ e.preventDefault(); var prv=inputs2[j-1]; prv.focus(); prv.select(); }
+      }
     }
     function changeDisbPage(d){
       var total=disbFilteredRows().length;
