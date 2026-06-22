@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>شاشة التوزيع</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -58,7 +57,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .dp-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:white;margin:0 auto .625rem}
 .dp-name{color:#e2e8f0;font-weight:700;font-size:.9rem;text-align:center}
 .dp-phone{color:#94a3b8;font-size:.75rem;text-align:center;margin-bottom:.875rem;direction:ltr}
-.dp-status{font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:8px;display:inline-block;margin:.25rem auto .875rem;display:block;text-align:center;width:fit-content;margin:0 auto .875rem}
+.dp-status{font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:8px;display:block;text-align:center;width:fit-content;margin:0 auto .875rem}
 .dp-section{color:#64748b;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
 .dp-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #334155;font-size:.75rem}
 .dp-row:last-child{border-bottom:none}
@@ -147,7 +146,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 
 /* ORDER CARD */
 .order-card{background:white;border-radius:9px;border:1.5px solid var(--border);padding:.32rem .4rem;cursor:pointer;transition:all .15s;position:relative}
-  .order-card:hover{border-color:var(--primary);box-shadow:0 2px 10px rgba(26,86,219,.08)}
+.order-card:hover{border-color:var(--primary);box-shadow:0 2px 10px rgba(26,86,219,.08)}
 .order-card.sel{border-color:var(--primary);background:var(--primary-light);box-shadow:0 0 0 2px rgba(26,86,219,.2)}
 .order-card.late{border-right:3px solid var(--red)}
 .order-card.sp{border-right:3px solid var(--purple)}
@@ -211,6 +210,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .form-control:focus{border-color:var(--primary)}
 textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
 .btn{display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .9rem;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.btn-sm{padding:.3rem .6rem;font-size:.7rem}
 .btn-primary{background:var(--primary);color:white}.btn-primary:hover{background:var(--primary-dark)}
 .btn-outline{background:white;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--bg)}
 .btn-green{background:var(--green);color:white}
@@ -274,6 +274,12 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   <div class="dh-title">🚚 <span>شاشة</span> التوزيع <span id="branchLabel" style="font-size:.7rem;color:#94a3b8;font-weight:500"></span></div>
   <div class="dh-stats" id="headerStats"></div>
   <div class="dh-right">
+    <div class="att-notif">
+      <button class="att-notif-btn" id="attNotifBtn" onclick="toggleAttPopup()" style="display:none">
+        🔔 طلبات <span class="att-notif-badge" id="attNotifCount">0</span>
+      </button>
+      <div class="att-popup" id="attPopup"></div>
+    </div>
     <div class="refresh-dot"></div>
     <span class="dh-time" id="clockTime"></span>
     <button class="icon-btn" id="switchBranchBtn" onclick="showBranchOverlay()" style="display:none">🏢 تغيير الفرع</button>
@@ -287,7 +293,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
 </div>
 <div class="drivers-section" style="display:flex;height:var(--drivers-h)">
   <div class="drivers-scroll" id="driversScroll" style="flex:1;border-left:1px solid #334155"></div>
-  <div id="attRequestsBar" style="display:none;flex-shrink:0;overflow-x:auto;display:flex;align-items:center;gap:.4rem;padding:.5rem .75rem;background:#1a2535;border-right:none"></div>
+  <div id="attRequestsBar" style="display:none;flex-shrink:0;overflow-x:auto;align-items:center;gap:.4rem;padding:.5rem .75rem;background:#1a2535;border-right:none"></div>
 </div>
 
 <div class="section-label sl-light" style="display:none">
@@ -422,29 +428,6 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   </div>
 </div>
 
-<!-- Trip Order Actions Modal -->
-<div class="modal-overlay" id="tripOrderActionsModal">
-  <div class="modal modal-sm">
-    <div class="modal-header">
-      <span class="modal-title">إجراءات الطلب</span>
-      <button class="modal-close" onclick="closeModal('tripOrderActionsModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="toa-id">
-      <input type="hidden" id="toa-trip-id">
-      <div id="toa-header" style="background:var(--bg);border-radius:10px;padding:.75rem;margin-bottom:1rem"></div>
-      <div style="display:flex;flex-direction:column;gap:.4rem">
-        <button class="btn btn-green" id="toa-btn-pickup" onclick="toaPickup()" style="display:none;width:100%">▶️ تسجيل الاستلام</button>
-        <button class="btn btn-yellow" id="toa-btn-deliver" onclick="toaDeliver()" style="display:none;width:100%">✅ تأكيد التوصيل</button>
-        <button class="btn btn-primary" id="toa-btn-reassign" onclick="toaReassign()" style="display:none;width:100%">🔄 إعادة التعيين لطيار آخر</button>
-        <button class="btn btn-outline" id="toa-btn-postpone" onclick="toaPostpone()" style="width:100%">⏰ تأجيل الطلب</button>
-        <button class="btn btn-outline" id="toa-btn-remove" onclick="toaRemove()" style="width:100%;border-color:var(--orange);color:var(--orange)">↩️ إزالة من الرحلة</button>
-        <button class="btn btn-red" id="toa-btn-cancel" onclick="toaCancel()" style="width:100%">❌ إلغاء الطلب</button>
-      </div>
-    </div>
-  </div>
-</div>
-  
 <!-- Complete Approval Modal -->
 <div class="modal-overlay" id="completeApprovalModal">
   <div class="modal">
@@ -460,6 +443,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     </div>
   </div>
 </div>
+
 <!-- Driver Popup -->
 <div class="driver-popup" id="driverPopup">
   <button class="dp-close" onclick="closeDriverPopup()">✕</button>
@@ -469,12 +453,13 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   <div class="dp-status" id="dp-status"></div>
   <div class="dp-section">ملخص الرحلات اليوم</div>
   <div id="dp-trips"></div>
-<div style="margin-top:1rem;display:flex;gap:.5rem">
+  <div style="margin-top:1rem;display:flex;gap:.5rem">
     <button onclick="callDriver(currentPopupDriverId)" style="flex:1;padding:.5rem;background:#1a56db;color:white;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer">📞 استدعاء</button>
     <button onclick="openSendMessage(currentPopupDriverId)" style="flex:1;padding:.5rem;background:#334155;color:white;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer">💬 رسالة</button>
   </div>
   <button id="dp-offline-btn" onclick="forceDriverOffline(currentPopupDriverId)" style="margin-top:.5rem;width:100%;padding:.5rem;background:var(--red-light);color:#b91c1c;border:1px solid #fecaca;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer">🔴 تسجيل انصراف الطيار</button>
 </div>
+
 <!-- Modal: Send Message -->
 <div class="modal-overlay" id="msgModal">
   <div class="modal modal-sm">
@@ -531,10 +516,17 @@ if(!stored) window.location.href='../auth.html';
 else currentUser=JSON.parse(stored);
 
 // Clock
-setInterval(()=>{document.getElementById('clockTime').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},1000);
+setInterval(()=>{const el=document.getElementById('clockTime');if(el)el.textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},1000);
+
+// ===== Timezone helper =====
+// تحويل Date لصيغة datetime-local بالتوقيت المحلي (مش UTC)
+function toLocalDatetimeInput(d){
+  const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return local.toISOString().slice(0,16);
+}
 
 // Timers helpers
-  function getTodayCairo(){
+function getTodayCairo(){
   return new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 }
 function fm(mins){if(mins<0)mins=0;return mins<60?`${mins}د`:`${Math.floor(mins/60)}:${String(mins%60).padStart(2,'0')}`}
@@ -549,7 +541,6 @@ function isLate(o){
   return false;
 }
 function isStageAlert(o){
-  // تحذير مرحلة محددة
   const base=getBillDate(o);
   if(o.status==='pending')   return dm(base)>(dispatchSettings?.max_pending_minutes||10);
   if(o.status==='assigned')  return dm(o.assigned_at||base)>(dispatchSettings?.max_assigned_minutes||10);
@@ -562,32 +553,23 @@ function buildTimers(o){
   const late=isLate(o);
   const alert=isStageAlert(o);
   let html='';
-
-  // إنشاء منذ — وقت من إنشاء الطلب لحد دلوقتي
   const t1=dm(base);
   const t1cls=late?'t-late':alert?'t2':'t1';
   html+=`<span class="oc-t ${t1cls}"><span class="ti">منذ</span> ${fm(t1)}</span>`;
-
-  // تعيين منذ — وقت من التعيين لحد دلوقتي (لو assigned وما استلمش)
   if(o.assigned_at && !o.picked_at){
     const p=dm(o.assigned_at);
     const pAlert=p>(dispatchSettings?.max_assigned_minutes||10);
     html+=`<span class="oc-t ${pAlert?'t-late':'t3'}" title="تعيين منذ"><span class="ti">تعيين منذ</span> ${fm(p)}</span>`;
   }
-
-  // استلم منذ — وقت من الاستلام لحد دلوقتي (لو picked وما وصلش)
   if(o.picked_at && !o.delivered_at){
     const d=dm(o.picked_at);
     const dAlert=d>(dispatchSettings?.max_picked_minutes||30);
     html+=`<span class="oc-t ${dAlert?'t-late':'t3'}" title="استلم منذ"><span class="ti">استلم منذ</span> ${fm(d)}</span>`;
   }
-
-  // وصّل منذ — وقت من التوصيل لحد دلوقتي
   if(o.delivered_at){
     const a=dm(o.delivered_at);
     html+=`<span class="oc-t t4" title="وصّل منذ"><span class="ti">وصّل منذ</span> ${fm(a)}</span>`;
   }
-
   return html;
 }
 
@@ -606,7 +588,6 @@ function postponeInfo(o){
 async function loadAll(){
   showLoading(true);
   try{
-    // فلتر حسب الفرع المختار
     const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
 
     let ordersQ=db.from('orders').select('*').order('created_at',{ascending:false});
@@ -626,19 +607,18 @@ async function loadAll(){
       db.from('trip_orders').select('*')
     ]);
     allOrders=oR.data||[];allDrivers=dR.data||[];activeTrips=tR.data||[];
-    // Load dispatch settings
+
     if(branchId){
       const dsRes=await db.from('dispatch_settings').select('*').eq('branch_id',branchId);
       dispatchSettings=dsRes.data?.[0]||null;
     }
-    // تحديث لابل الفرع
-    const bl=document.getElementById('branchLabel');
-    if(bl&&!bl.textContent) bl.textContent=branchId?'':'· كل الفروع';
+
     tripOrdersMap={};
     (rrR.data||[]).forEach(r=>{if(!tripOrdersMap[r.trip_id])tripOrdersMap[r.trip_id]=[];tripOrdersMap[r.trip_id].push(r.order_id);});
-    // جيب المناطق المسجلة
+
     const regRes=await db.from('regions').select('name').eq('is_active',true);
     knownRegions=new Set((regRes.data||[]).map(r=>r.name));
+
     await loadAttendanceData();
     renderHeader();renderDrivers();renderTrips();renderOrders();
   }catch(e){console.error(e);showToast('خطأ في التحميل');}
@@ -650,50 +630,45 @@ setInterval(loadAll,30000);
 
 // ===== HEADER =====
 function renderHeader(){
-  // عرض اسم الفرع في الهيدر
   const bl=document.getElementById('branchLabel');
   if(bl){
-    if(currentUser?.branch_id){
+    if(currentUser?.role==='admin'){
+      // الأدمن: اللابل بيتظبط من تابات الفرع
+    } else if(currentUser?.branch_id){
       const branchName=allDrivers[0]?.branches?.name||'';
       bl.textContent=branchName?'· '+branchName:'';
-    } else {
-      bl.textContent='· كل الفروع';
     }
   }
 
-  // طلبات بمناطق غير مسجلة
   const unknownRegionOrders=allOrders.filter(o=>o.status==='pending'&&!o.driver_id&&o.cust_region&&!knownRegions.has(o.cust_region));
   const u=allOrders.filter(o=>!o.driver_id&&['pending','postponed'].includes(o.status)).length;
   const p=allOrders.filter(o=>['assigned','picked'].includes(o.status)).length;
   const l=allOrders.filter(o=>isLate(o)).length;
-// عدد الطيارين المتاحين (حاضرين online ومش في استراحة)
-const availableDrivers=allDrivers.filter(d=>['online','break'].includes(getDriverAttStatus(d.id))).length;
+  const availableDrivers=allDrivers.filter(d=>['online','break'].includes(getDriverAttStatus(d.id))).length;
 
-document.getElementById('headerStats').innerHTML=`
+  document.getElementById('headerStats').innerHTML=`
     <span class="dh-stat dhs-pending">📦 ${u} غير موزع</span>
     <span class="dh-stat dhs-picked">🚗 ${p} في الطريق</span>
-    ${l>0?`<span class="dh-stat dhs-late">⚠️ ${l} متأخر`:''}
+    ${l>0?`<span class="dh-stat dhs-late">⚠️ ${l} متأخر</span>`:''}
     <span class="dh-stat dhs-drivers">👤 ${availableDrivers} متاح</span>
     ${unknownRegionOrders.length>0?`<span class="dh-stat" style="background:rgba(220,38,38,.2);color:#fca5a5">⚠️ ${unknownRegionOrders.length} منطقة غير مسجلة</span>`:''}`;
 
-  // ابعت الإحصائيات للهيدر الأبيض (app.html) لو إحنا جوّه iframe
   if(window.parent && window.parent!==window){
     window.parent.postMessage({type:'dispatchStats',stats:{
       unassigned:u, inTransit:p, late:l, available:availableDrivers, unknownRegions:unknownRegionOrders.length
     }},'*');
   }
-  }
+}
 
-// ===== DRIVERS =====
+// ===== DRIVERS / ATTENDANCE =====
 let attendanceToday=[];
 
 async function loadAttendanceData(){
   try{
-    // جيب آخر 500 سجل حضور (كل الأيام) عشان نعرف آخر حالة لكل طيار — مش بس النهاردة
     const {data}=await db.from('driver_attendance').select('*').order('created_at',{ascending:false}).limit(500);
     attendanceToday=data||[];
     renderAttNotif();
-  }catch(e){}
+  }catch(e){console.error('attendance',e);}
 }
 
 function getDriverAttStatus(driverId){
@@ -703,19 +678,16 @@ function getDriverAttStatus(driverId){
 }
 
 function getDriverWorkMins(driverId){
-  // كل سجلات الطيار، الأحدث أولاً
   const recs=attendanceToday.filter(r=>r.driver_id===driverId).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   if(!recs.length)return 0;
-  // احسب من آخر سجل online لسه شغّال (مالوش ended_at)
+  // لو الطيار حالته الحالية مش online → مفيش فترة شغل مفتوحة
+  const currentStatus=recs[0].status;
+  if(currentStatus!=='online') return 0;
+  // احسب من آخر سجل online شغّال (مالوش ended_at)
   const lastOnline=recs.find(r=>r.status==='online'&&r.approved_at&&!r.ended_at);
   if(lastOnline){
-    return Math.floor((new Date()-new Date(lastOnline.approved_at))/60000);
-  }
-  // مفيش online شغّال → احسب آخر فترة online مكتملة
-  const lastDone=recs.find(r=>r.status==='online'&&r.approved_at);
-  if(lastDone){
-    const end=lastDone.ended_at?new Date(lastDone.ended_at):new Date();
-    return Math.floor((end-new Date(lastDone.approved_at))/60000);
+    const mins=Math.floor((new Date()-new Date(lastOnline.approved_at))/60000);
+    return mins>0?mins:0;
   }
   return 0;
 }
@@ -724,16 +696,24 @@ function fmWorkTime(mins){if(mins<60)return `${mins}د`;return `${Math.floor(min
 
 function renderAttNotif(){
   const pending=attendanceToday.filter(r=>r.status.endsWith('_request'));
-  // رحلات بانتظار موافقة الإنهاء
   const pendingCompleteTrips=activeTrips.filter(t=>t.status==='pending_complete');
-  // Update header button
+
+  // زر الهيدر + popup
   const btn=document.getElementById('attNotifBtn');
   if(btn){
-    if(pending.length>0){btn.style.display='flex';document.getElementById('attNotifCount').textContent=pending.length;}
-    else btn.style.display='none';
+    if(pending.length>0){
+      btn.style.display='flex';
+      document.getElementById('attNotifCount').textContent=pending.length;
+      renderAttPopupContent(pending);
+    } else {
+      btn.style.display='none';
+      const pop=document.getElementById('attPopup');
+      if(pop) pop.classList.remove('open');
+    }
   }
-  // Update right bar in drivers section
-const bar=document.getElementById('attRequestsBar');
+
+  // الشريط الجانبي في قسم الطيارين
+  const bar=document.getElementById('attRequestsBar');
   if(!bar)return;
   if(!pending.length && !pendingCompleteTrips.length){bar.style.display='none';return;}
   bar.style.display='flex';
@@ -745,12 +725,13 @@ const bar=document.getElementById('attRequestsBar');
     const ini=(driver.full_name||'؟').split(' ').slice(0,2).map(w=>w[0]).join('');
     const color=typeColors[r.status]||'#94a3b8';
     const label=typeLabels[r.status]||'';
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;flex-shrink:0" onclick="showAttRequest('${r.id}','${r.status}','${r.driver_id}','${driver.full_name}')">
+    const safeName=(driver.full_name||'؟').replace(/'/g,"\\'");
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;flex-shrink:0" onclick="showAttRequest('${r.id}','${r.status}','${r.driver_id}','${safeName}')">
       <div style="width:40px;height:40px;border-radius:50%;background:#334155;border:2.5px solid ${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:white;position:relative">
         ${ini}
         <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:.45rem;color:#0f172a;font-weight:800">!</div>
       </div>
-<div style="font-size:.52rem;color:${color};font-weight:700">${label}</div>
+      <div style="font-size:.52rem;color:${color};font-weight:700">${label}</div>
     </div>`;
   }).join('')
   + pendingCompleteTrips.map(t=>{
@@ -775,9 +756,11 @@ function showAttRequest(id, status, driverId, driverName){
 }
 
 function renderAttPopupContent(pending){
+  const pop=document.getElementById('attPopup');
+  if(!pop)return;
   const typeLabels={'online_request':'حضور','offline_request':'انصراف','break_request':'استراحة'};
   const typeClass={'online_request':'att-type-online','offline_request':'att-type-offline','break_request':'att-type-break'};
-  document.getElementById('attPopup').innerHTML=pending.map(r=>{
+  pop.innerHTML=pending.map(r=>{
     const driver=allDrivers.find(d=>d.id===r.driver_id)||{full_name:'—'};
     return `<div class="att-popup-item">
       <div>
@@ -793,27 +776,26 @@ function renderAttPopupContent(pending){
 }
 
 function toggleAttPopup(){
-  document.getElementById('attPopup').classList.toggle('open');
+  const pop=document.getElementById('attPopup');
+  if(pop) pop.classList.toggle('open');
 }
 
 async function approveAtt(id,status,driverId){
   const now=new Date().toISOString();
   const targetStatus=status.replace('_request','');
 
-  // تحقق من الرحلات الجارية قبل الموافقة على الانصراف
   if(targetStatus==='offline'){
-    const {data:activeTrips}=await db.from('trips')
+    const {data:busyTrips}=await db.from('trips')
       .select('id').eq('driver_id',driverId).eq('status','active');
-    if(activeTrips?.length>0){
+    if(busyTrips?.length>0){
       showToast('❌ لا يمكن الموافقة — الطيار لديه رحلة جارية');
-      // ارفض الطلب تلقائياً
       await db.from('driver_attendance').delete().eq('id',id);
       await loadAttendanceData();
       return;
     }
-    const {data:activeOrders}=await db.from('orders')
+    const {data:busyOrders}=await db.from('orders')
       .select('id').eq('driver_id',driverId).in('status',['assigned','picked']);
-    if(activeOrders?.length>0){
+    if(busyOrders?.length>0){
       showToast('❌ لا يمكن الموافقة — الطيار لديه طلبات جارية');
       await db.from('driver_attendance').delete().eq('id',id);
       await loadAttendanceData();
@@ -832,10 +814,6 @@ async function approveAtt(id,status,driverId){
 }
 
 async function rejectAtt(id,driverId){
-  // رجّع الطيار لحالته السابقة
-  const driverRecs=attendanceToday.filter(r=>r.driver_id===driverId&&!r.status.endsWith('_request')).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  const prevStatus=driverRecs[0]?.status||'offline';
-  // احذف الطلب
   await db.from('driver_attendance').delete().eq('id',id);
   showToast('تم الرفض — رجع للحالة السابقة');
   await loadAttendanceData();
@@ -844,17 +822,15 @@ async function rejectAtt(id,driverId){
 
 function renderDrivers(){
   const el=document.getElementById('driversScroll');
-  // فقط الطيارين الحاضرين (online أو break)
   const presentDrivers=allDrivers.filter(d=>{
     const s=getDriverAttStatus(d.id);
     return s==='online'||s==='break'||s==='online_request';
   });
-  // لو مفيش attendance data → اعرض كل الأونلاين زي الأول
   const displayDrivers=attendanceToday.length>0?presentDrivers:allDrivers.filter(d=>d.is_online);
   document.getElementById('driversLabel').textContent=`${displayDrivers.length} طيار`;
   if(!displayDrivers.length){el.innerHTML='<div style="color:#64748b;font-size:.75rem;padding:.5rem">لا يوجد طيارين حاضرين</div>';return;}
 
-const pickedMap={};allOrders.filter(o=>['picked','failed'].includes(o.status)&&o.driver_id).forEach(o=>pickedMap[o.driver_id]=(pickedMap[o.driver_id]||0)+1);
+  const pickedMap={};allOrders.filter(o=>['picked','failed'].includes(o.status)&&o.driver_id).forEach(o=>pickedMap[o.driver_id]=(pickedMap[o.driver_id]||0)+1);
   const assignedMap={};allOrders.filter(o=>o.status==='assigned'&&o.driver_id).forEach(o=>assignedMap[o.driver_id]=(assignedMap[o.driver_id]||0)+1);
 
   el.innerHTML=displayDrivers.map((d,i)=>{
@@ -863,7 +839,6 @@ const pickedMap={};allOrders.filter(o=>['picked','failed'].includes(o.status)&&o
     const onTrip=(pickedMap[d.id]||0)+(assignedMap[d.id]||0);
     const workMins=getDriverWorkMins(d.id);
 
-    // تحديد اللون والحالة
     let sc,st,sl;
     if(attStatus==='break'){
       sc='sr';st='st-r';sl='استراحة';
@@ -905,8 +880,7 @@ async function openDriverPopup(driverId){
   statusEl.style.background=statusColors[attStatus]||'rgba(148,163,184,.2)';
   statusEl.style.color=attStatus==='online'?'#4ade80':attStatus==='break'?'#f87171':'#94a3b8';
 
-  // جيب الرحلات اليوم وملخصها
-const since=new Date(Date.now()-24*60*60*1000).toISOString();
+  const since=new Date(Date.now()-24*60*60*1000).toISOString();
   const {data:trips}=await db.from('trips').select('id,route_id,status,orders_count,created_at').eq('driver_id',driverId).gte('created_at',since);
   const tripsEl=document.getElementById('dp-trips');
   if(!trips?.length){
@@ -970,7 +944,6 @@ function renderTrips(){
         ${tO.length?tO.map(o=>{
           const late=isLate(o);
           const base=getBillDate(o);
-          // العداد حسب الحالة
           let timerLabel='', timerVal=0, timerCls='';
           if(o.status==='assigned'){
             timerLabel='منذ التعيين';
@@ -980,7 +953,7 @@ function renderTrips(){
             timerLabel='مع الطيار';
             timerVal=dm(o.picked_at||base);
             timerCls=timerVal>(dispatchSettings?.max_picked_minutes||30)?'color:#f87171':'color:#60a5fa';
-} else if(o.status==='delivered'){
+          } else if(o.status==='delivered'){
             timerLabel='منذ التوصيل';
             timerVal=dm(o.delivered_at);
             timerCls='color:#4ade80';
@@ -1023,7 +996,12 @@ function renderOrders(){
   else if(currentFilter==='postponed') orders=orders.filter(o=>o.status==='postponed');
   else if(currentFilter==='picked') orders=orders.filter(o=>o.status==='picked');
   else if(currentFilter==='late') orders=orders.filter(o=>isLate(o));
-  else orders=orders.filter(o=>(o.status==='pending'&&!o.driver_id)||o.status==='postponed');
+  // "الكل" = نفس مجموعة عدّاد f-all (pending غير موزع + مؤجل + assigned + picked)
+  else orders=orders.filter(o=>
+    (o.status==='pending'&&!o.driver_id)||
+    o.status==='postponed'||
+    ['assigned','picked'].includes(o.status)
+  );
 
   if(search) orders=orders.filter(o=>
     (o.bill_no||'').toLowerCase().includes(search)||
@@ -1188,7 +1166,6 @@ async function confirmAssign(){
   showLoading(true);
   try{
     const now=new Date().toISOString();
-    // لو إعادة تعيين → شيل من الرحلة القديمة
     if(window._reassignTripId){
       for(const id of orderIds){
         await db.from('trip_orders').delete().eq('trip_id',window._reassignTripId).eq('order_id',id);
@@ -1207,15 +1184,12 @@ async function confirmAssign(){
     const tOrds=orderIds.map(id=>allOrders.find(o=>o.id===id)).filter(Boolean);
     const newTotal=tOrds.reduce((s,o)=>s+Number(o.total_bill_net||0),0);
 
-// الفرع الصحيح: للأدمن = الفرع المختار، للموظف = فرعه
     const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
-    // شوف لو الطيار عنده رحلة active (الأقدم لو فيه أكتر من واحدة)
     const {data:existingTrips}=await db.from('trips').select('*').eq('driver_id',driverId).eq('status','active').order('created_at',{ascending:true});
     const existingTrip=existingTrips&&existingTrips.length>0?existingTrips[0]:null;
 
     let tripId=null;
     if(existingTrip){
-      // أضف على الرحلة الموجودة
       tripId=existingTrip.id;
       const {data:curTO}=await db.from('trip_orders').select('id').eq('trip_id',tripId);
       const curCount=(curTO||[]).length;
@@ -1227,7 +1201,6 @@ async function confirmAssign(){
       await db.from('trip_orders').insert(orderIds.map(id=>({trip_id:tripId,order_id:id})));
       await addTripLog(tripId,'order_added',{driver:driver?.full_name,orders:orderIds.length});
     }else{
-      // أنشئ رحلة جديدة
       const {data:trip}=await db.from('trips').insert({
         driver_id:driverId,
         driver_name:driver?.full_name,
@@ -1259,7 +1232,6 @@ function openDeliver(id,e){
   document.getElementById('dlv-note').value='';
   document.getElementById('dlv-amt').value=o.collected_amount||o.total_bill_net||'';
   document.querySelectorAll('.pay-opt').forEach(b=>b.className='pay-opt');
-  // تحديد طريقة الدفع المسبقة من الصيدلية
   const preselectedPay = o.payment_method || 'cash';
   document.getElementById('dlv-pay').value=preselectedPay;
   const payBtn=document.querySelector(`.pay-opt[onclick*="selPay('${preselectedPay}'"]`);
@@ -1285,16 +1257,18 @@ function openPostpone(id,e){
   e?.stopPropagation();
   document.getElementById('pst-id').value=id;
   const now=new Date();now.setHours(now.getHours()+1);
-  document.getElementById('pst-time').value=now.toISOString().slice(0,16);
+  document.getElementById('pst-time').value=toLocalDatetimeInput(now);
   document.getElementById('pst-reason').value='';
   document.getElementById('postponeModal').classList.add('open');
 }
 async function confirmPostpone(){
   const id=document.getElementById('pst-id').value;
   const reason=document.getElementById('pst-reason').value;
+  const timeVal=document.getElementById('pst-time').value;
   showLoading(true);
   const now=new Date().toISOString();
-  // لو الطلب في رحلة → شيله منها
+  // datetime-local قيمة محلية → نحوّلها لـ ISO صح
+  const postponeTime=timeVal?new Date(timeVal).toISOString():null;
   const tripEntry=Object.entries(tripOrdersMap).find(([,ids])=>ids.includes(id));
   if(tripEntry){
     const tripId=tripEntry[0];
@@ -1303,8 +1277,10 @@ async function confirmPostpone(){
     await db.from('trips').update({orders_count:(to||[]).length,updated_at:now}).eq('id',tripId);
   }
   await db.from('orders').update({
-    status:'postponed',postpone_reason:reason,
-    driver_id:null,deliveryman:null,picked_at:null,
+    status:'postponed',
+    postpone_time:postponeTime,
+    postpone_reason:reason,
+    driver_id:null,deliveryman:null,picked_at:null,assigned_at:null,
     updated_at:now
   }).eq('id',id);
   await addOrderLog(id,'order_postponed',{reason:reason||'—'});
@@ -1334,7 +1310,6 @@ async function openEdit(id,e){
   document.getElementById('edt-id').value=id;
   document.getElementById('edt-staff').value=o.staff_notes||'';
   document.getElementById('edt-notes').value=o.notes||'';
-  // Load regions into select
   const {data:regions}=await db.from('regions').select('id,name').eq('is_active',true).order('name');
   const sel=document.getElementById('edt-region');
   sel.innerHTML='<option value="">بدون منطقة</option>'+
@@ -1357,11 +1332,11 @@ async function confirmEdit(){
 }
 
 // تغيير طريقة الدفع - dropdown
+let _payDDCloser=null;
 function cyclePayment(id, e){
   e?.stopPropagation();
-  // لو فيه dropdown مفتوح → اقفله
   const existing=document.getElementById('pay-dd');
-  if(existing){existing.remove();return;}
+  if(existing){closePayDD();return;}
   const o=allOrders.find(x=>x.id===id);if(!o)return;
   const methods=[
     {val:'cash',label:'💵 كاش',cls:'p-cash'},
@@ -1376,19 +1351,23 @@ function cyclePayment(id, e){
     <div onclick="selectPayment('${id}','${m.val}')" style="padding:.45rem .75rem;border-radius:7px;cursor:pointer;font-size:.78rem;font-weight:700;transition:background .1s;${o.payment_method===m.val?'background:var(--primary-light);color:var(--primary)':''}" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${o.payment_method===m.val?'var(--primary-light)':'white'}'">
       ${m.label}${o.payment_method===m.val?' ✓':''}
     </div>`).join('');
-  // position near click
   const rect=e.target.getBoundingClientRect();
   dd.style.top=(rect.bottom+4)+'px';
   dd.style.right=(window.innerWidth-rect.right)+'px';
   document.body.appendChild(dd);
-  // close on outside click
-  setTimeout(()=>document.addEventListener('click',function closeDD(ev){
-    if(!dd.contains(ev.target)){dd.remove();document.removeEventListener('click',closeDD);}
-  }),50);
+  // listener واحد فقط مع تنظيف مضمون
+  _payDDCloser=function(ev){
+    if(!dd.contains(ev.target)){closePayDD();}
+  };
+  setTimeout(()=>document.addEventListener('click',_payDDCloser),50);
+}
+function closePayDD(){
+  document.getElementById('pay-dd')?.remove();
+  if(_payDDCloser){document.removeEventListener('click',_payDDCloser);_payDDCloser=null;}
 }
 
 async function selectPayment(id, method){
-  document.getElementById('pay-dd')?.remove();
+  closePayDD();
   showLoading(true);
   const labels={cash:'كاش',visa:'فيزا',transfer:'تحويل',deferred:'آجل'};
   await db.from('orders').update({payment_method:method,updated_at:new Date().toISOString()}).eq('id',id);
@@ -1406,7 +1385,7 @@ async function markUrgent(id,e){
   showToast('🚨 تم تحديده كعاجل');await loadAll();showLoading(false);
 }
 
-// تغيير حالة الطلب لـ picked (الطيار استلم)
+// تغيير حالة الطلب لـ picked
 async function markPicked(id,e){
   e?.stopPropagation();
   showLoading(true);
@@ -1416,129 +1395,34 @@ async function markPicked(id,e){
   showToast('✓ تم تسجيل الاستلام');await loadAll();showLoading(false);
 }
 
-// إزالة أوردر من رحلة (يتأجل 5 دقائق ثم يعود للتوزيع)
+// إزالة أوردر من رحلة
 async function removeFromTrip(orderId, tripId, e){
   e?.stopPropagation();
   if(!confirm('إزالة الطلب من الرحلة؟ سيتأجل دقيقة ثم يعود للتوزيع تلقائياً.')) return;
   showLoading(true);
   const now = new Date().toISOString();
   const reactivateAt = new Date(Date.now() + 1*60000).toISOString();
-  // شيل من trip_orders
   await db.from('trip_orders').delete().eq('trip_id', tripId).eq('order_id', orderId);
-  // أجّل الطلب 1 دقائق بدل ما يرجع pending فوراً
   await db.from('orders').update({
     driver_id: null, deliveryman: null,
     status: 'postponed',
     postpone_time: reactivateAt,
-    postpone_reason: 'أُزيل من الرحلة — إعادة توزيع بعد 1 دقائق',
+    postpone_reason: 'أُزيل من الرحلة — إعادة توزيع بعد دقيقة',
     assigned_at: null, picked_at: null,
     updated_at: now
   }).eq('id', orderId);
-  // حدّث عدد الطلبات في الرحلة
   const {data:to} = await db.from('trip_orders').select('id').eq('trip_id', tripId);
   await db.from('trips').update({orders_count: (to||[]).length, updated_at: now}).eq('id', tripId);
   await addOrderLog(orderId, 'order_postponed', {action: 'removed_from_trip', trip_id: tripId, reactivate_at: reactivateAt});
-  showToast('✓ تم تأجيل الطلب 1 دقائق');
+  showToast('✓ تم تأجيل الطلب دقيقة');
   await loadAll();
   showLoading(false);
 }
-// Trip Order Actions Modal
-function openTripOrderActions(orderId, tripId){
-  const o=allOrders.find(x=>x.id===orderId);if(!o)return;
-  // Set current order context
-  document.getElementById('toa-id').value=orderId;
-  document.getElementById('toa-trip-id').value=tripId;
 
-  const base=getBillDate(o);
-  let timerHtml='';
-  const t1=dm(base);
-  timerHtml+=`<span class="oc-t t1"><span class="ti">إنشاء منذ</span> ${fm(t1)}</span>`;
-  if(o.assigned_at&&!o.picked_at){
-    const p=dm(o.assigned_at);
-    const late=p>(dispatchSettings?.max_assigned_minutes||10);
-    timerHtml+=`<span class="oc-t ${late?'t-late':'t3'}"><span class="ti">تعيين منذ</span> ${fm(p)}</span>`;
-  }
-  if(o.picked_at&&!o.delivered_at){
-    const d=dm(o.picked_at);
-    const late=d>(dispatchSettings?.max_picked_minutes||30);
-    timerHtml+=`<span class="oc-t ${late?'t-late':'t3'}"><span class="ti">استلم منذ</span> ${fm(d)}</span>`;
-  }
-  if(o.delivered_at){
-    timerHtml+=`<span class="oc-t t4"><span class="ti">وصّل منذ</span> ${fm(dm(o.delivered_at))}</span>`;
-  }
-
-  const pm=o.payment_method;
-  document.getElementById('toa-header').innerHTML=`
-    <div style="font-weight:700;font-size:.9rem">${o.customer_name||o.cust_name||'—'}</div>
-    <div style="font-size:.72rem;color:var(--text-muted);margin:.2rem 0">📍 ${o.customer_address||o.cust_address||'—'}</div>
-    <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin:.3rem 0">${timerHtml}</div>
-    <div style="display:flex;gap:.5rem;align-items:center;margin-top:.3rem">
-      <strong>${Number(o.total_bill_net||0).toLocaleString()} ج.م</strong>
-      ${pm?`<span class="oc-pay p-${pm}">${PL[pm]}</span>`:''}
-      <span class="oc-st s-${o.status}">${SL[o.status]||o.status}</span>
-    </div>`;
-
-  // Show/hide buttons based on status
-  document.getElementById('toa-btn-pickup').style.display=o.status==='assigned'?'flex':'none';
-  document.getElementById('toa-btn-deliver').style.display=o.status==='picked'?'flex':'none';
-  document.getElementById('toa-btn-reassign').style.display=['assigned','picked'].includes(o.status)?'flex':'none';
-  document.getElementById('toa-btn-postpone').style.display='flex';
-  document.getElementById('toa-btn-cancel').style.display='flex';
-  document.getElementById('toa-btn-remove').style.display='flex';
-
-  document.getElementById('tripOrderActionsModal').classList.add('open');
-}
-
-async function toaPickup(){
-  const id=document.getElementById('toa-id').value;
-  showLoading(true);
-  const now=new Date().toISOString();
-  await db.from('orders').update({status:'picked',picked_at:now,updated_at:now}).eq('id',id);
-  await addOrderLog(id,'order_picked',{by:'dispatch'});
-  closeModal('tripOrderActionsModal');showToast('✓ تم تسجيل الاستلام');await loadAll();showLoading(false);
-}
-
-function toaDeliver(){
-  const id=document.getElementById('toa-id').value;
-  closeModal('tripOrderActionsModal');
-  openDeliver(id,null);
-}
-
-function toaPostpone(){
-  const id=document.getElementById('toa-id').value;
-  closeModal('tripOrderActionsModal');
-  openPostpone(id,null);
-}
-
-function toaCancel(){
-  const id=document.getElementById('toa-id').value;
-  closeModal('tripOrderActionsModal');
-  openCancel(id,null);
-}
-
-async function toaRemove(){
-  const id=document.getElementById('toa-id').value;
-  const tripId=document.getElementById('toa-trip-id').value;
-  closeModal('tripOrderActionsModal');
-  await removeFromTrip(id,tripId,{stopPropagation:()=>{}});
-}
-
-function toaReassign(){
-  const id=document.getElementById('toa-id').value;
-  closeModal('tripOrderActionsModal');
-  selectedOrders.clear();
-  selectedOrders.add(id);
-  updSel();
-  openAssignModal();
-}
-
-// Detail
+// ===== DETAIL =====
 function openDetail(id){
   const o=allOrders.find(x=>x.id===id);if(!o)return;
   const pm=o.payment_method;const pmL=pm?PL[pm]:(o.bill_type||'—');
-  // Build timeline for regular detail
-  function fmDT2(dt){if(!dt)return '—';return new Date(dt).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
-  function diff2(from,to){if(!from||!to)return '';const m=Math.floor((new Date(to)-new Date(from))/60000);return m<60?`${m}د`:(`${Math.floor(m/60)}س${m%60}د`);}
   const base2=getBillDate(o);
   const stg2=[];
   stg2.push({label:'إنشاء',time:base2,color:'#60a5fa',icon:'📦'});
@@ -1580,7 +1464,6 @@ function buildHorizTimeline(stages){
     if(!dt)return '—';
     return new Date(dt).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   };
-  // حساب الوقت بين نقطتين بالدقائق
   const diffMins=(from,to)=>{
     if(!from||!to)return null;
     const m=Math.floor((new Date(to)-new Date(from))/60000);
@@ -1595,7 +1478,6 @@ function buildHorizTimeline(stages){
           const nextStage=stages[i+1];
           const timeBetween=nextStage?diffMins(s.time,nextStage.time):null;
           return `<div style="display:flex;align-items:center;gap:0">
-            <!-- النقطة -->
             <div style="display:flex;flex-direction:column;align-items:center;gap:.35rem;min-width:72px">
               <div style="width:36px;height:36px;border-radius:50%;background:${s.color};border:3px solid white;box-shadow:0 0 0 2.5px ${s.color},0 2px 8px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:.9rem">${s.icon}</div>
               <div style="text-align:center;width:72px">
@@ -1603,7 +1485,6 @@ function buildHorizTimeline(stages){
                 <div style="font-size:.55rem;color:#6b7280;margin-top:.1rem">${fdt(s.time)}</div>
               </div>
             </div>
-            <!-- الخط + الوقت -->
             ${i<stages.length-1?`
             <div style="display:flex;flex-direction:column;align-items:center;width:64px;flex-shrink:0;margin-bottom:22px">
               <div style="position:relative;width:100%;display:flex;align-items:center">
@@ -1622,37 +1503,11 @@ function buildHorizTimeline(stages){
 // Trip Order Detail Modal
 async function openTripOrderDetail(orderId, tripId){
   const o=allOrders.find(x=>x.id===orderId);if(!o)return;
-  const base=getBillDate(o);
   const pm=o.payment_method;
   const pmL=pm?PL[pm]:(o.bill_type||'—');
 
-  // جيب سجل الطلب الكامل لبناء الخريطة (كل المراحل والمحاولات)
   const {data:ologs}=await db.from('order_logs').select('event,created_at').eq('order_id',orderId).order('created_at',{ascending:true});
 
-  // Build timers
-  let timersHtml='';
-  const sinceCreate=dm(base);
-  timersHtml+=`<span class="oc-t t1"><span class="ti">إنشاء منذ</span> ${fm(sinceCreate)}</span>`;
-  if(o.assigned_at&&!o.picked_at){
-    const p=dm(o.assigned_at);
-    timersHtml+=`<span class="oc-t ${p>(dispatchSettings?.max_assigned_minutes||10)?'t-late':'t3'}"><span class="ti">تعيين منذ</span> ${fm(p)}</span>`;
-  }
-  if(o.picked_at&&!o.delivered_at){
-    const d=dm(o.picked_at);
-    timersHtml+=`<span class="oc-t ${d>(dispatchSettings?.max_picked_minutes||30)?'t-late':'t3'}"><span class="ti">استلم منذ</span> ${fm(d)}</span>`;
-  }
-if(o.delivered_at){
-    timersHtml+=`<span class="oc-t t4"><span class="ti">وصّل منذ</span> ${fm(dm(o.delivered_at))}</span>`;
-  }
-  if(o.status==='failed'){
-    timersHtml+=`<span class="oc-t t-late"><span class="ti">⚠️ تعذر منذ</span> ${fm(dm(o.updated_at))}</span>`;
-  }
-
-  // Build timeline
-  function fmDT(dt){if(!dt)return '—';return new Date(dt).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
-  function diffLabel(from,to){if(!from||!to)return '';const m=Math.floor((new Date(to)-new Date(from))/60000);return m<60?`${m}د`:(`${Math.floor(m/60)}س${m%60}د`);}
-
-// ابنِ المراحل من سجل الطلب (order_logs) — يعرض كل تعذر وكل محاولة بالترتيب
   const EVENT_MAP={
     order_created:{label:'إنشاء الطلب',color:'#60a5fa',icon:'📦'},
     driver_assigned:{label:'تعيين على طيار',color:'#f97316',icon:'🚗'},
@@ -1663,13 +1518,11 @@ if(o.delivered_at){
     order_completed:{label:'اكتمال الرحلة',color:'#94a3b8',icon:'🏁'}
   };
   const stages=[];
-  // ابدأ دائماً بإنشاء الطلب (وقت الفاتورة الحقيقي)
   stages.push({label:'إنشاء الطلب',time:getBillDate(o),color:'#60a5fa',icon:'📦'});
-  // باقي المراحل من السجل (نتجاهل order_created عشان محطوط فوق بوقت الفاتورة)
   (ologs||[]).forEach(l=>{
     if(l.event==='order_created') return;
     const m=EVENT_MAP[l.event];
-    if(!m) return; // تجاهل الأحداث اللي مالهاش مرحلة (تعديل، عاجل، إلخ)
+    if(!m) return;
     stages.push({label:m.label,time:new Date(l.created_at),color:m.color,icon:m.icon});
   });
 
@@ -1688,11 +1541,11 @@ if(o.delivered_at){
     ${o.staff_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الموظف</span><span class="d-val">${o.staff_notes}</span></div>`:''}
     ${o.driver_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الطيار</span><span class="d-val">${o.driver_notes}</span></div>`:''}`;
 
-  // Actions based on status
   let footerBtns=`<button class="btn btn-outline" onclick="closeModal('detailModal')">إغلاق</button>`;
   footerBtns+=`<button class="btn btn-outline" onclick="closeModal('detailModal');openLog('${orderId}',null)">📋 سجل</button>`;
 
   if(o.status==='assigned'){
+    footerBtns+=`<button class="btn btn-green" onclick="closeModal('detailModal');markPicked('${orderId}',null)">▶️ استلام</button>`;
     footerBtns+=`<button class="btn btn-primary" onclick="closeModal('detailModal');openReassign('${orderId}','${tripId}')">🔄 إعادة تعيين</button>`;
     footerBtns+=`<button class="btn btn-outline" onclick="closeModal('detailModal');removeFromTrip('${orderId}','${tripId}',{stopPropagation:()=>{}})">↩ إزالة من الرحلة</button>`;
     footerBtns+=`<button class="btn btn-red" onclick="closeModal('detailModal');openCancel('${orderId}',null)">إلغاء</button>`;
@@ -1713,7 +1566,6 @@ function openReassign(orderId, tripId){
   selectedOrders.clear();
   selectedOrders.add(orderId);
   updSel();
-  // Remove from current trip first, then assign
   document.getElementById('assignDrv').innerHTML=allDrivers.map(d=>`<option value="${d.id}">${d.full_name}</option>`).join('');
   const o=allOrders.find(x=>x.id===orderId);
   document.getElementById('assignList').innerHTML=`<div class="sel-item">
@@ -1721,16 +1573,15 @@ function openReassign(orderId, tripId){
     <span style="color:var(--text-muted);flex:1;margin:0 .4rem">${o?.customer_name||o?.cust_name||'—'}</span>
     <span style="font-size:.65rem;color:var(--orange)">إعادة تعيين من ${o?.deliveryman||'—'}</span>
   </div>`;
-  // Store current trip for removal
   window._reassignTripId = tripId;
   document.getElementById('assignModal').classList.add('open');
 }
 
 // Cancel by customer
 async function openCancelByCustomer(orderId){
+  if(!confirm('تأكيد إلغاء الطلب من العميل؟'))return;
   showLoading(true);
   const now=new Date().toISOString();
-  // Find trip
   const tripEntry=Object.entries(tripOrdersMap).find(([,ids])=>ids.includes(orderId));
   if(tripEntry){
     const tripId=tripEntry[0];
@@ -1755,6 +1606,7 @@ async function activatePostponed(orderId, e){
   await db.from('orders').update({
     status:'pending',
     postpone_reason:null,
+    postpone_time:null,
     driver_id:null,
     deliveryman:null,
     assigned_at:null,
@@ -1767,9 +1619,8 @@ async function activatePostponed(orderId, e){
   showLoading(false);
 }
 
-// Trip complete
+// ===== Trip complete =====
 async function completeTrip(tripId){
-  // تحقق من الطلبات قبل الإنهاء
   const oIds=tripOrdersMap[tripId]||[];
   const tripOrders=oIds.map(id=>allOrders.find(o=>o.id===id)).filter(Boolean);
   const assigned=tripOrders.filter(o=>o.status==='assigned');
@@ -1792,6 +1643,7 @@ async function completeTrip(tripId){
   for(const id of oIds)await addOrderLog(id,'order_completed',{trip_id:tripId});
   showToast('✓ تم إنهاء الرحلة');await loadAll();showLoading(false);
 }
+
 // ===== موافقة إنهاء الرحلة (طلب من الطيار) =====
 async function openCompleteApproval(tripId){
   const trip=activeTrips.find(t=>t.id===tripId);if(!trip)return;
@@ -1836,16 +1688,13 @@ async function approveComplete(){
   const now=new Date().toISOString();
   const oIds=tripOrdersMap[tripId]||[];
   const tO=oIds.map(id=>allOrders.find(o=>o.id===id)).filter(Boolean);
-  // المتعذرة ترجع للتوزيع
   const failedIds=tO.filter(o=>o.status==='failed').map(o=>o.id);
   if(failedIds.length){
     await db.from('orders').update({status:'postponed',driver_id:null,deliveryman:null,assigned_at:null,picked_at:null,updated_at:now}).in('id',failedIds);
     for(const id of failedIds){await db.from('trip_orders').delete().eq('trip_id',tripId).eq('order_id',id);}
   }
-  // المُوصّلة → completed
   const deliveredIds=tO.filter(o=>o.status==='delivered').map(o=>o.id);
   if(deliveredIds.length)await db.from('orders').update({status:'completed',completed_at:now,updated_at:now}).in('id',deliveredIds);
-  // الرحلة → completed (وقت الموافقة = وقت الإنهاء الفعلي)
   await db.from('trips').update({status:'completed',updated_at:now}).eq('id',tripId);
   await addTripLog(tripId,'trip_completed',{by:'admin_approved'});
   for(const id of deliveredIds)await addOrderLog(id,'order_completed',{trip_id:tripId});
@@ -1861,21 +1710,20 @@ async function rejectComplete(){
   await addTripLog(tripId,'complete_rejected',{by:'admin'});
   closeModal('completeApprovalModal');showToast('تم رفض الطلب — رجعت الرحلة للطيار');await loadAll();showLoading(false);
 }
-// ===== CALL & MESSAGE =====
-  // ===== انصراف يدوي للطيار من الإدارة =====
+
+// ===== انصراف يدوي للطيار من الإدارة =====
 async function forceDriverOffline(driverId){
   if(!driverId)return;
   const driver=allDrivers.find(d=>d.id===driverId);
   const name=driver?.full_name||'الطيار';
 
-  // تأمين: تأكد إنه مفيش رحلة جارية أو طلبات شغّالة
-  const {data:activeTrips}=await db.from('trips').select('id').eq('driver_id',driverId).eq('status','active');
-  if(activeTrips?.length>0){
+  const {data:busyTrips}=await db.from('trips').select('id').eq('driver_id',driverId).eq('status','active');
+  if(busyTrips?.length>0){
     showToast('❌ لا يمكن — الطيار لديه رحلة جارية');
     return;
   }
-  const {data:activeOrders}=await db.from('orders').select('id').eq('driver_id',driverId).in('status',['assigned','picked']);
-  if(activeOrders?.length>0){
+  const {data:busyOrders}=await db.from('orders').select('id').eq('driver_id',driverId).in('status',['assigned','picked']);
+  if(busyOrders?.length>0){
     showToast('❌ لا يمكن — الطيار لديه طلبات جارية');
     return;
   }
@@ -1885,10 +1733,8 @@ async function forceDriverOffline(driverId){
   showLoading(true);
   try{
     const now=new Date().toISOString();
-    // أنهِ آخر فترة online شغّالة
     const prevOnline=attendanceToday.find(r=>r.driver_id===driverId&&r.status==='online'&&!r.ended_at);
     if(prevOnline)await db.from('driver_attendance').update({ended_at:now}).eq('id',prevOnline.id);
-    // سجّل انصراف مباشر (موافَق عليه من الإدارة)
     await db.from('driver_attendance').insert({
       driver_id:driverId,
       date:getTodayCairo(),
@@ -1903,6 +1749,8 @@ async function forceDriverOffline(driverId){
   }catch(e){console.error(e);showToast('حدث خطأ');}
   showLoading(false);
 }
+
+// ===== CALL & MESSAGE =====
 async function callDriver(driverId){
   if(!driverId)return;
   try{
@@ -1937,37 +1785,29 @@ async function sendMessage(){
   }catch(e){showToast('خطأ في الإرسال');}
 }
 
-// Utils
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ===== Utils =====
+function closeModal(id){const el=document.getElementById(id);if(el)el.classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 function showLoading(show){document.getElementById('loadingOverlay').classList.toggle('show',show);}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
-// ============================================================
-// استبدل قسم BRANCH SELECTOR بالكامل في dispatch.html بدي
-// (من تعليق "// ===== BRANCH SELECTOR =====" لحد "initBranchSelector();")
-// ============================================================
-
 // ===== BRANCH SELECTOR =====
 let activeBranchId = null;       // null = كل الفروع
-let allBranchesCache = [];       // كاش الفروع للتابات
+let allBranchesCache = [];
 
 const BRANCH_STORAGE_KEY = 'dispatch_active_branch';
 
 async function initBranchSelector(){
   if(currentUser?.role !== 'admin'){
-    // موظف الفرع → فرعه بس
     activeBranchId = currentUser?.branch_id || null;
     loadAll();
     setTimeout(initDispatchEngine, 2000);
     return;
   }
 
-  // Admin → حمّل الفروع واعمل تابات
   const {data:branches} = await db.from('branches').select('id,name').order('name');
   allBranchesCache = branches || [];
 
-  // استرجع آخر فرع مختار من sessionStorage (عشان الـ refresh ميرجعش يسأل)
   const saved = sessionStorage.getItem(BRANCH_STORAGE_KEY);
   if(saved !== null){
     activeBranchId = saved === 'all' ? null : saved;
@@ -1979,17 +1819,14 @@ async function initBranchSelector(){
     loadAll();
     setTimeout(initDispatchEngine, 1000);
   } else {
-    // أول مرة بس → اعرض الـ overlay للاختيار المبدئي
     renderBranchTabs();
     await showBranchOverlay();
   }
 }
 
-// تابات الفروع في الهيدر (للأدمن)
 function renderBranchTabs(){
   let bar = document.getElementById('branchTabsBar');
   if(!bar){
-    // أنشئ شريط التابات تحت الهيدر مباشرة
     bar = document.createElement('div');
     bar.id = 'branchTabsBar';
     bar.style.cssText = 'display:flex;gap:.4rem;align-items:center;overflow-x:auto;padding:.4rem 1rem;background:#16203a;border-bottom:1px solid #334155;flex-shrink:0';
@@ -2012,13 +1849,11 @@ function selectBranchTab(id){
   const name = id ? (allBranchesCache.find(b=>b.id===id)?.name || '') : 'كل الفروع';
   document.getElementById('branchLabel').textContent = '· ' + name;
   renderBranchTabs();
-  // أعد تشغيل الـ engine للفرع الجديد
   if(dispatchEngine){ dispatchEngine.stop?.(); dispatchEngine=null; }
   loadAll();
   if(id) setTimeout(initDispatchEngine, 1000);
 }
 
-// الـ overlay لسه موجود لأول اختيار بس
 async function showBranchOverlay(){
   const overlay = document.getElementById('branchOverlay');
   overlay.style.display='flex';
@@ -2055,26 +1890,25 @@ function selectBranchAll(){
   loadAll();
 }
 
-initBranchSelector();
-
 // ===== AUTO DISPATCH ENGINE =====
 let dispatchEngine = null;
 async function initDispatchEngine() {
-  // استخدم الفرع المختار (admin) أو فرع المستخدم
   const branchId = currentUser?.role==='admin' ? activeBranchId : currentUser?.branch_id;
   if (!branchId) {
     console.log('[AutoDispatch] لم يتم اختيار فرع بعد');
     return;
   }
-  // تحقق من إعداد auto_dispatch
   const {data:ds} = await db.from('dispatch_settings').select('auto_dispatch').eq('branch_id', branchId);
   const autoDispatch = ds?.[0]?.auto_dispatch;
   if (!autoDispatch) {
     console.log('[AutoDispatch] التوزيع التلقائي معطّل من الإعدادات');
     return;
   }
-  // لو فيه engine قديم على فرع مختلف → وقّفه
   if (dispatchEngine) { dispatchEngine.stop?.(); dispatchEngine=null; }
+  if (typeof DispatchEngine === 'undefined') {
+    console.warn('[AutoDispatch] DispatchEngine غير محمّل');
+    return;
+  }
   dispatchEngine = new DispatchEngine(db, branchId);
   dispatchEngine.onLog = (msg) => {
     if (msg.includes('✅') || msg.includes('❌') || msg.includes('⚠️')) showToast(msg);
@@ -2089,7 +1923,6 @@ setInterval(async()=>{
   if(!branchId) return;
   const {data:ds}=await db.from('dispatch_settings').select('auto_dispatch').eq('branch_id',branchId);
   const autoDispatch=ds?.[0]?.auto_dispatch;
-  // لو الفرع اتغير → وقّف الـ engine القديم
   if(dispatchEngine && dispatchEngine.branchId !== branchId){
     dispatchEngine.stop?.(); dispatchEngine=null;
   }
@@ -2100,6 +1933,9 @@ setInterval(async()=>{
     console.log('[AutoDispatch] تم إيقاف التوزيع التلقائي');
   }
 },60000);
+
+// ===== BOOT =====
+initBranchSelector();
 </script>
 </body>
 </html>
