@@ -16,56 +16,78 @@
   .tab-view.active{display:block}
 
   /* ===== Reconciliation aligned table (each pair = one row, two halves) ===== */
-  .recon-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
-  .recon-thead{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-3);border-bottom:2px solid var(--border);position:sticky;top:0;z-index:3}
-  .recon-thead .rh{padding:12px 16px;display:flex;align-items:center;gap:9px;font-weight:700;font-size:0.9rem}
-  .recon-thead .rh.sys{border-inline-end:1px solid var(--border)}
-  .recon-thead .rh .col-count{margin-inline-start:auto;font-size:0.75rem;color:var(--text-muted);font-weight:600}
-  .recon-tbody{max-height:64vh;overflow-y:auto}
+  .recon-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .recon-thead{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-3);border-bottom:2px solid #16a34a;position:sticky;top:0;z-index:3}
+  .recon-thead .rh{padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:0.82rem;color:var(--text-secondary)}
+  .recon-thead .rh.sys{border-inline-end:2px solid #16a34a}
+  .recon-thead .rh .col-count{margin-inline-start:auto;font-size:0.72rem;color:var(--text-muted);font-weight:600}
+  .recon-tbody{max-height:70vh;overflow-y:auto}
 
-  .pair{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--surface-3);position:relative}
+  .pair{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #16a34a;position:relative;transition:opacity .15s,filter .15s}
   .pair:last-child{border-bottom:none}
-  .pair:hover{background:#f8fafc}
-  .half{position:relative;min-height:62px;display:flex;align-items:stretch}
-  .half.sys{border-inline-end:1px solid var(--border)}
-  .half .rbody{flex:1;padding:9px 14px;display:flex;flex-direction:column;justify-content:center;min-width:0}
-  .half .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .half .ramt{font-size:1.05rem;font-weight:900;color:var(--text-primary);white-space:nowrap}
-  .half .r2{display:flex;align-items:center;gap:7px;margin-top:3px;color:var(--text-muted);font-size:0.74rem;flex-wrap:wrap}
-  .half .ractions{display:flex;align-items:center;gap:4px;padding:0 8px;opacity:0;transition:.15s}
+  .pair:hover{background:#fafbfc}
+  .half{position:relative;min-height:40px;display:flex;align-items:stretch}
+  .half.sys{border-inline-end:2px solid #16a34a}
+  .half .rbody{flex:1;padding:6px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+  .half .r1{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .half .ramt{font-size:0.92rem;font-weight:800;color:var(--text-primary);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .half .r2{display:flex;align-items:center;gap:6px;margin-top:1px;color:var(--text-muted);font-size:0.68rem;flex-wrap:wrap}
+  .half .ractions{display:flex;align-items:center;gap:3px;padding:0 7px;opacity:0;transition:.15s}
   .pair:hover .half .ractions{opacity:1}
 
-  .pair.matched .half{background:linear-gradient(90deg,#f0fdf4,transparent 80%)}
+  .pair.matched .half{background:linear-gradient(90deg,#f3fbf6,transparent 85%)}
   .pair.matched .ramt{color:#15803d}
-  .pair.diff .half{background:#fffbeb}
+  .pair.diff .half{background:#fffaf0}
   .pair.diff .ramt{color:#b45309}
-  .pair.manual .half{background:#eff6ff}
+  .pair.manual .half{background:#f3f7fd}
   .pair.hidden-soft{opacity:.5}
 
-  .half.empty{background:repeating-linear-gradient(45deg,#fef2f2,#fef2f2 10px,#fee2e2 10px,#fee2e2 20px);align-items:center;justify-content:center;color:#b91c1c;font-weight:700;font-size:0.8rem;gap:9px;padding:9px 14px;text-align:center}
-  .half.draggable{cursor:grab}
-  .half.dragging{opacity:.4}
-  .half.drop-ok{outline:2px dashed var(--accent);outline-offset:-2px;background:#ecfeff}
+  .half.empty{background:#fdf4f4;align-items:center;justify-content:center;color:#b91c1c;font-weight:700;font-size:0.76rem;gap:8px;padding:6px 12px;text-align:center;border:1px dashed #f3c6c6}
   .half.sel{outline:2px solid var(--accent);outline-offset:-2px}
 
-  .rstatus{position:absolute;top:5px;inset-inline-end:8px;font-size:0.62rem;font-weight:800;padding:2px 7px;border-radius:20px;z-index:2}
+  /* ---- مجموعة الربط المتعدد: خانة واحدة ممتدة بصرياً (grid-row span) مقابل عناصر مرصوصة ---- */
+  .half.multi-anchor{background:#f3f7fd}
+  .half.multi-item.multi-sep{border-top:2px solid #16a34a}
 
-  .ibtn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--text-muted);transition:.15s;font-size:0.8rem}
+  /* ---- وضع الربط البصري (موحّد: واحد لواحد + متعدد) ---- */
+  .pair.link-dim{opacity:.32;filter:saturate(.6)}
+  .half.link-anchor{background:#dcfce7 !important;outline:2px solid #16a34a;outline-offset:-2px;z-index:1}
+  .half.link-pickable{cursor:pointer;outline:1.5px dashed #94a3b8;outline-offset:-2px}
+  .half.link-pickable:hover{background:#f0fdf4;outline-color:#16a34a}
+  .half.link-picked{background:#bbf7d0 !important;outline:2px solid #16a34a;outline-offset:-2px;cursor:pointer}
+  .link-pick-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#16a34a;color:#fff;font-size:0.62rem;font-weight:800;margin-inline-end:4px}
+
+  .rstatus{position:absolute;top:4px;inset-inline-end:7px;font-size:0.6rem;font-weight:800;padding:1px 6px;border-radius:20px;z-index:2}
+
+  .ibtn{width:25px;height:25px;border-radius:6px;border:1px solid var(--border);background:var(--surface);display:grid;place-items:center;cursor:pointer;color:var(--text-muted);transition:.15s;font-size:0.74rem}
   .ibtn:hover{color:var(--text-primary);border-color:var(--text-muted)}
   .ibtn.danger:hover{color:var(--danger);border-color:var(--danger)}
   .ibtn.go:hover{color:var(--success);border-color:var(--success)}
 
-  .add-here{border:1px solid #fca5a5;background:#fff;color:#b91c1c;padding:5px 11px;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font);font-weight:700;font-size:0.76rem;display:inline-flex;gap:5px;align-items:center}
+  .add-here{border:1px solid #f3c6c6;background:#fff;color:#b91c1c;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font);font-weight:700;font-size:0.72rem;display:inline-flex;gap:5px;align-items:center}
   .add-here:hover{background:#fef2f2}
 
-  .src-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:0.7rem;font-weight:700}
+  .src-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:20px;font-size:0.66rem;font-weight:700}
   .src-paymob{background:#fae8ff;color:#a21caf}
   .src-orange{background:#ffedd5;color:#c2410c}
   .src-vodafone{background:#fee2e2;color:#b91c1c}
   .src-instapay{background:#ede9fe;color:#6d28d9}
   .src-fawry{background:#dcfce7;color:#15803d}
   .src-other{background:#f1f5f9;color:#475569}
-  .bill-chip{background:#e0f2fe;color:#0369a1;padding:2px 9px;border-radius:20px;font-size:0.7rem;font-weight:700}
+  .bill-chip{background:#e0f2fe;color:#0369a1;padding:1px 8px;border-radius:20px;font-size:0.66rem;font-weight:700}
+
+  /* ---- شريط الربط الثابت فوق الصفحة ---- */
+  #link-bar{position:sticky;top:0;z-index:60;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 16px;margin-bottom:10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 6px 20px rgba(15,23,42,.25)}
+  #link-bar b{color:#fff}
+  #link-bar .lb-tag{font-weight:800;color:#4ade80;display:flex;align-items:center;gap:6px}
+  #link-bar .lb-stat{font-size:0.82rem;color:#cbd5e1}
+  #link-bar .lb-diff{font-size:0.82rem;font-weight:700}
+  #link-bar .lb-actions{margin-inline-start:auto;display:flex;gap:8px}
+  #link-bar button{border:none;border-radius:8px;padding:7px 14px;font-family:var(--font);font-weight:700;font-size:0.8rem;cursor:pointer}
+  #link-bar .lb-cancel{background:#334155;color:#cbd5e1}
+  #link-bar .lb-cancel:hover{background:#475569}
+  #link-bar .lb-confirm{background:#16a34a;color:#fff}
+  #link-bar .lb-confirm:hover{background:#15803d}
 
   /* ===== Close shift ===== */
   .close-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;align-items:start}
@@ -83,6 +105,15 @@
   .add-line-btn:hover{border-color:var(--accent);color:var(--accent-dark)}
 
   .wtot-line{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--surface-3)}
+
+  /* جدول فواتير الكاش المحوّلة لمحفظة — أعمدة أرقام ضيقة، مش متمدّدة */
+  .c2w-table{width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:4px}
+  .c2w-table th,.c2w-table td{padding:6px 8px;border-bottom:1px solid var(--surface-3);text-align:start;white-space:nowrap}
+  .c2w-table th{font-size:0.7rem;color:var(--text-muted);font-weight:700}
+  .c2w-table th.num,.c2w-table td.num{width:90px;max-width:90px;text-align:center}
+  .c2w-table th.actions,.c2w-table td.actions{width:150px;text-align:center}
+  .c2w-table td.c2w-editable{text-decoration:underline dotted;text-decoration-color:var(--text-muted)}
+  .c2w-table td.c2w-editable:hover{background:#f0fdf4}
   .wtot-line:last-child{border-bottom:none}
 
   .card-mini-head{font-size:0.9rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
@@ -131,54 +162,22 @@
 
 <div class="container">
 
-  <div class="page-header">
-    <div class="page-title">
+  <div class="page-header" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0">
+    <div class="page-title" style="white-space:nowrap;font-size:0.95rem">
       <i class="fas fa-scale-balanced"></i> تسوية المدفوعات <span class="highlight" id="branch-title"></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select class="form-select" id="branch-select" style="width:auto;display:none"></select>
-      <button class="btn btn-primary btn-sm" id="btn-refresh"><i class="fas fa-rotate"></i> تحديث</button>
+    <div class="tabs-bar" style="margin:0;flex:0 0 auto">
+      <button class="tab-btn active" data-tab="close" style="min-width:auto;padding:7px 12px;font-size:0.8rem"><i class="fas fa-lock"></i> إغلاق الشيفت</button>
+      <button class="tab-btn" data-tab="history" style="min-width:auto;padding:7px 12px;font-size:0.8rem"><i class="fas fa-clock-rotate-left"></i> الإغلاقات السابقة</button>
     </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs-bar">
-    <button class="tab-btn active" data-tab="recon"><i class="fas fa-table-cells"></i> التسوية</button>
-    <button class="tab-btn" data-tab="close"><i class="fas fa-lock"></i> إغلاق الشيفت</button>
-    <button class="tab-btn" data-tab="history"><i class="fas fa-clock-rotate-left"></i> الإغلاقات السابقة</button>
-  </div>
-
-  <!-- ===== RECON TAB ===== -->
-  <div class="tab-view active" id="tab-recon">
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-num" id="s-matched" style="color:var(--success)">0</div><div class="stat-lbl">مطابَقة</div></div>
-      <div class="stat-card"><div class="stat-num" id="s-diff" style="color:var(--warning)">0</div><div class="stat-lbl">فرق قيمة</div></div>
-      <div class="stat-card"><div class="stat-num" id="s-unsys" style="color:var(--danger)">0</div><div class="stat-lbl">سيستم بلا دفع</div></div>
-      <div class="stat-card"><div class="stat-num" id="s-unwal" style="color:var(--danger)">0</div><div class="stat-lbl">دفع بلا فاتورة</div></div>
-    </div>
-
-    <div class="filter-bar">
-      <span class="filter-label"><i class="fas fa-filter"></i> فلترة:</span>
-      <input class="form-input" id="search" style="width:auto;flex:1;min-width:160px" placeholder="بحث: رقم فاتورة / قيمة / موظف…">
-      <div style="display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px">
-        <button class="btn btn-sm seg-btn active" data-f="all" style="background:var(--accent);color:var(--primary)">الكل</button>
-        <button class="btn btn-sm seg-btn" data-f="issues" style="background:transparent;color:var(--text-secondary)">المشاكل</button>
-        <button class="btn btn-sm seg-btn" data-f="matched" style="background:transparent;color:var(--text-secondary)">المطابق</button>
-      </div>
-      <label class="check-label"><input type="checkbox" id="show-hidden"> إظهار المخفية</label>
-    </div>
-
-    <div class="recon-table">
-      <div class="recon-thead">
-        <div class="rh sys"><i class="fas fa-file-invoice" style="color:#0284c7"></i> السيستم · B Connect <span class="col-count" id="c-system">—</span></div>
-        <div class="rh wal"><i class="fas fa-wallet" style="color:#a855f7"></i> المحافظ والماكينات <span class="col-count" id="c-wallet">—</span></div>
-      </div>
-      <div class="recon-tbody" id="recon-rows"></div>
-    </div>
+    <div style="flex:1;min-width:8px"></div>
+    <input class="form-input" id="close-cashier-top" style="width:auto;min-width:130px;max-width:180px;padding:6px 10px;font-size:0.8rem;flex-shrink:0" placeholder="اسم الكاشير">
+    <select class="form-select" id="branch-select" style="width:auto;display:none;flex-shrink:0"></select>
+    <button class="btn btn-primary btn-sm" id="btn-refresh" style="flex-shrink:0"><i class="fas fa-rotate"></i> تحديث</button>
   </div>
 
   <!-- ===== CLOSE TAB ===== -->
-  <div class="tab-view" id="tab-close">
+  <div class="tab-view active" id="tab-close">
     <div id="close-wrap"></div>
   </div>
 
@@ -258,6 +257,25 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Modal تأكيد إضافة الفاتورة -->
+<div id="bill-confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100000;align-items:center;justify-content:center;">
+  <div style="background:var(--surface-2,#1e293b);border:2px solid var(--border);border-radius:16px;padding:22px;width:92%;max-width:460px;direction:rtl;box-shadow:0 20px 60px rgba(0,0,0,0.6);max-height:88vh;overflow-y:auto;">
+    <h3 style="margin:0 0 14px;font-size:1rem;display:flex;align-items:center;gap:8px;"><i class="fas fa-file-circle-check" style="color:var(--accent);"></i> تأكيد إضافة الفاتورة</h3>
+    <div id="bill-confirm-body"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+      <button class="btn btn-sm" style="background:var(--surface-3);color:var(--text-secondary);" onclick="closeBillConfirm()">إلغاء</button>
+      <button class="btn btn-primary btn-sm" id="bill-confirm-add" onclick="confirmAddBill()"><i class="fas fa-plus"></i> إضافة</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.lk-msg{ font-size:0.75rem;padding:2px 8px;border-radius:20px;font-weight:600; }
+.lk-msg.ok{ background:#dcfce7;color:#15803d; }
+.lk-msg.err{ background:#fee2e2;color:#b91c1c; }
+.lk-msg.loading{ background:#e0f2fe;color:#0369a1; }
+</style>
+
 <script src="api.js"></script>
 <script src="nav.js"></script>
 <script>
@@ -268,21 +286,36 @@
 
 /* ---- صلاحية + فرع المستخدم ---- */
 const USER_ROLE   = (localStorage.getItem('userRole')   || '').trim();
-const USER_BRANCH = (localStorage.getItem('userBranch') || '').trim();
+const USER_BRANCH_RAW = (localStorage.getItem('userBranch') || '').trim();
 const IS_ADMIN    = USER_ROLE === 'admin' || USER_ROLE === 'manager';
 
-/* الفرع الفعّال: الأدمن يختار، غير الأدمن مقفول على فرعه */
+/* ---- خريطة أسماء الفروع القديمة → أسماء المناطق ----
+   المستخدم ممكن يكون داخل باسم الفرع القديم (الصيدلية/ابراهيم حمدي 2/3)،
+   لكن البيانات (wallet + sales_wallet) بقت بأسماء المناطق.
+   هنا نترجم اسم الفرع القديم لاسم المنطقة قبل الفلترة. */
+const BRANCH_ALIAS = {
+  'الصيدلية'      : 'المعمورة',
+  'ابراهيم حمدي 2': 'سان ستيفانو',
+  'ابراهيم حمدي 3': 'سيدى بشر'
+};
+function resolveBranch(name){
+  const n = (name || '').trim();
+  return BRANCH_ALIAS[n] || n;   // لو مش في الخريطة، يرجّعه زي ما هو (يدعم اللي داخل باسم المنطقة أصلاً)
+}
+const USER_BRANCH = resolveBranch(USER_BRANCH_RAW);
+
+/* الفرع الفعّال: الأدمن يختار، غير الأدمن مقفول على فرعه (بعد الترجمة) */
 let ACTIVE_BRANCH = IS_ADMIN ? '' : USER_BRANCH;
 
 /* ---- overlay محلي للتعديلات (إخفاء/إضافة/ربط) ---- */
 const LS_OVERLAY = 'recon.overlay.v1';
 const overlay = Object.assign(
-  { hidden:{}, manual:[], matches:{}, pulls:{}, amends:{} },
+  { hidden:{}, manual:[], matches:{}, pulls:{}, amends:{}, excluded:{} },
   JSON.parse(localStorage.getItem(LS_OVERLAY) || '{}')
 );
 function saveOverlay(){ localStorage.setItem(LS_OVERLAY, JSON.stringify(overlay)); }
 
-let SYSTEM=[], WALLET=[], MACHINES=[], PAIRS=[];
+let SYSTEM=[], WALLET=[], MACHINES=[], PAIRS=[], LINKS=[], CASH2WALLET=[];
 let TERMINAL2STORE={}, MNAME2STORE={}, ALL_STORES=[];
 
 /* ============ helpers ============ */
@@ -315,35 +348,52 @@ function buildMachineMaps(){
   Object.entries(owners).forEach(([k,set])=>{if(set.size===1)MNAME2STORE[k]=[...set][0];});
 }
 
-/* ============ source detection ============ */
+/* ============ source detection ============
+   البنية الجديدة: type=SALE => فيزا/Paymob. غير كده محفظة،
+   ونوعها يتحدد من عمود to (اسم الماكينة/المحفظة). */
 function walletSource(rec){
-  if(rec.order_id||rec.terminal_id)return'paymob';
-  const m=(rec.message||'')+' '+(rec.machine_name||'')+' ';
+  const type=String(rec.type||'').trim().toUpperCase();
+  if(type==='SALE'||rec.order_id||rec.terminal_id)return'paymob';
+  const m=String(rec.to||'')+' '+String(rec.message||'')+' ';
   if(/اورنچ|أورنج|orange/i.test(m))return'orange';
   if(/فودافون|vodafone|vfcash/i.test(m))return'vodafone';
   if(/اتصالات|etisalat/i.test(m))return'etisalat';
   if(/انستا|instapay/i.test(m))return'instapay';
   if(/فوري|فورى|fawry/i.test(m))return'fawry';
+  if(/wee|وي/i.test(m))return'wee';
   return'other';
 }
-const SRC_LABEL={paymob:'Paymob',orange:'أورنج كاش',vodafone:'فودافون كاش',etisalat:'اتصالات كاش',instapay:'إنستاباي',fawry:'فوري',other:'محفظة'};
-const SRC_ICON={paymob:'fa-mobile-screen-button',orange:'fa-wallet',vodafone:'fa-wallet',instapay:'fa-money-bill-transfer',fawry:'fa-store',etisalat:'fa-wallet',other:'fa-wallet'};
+const SRC_LABEL={paymob:'Paymob',orange:'أورنج كاش',vodafone:'فودافون كاش',etisalat:'اتصالات كاش',instapay:'إنستاباي',fawry:'فوري',wee:'wee',other:'محفظة'};
+const SRC_ICON={paymob:'fa-mobile-screen-button',orange:'fa-wallet',vodafone:'fa-wallet',instapay:'fa-money-bill-transfer',fawry:'fa-store',etisalat:'fa-wallet',wee:'fa-wallet',other:'fa-wallet'};
+
+/* توحيد رسم العربي للفرع: الياء/الألف المقصورة، التاء المربوطة، الألفات، والمسافات */
+function normBranch(s){
+  return String(s||'').trim()
+    .replace(/\u0649/g,'\u064a')      // ى → ي
+    .replace(/\u0629/g,'\u0647')      // ة → ه
+    .replace(/[\u0623\u0625\u0622]/g,'\u0627') // أ إ آ → ا
+    .replace(/\s+/g,' ');
+}
 
 /* ============ normalize ============ */
 function normSystem(r){
+  const store=(r.branch||r.store_name||'').trim();
   return{side:'system',id:'sys-'+(r.id??r.bill_no),raw:r,
-    bill_no:String(r.bill_no??'').trim(),amount:num(r.total_bill_net??r.total_bill),
-    date:r.bill_date||r.createdAt,store:r.store_name||'',who:r.employee_name||'',
-    machine:r.machine_name||'',cust:r.cust_name_ar||''};
+    bill_no:String(r.bill_no??'').trim(),amount:num(r.net_ammount??r.total_bill_net??r.total_bill),
+    date:r.bill_date||r.createdAt,store,storeKey:normBranch(store),who:r.employee_name||'',
+    machine:r.machine_name||'',cust:r.cust_name_ar||'',
+    closed:r.closed===true||r.closed==='true'||r.closed===1};
 }
 function normWallet(r){
-  const src=walletSource(r);let store='';
-  if(r.terminal_id&&TERMINAL2STORE[String(r.terminal_id)])store=TERMINAL2STORE[String(r.terminal_id)];
-  else{const k=mkey(r.machine_name||src);if(MNAME2STORE[k])store=MNAME2STORE[k];}
+  const src=walletSource(r);
+  const store=(r.branch||'').trim();
   return{side:'wallet',id:'wal-'+(r.id??(r.order_id||Math.random())),raw:r,
-    bill_no:String(r.bill_no??'').trim(),amount:num(r.amount??r.ammount),
-    date:r.transaction_time||r.createdAt,src,srcLabel:SRC_LABEL[src],store,
-    ref:r.order_id||r.terminal_id||r.from_no||'',terminal:r.terminal_id||''};
+    bill_no:String(r.bill_no??'').trim(),amount:num(r.ammount??r.amount),
+    date:r.transaction_time||r.createdAt,src,srcLabel:SRC_LABEL[src],
+    store,storeKey:normBranch(store),
+    dir:String(r.type||'').trim(),
+    ref:r.order_id||r.to||r.from||'',terminal:r.terminal_id||'',
+    closed:r.closed===true||r.closed==='true'||r.closed===1};
 }
 
 /* ============ matching engine ============ */
@@ -356,6 +406,56 @@ function buildPairs(){
   const usedW=new Set(),usedS=new Set(),rows=[];
   const sysById=Object.fromEntries(sys.map(r=>[r.id,r]));
   const walById=Object.fromEntries(wal.map(r=>[r.id,r]));
+
+  // الربط المتعدد: عن طريق LINKS — في اتجاهين (نتجاهل السطور المفكوكة/الفاضية)
+  const activeLinks=LINKS.filter(l=>!(l.closed===true||l.closed==='true')&&String(l.bill_no||'').trim()!=='');
+  const linksByWallet={};
+  activeLinks.forEach(l=>{
+    const wid=String(l.wallet_id||'');
+    (linksByWallet[wid]=linksByWallet[wid]||[]).push(l);
+  });
+
+  // اتجاه 1: معاملة واحدة (MULTI) لها أكتر من سطر links (بفواتير متعددة)
+  const handledLinkIds=new Set();
+  for(const w of wal){
+    if(usedW.has(w.id))continue;
+    if(String(w.bill_no||'').toUpperCase()!=='MULTI')continue;
+    const rawId=String((w.raw&&w.raw.id!=null)?w.raw.id:w.id);
+    const myLinks=linksByWallet[rawId]||[];
+    if(myLinks.length<=1)continue;   // واحد بس → يُعالَج في الاتجاه 2
+    const billRecs=[];
+    myLinks.forEach(l=>{
+      handledLinkIds.add(l.id);
+      const s=sys.find(x=>x.bill_no&&x.bill_no===String(l.bill_no)&&!usedS.has(x.id));
+      if(s){usedS.add(s.id);billRecs.push(s);}
+      else billRecs.push({bill_no:l.bill_no,amount:+l.amount||0,store:l.branch,_fromLink:true});
+    });
+    usedW.add(w.id);
+    rows.push(makePair(null,w,'multi',{dir:'w2b',bills:billRecs}));
+  }
+
+  // اتجاه 2: فاتورة واحدة مربوطة بأكتر من معاملة (كل معاملة سطر links واحد، نفس bill_no)
+  const remainingLinks=activeLinks.filter(l=>!handledLinkIds.has(l.id));
+  const linksByBill={};
+  remainingLinks.forEach(l=>{
+    const bn=String(l.bill_no||'');
+    (linksByBill[bn]=linksByBill[bn]||[]).push(l);
+  });
+  for(const bn of Object.keys(linksByBill)){
+    const grp=linksByBill[bn];
+    const walRecs=[];
+    grp.forEach(l=>{
+      const wid=String(l.wallet_id||'');
+      const w=wal.find(x=>!usedW.has(x.id)&&String((x.raw&&x.raw.id!=null)?x.raw.id:x.id)===wid&&String(x.bill_no||'').toUpperCase()==='MULTI');
+      if(w){usedW.add(w.id);walRecs.push(w);}
+      else walRecs.push({srcLabel:'معاملة',amount:+l.amount||0,store:l.branch,_fromLink:true});
+    });
+    if(!walRecs.length)continue;
+    let s=sys.find(x=>x.bill_no&&x.bill_no===bn&&!usedS.has(x.id));
+    if(s)usedS.add(s.id);
+    else s={id:'lnk-bill-'+bn,bill_no:bn,amount:walRecs.reduce((t,w)=>t+(+w.amount||0),0),store:walRecs[0]?.store||'',_fromLink:true};
+    rows.push(makePair(s,null,'multi',{dir:'b2w',wallets:walRecs}));
+  }
 
   for(const[sid,wid]of Object.entries(overlay.matches)){
     const s=sysById[sid],w=walById[wid];
@@ -375,13 +475,13 @@ function buildPairs(){
     if(c.length){usedS.add(s.id);usedW.add(c[0].id);rows.push(makePair(s,c[0],'bill'));}
   }
   const walByAmt={};
-  wal.forEach(w=>{if(!usedW.has(w.id)&&!isNaN(w.amount)){const k=w.amount.toFixed(2);(walByAmt[k]=walByAmt[k]||[]).push(w);}});
+  wal.forEach(w=>{if(!usedW.has(w.id)&&!overlay.excluded[w.id]&&!isNaN(w.amount)){const k=w.amount.toFixed(2);(walByAmt[k]=walByAmt[k]||[]).push(w);}});
   Object.values(walByAmt).forEach(a=>a.sort((x,y)=>new Date(x.date)-new Date(y.date)));
   const sysSorted=sys.filter(s=>!usedS.has(s.id)).sort((a,b)=>new Date(a.date)-new Date(b.date));
   for(const s of sysSorted){
     if(isNaN(s.amount))continue;
     const arr=walByAmt[s.amount.toFixed(2)];if(!arr||!arr.length)continue;
-    let idx=arr.findIndex(w=>!usedW.has(w.id)&&w.store&&s.store&&w.store===s.store);
+    let idx=arr.findIndex(w=>!usedW.has(w.id)&&w.storeKey&&s.storeKey&&w.storeKey===s.storeKey);
     if(idx<0)idx=arr.findIndex(w=>!usedW.has(w.id)&&!w.store);
     if(idx<0)continue;
     const w=arr.splice(idx,1)[0];usedS.add(s.id);usedW.add(w.id);rows.push(makePair(s,w,'amount'));
@@ -389,27 +489,54 @@ function buildPairs(){
   sys.forEach(s=>{if(!usedS.has(s.id))rows.push(makePair(s,null,'sys-only'));});
   wal.forEach(w=>{if(!usedW.has(w.id))rows.push(makePair(null,w,'wal-only'));});
 
-  const sev=r=>({'sys-only':0,'wal-only':0,'pulled-missing':0,diff:1,manual:2,pulled:2,bill:3,amount:3}[r.kind]??3);
+  const sev=r=>({'sys-only':0,'wal-only':0,'pulled-missing':0,diff:1,manual:2,pulled:2,multi:2,bill:3,amount:3}[r.kind]??3);
   rows.sort((a,b)=>{const s=sev(a)-sev(b);if(s)return s;return new Date(b.sys?.date||b.wal?.date||0)-new Date(a.sys?.date||a.wal?.date||0);});
   PAIRS=rows;
 }
 function makePair(s,w,kind,extra={}){
+  if(kind==='multi')return{sys:s||null,wal:w||null,kind:'multi',...extra};
   if(s&&w){
     const diff=!isNaN(s.amount)&&!isNaN(w.amount)?+(s.amount-w.amount).toFixed(2):0;
-    let status=kind==='manual'?'manual':(Math.abs(diff)>=0.01?'diff':'matched');
+    // عند الفرق الحقيقي: 'diff' دايماً. عند التطابق التام: نحافظ على التصنيف الأصلي (manual/bill/amount/pulled)
+    let status=Math.abs(diff)>=0.01?'diff':kind;
     return{sys:s,wal:w,kind:status,diff,...extra};
   }
   if(s)return{sys:s,wal:null,kind:'sys-only',...extra};
   return{sys:null,wal:w,kind:(kind==='pulled-missing'?'pulled-missing':'wal-only'),...extra};
 }
 
+/* خانة كاملة التفاصيل لعنصر واحد جوّه مجموعة ربط متعدد (مقابلة بصرياً للأنكر) */
+function multiItemHalf(rec,col){
+  const half=document.createElement('div');half.className='half multi-item '+(col==='system'?'sys':'wal');
+  const body=document.createElement('div');body.className='rbody';
+  const r1=document.createElement('div');r1.className='r1';
+  const amt=document.createElement('span');amt.className='ramt mono';amt.textContent=money(+rec.amount||0)+' ج';r1.appendChild(amt);
+  if(col==='system'){
+    r1.appendChild(billChip('فاتورة '+(rec.bill_no||'—')));
+  }else{
+    r1.appendChild(srcChip(rec.src||'other',rec.srcLabel||'معاملة'));
+    if(rec.bill_no&&rec.bill_no!=='MULTI')r1.appendChild(billChip('فاتورة '+rec.bill_no));
+  }
+  body.appendChild(r1);
+  const r2=document.createElement('div');r2.className='r2';
+  if(rec.store)r2.appendChild(elSpan('🏥 '+rec.store));
+  if(rec.who)r2.appendChild(elSpan('👤 '+rec.who));
+  if(rec.ref)r2.appendChild(elSpan('#'+rec.ref));
+  if(rec.date)r2.appendChild(elSpan('🕐 '+fmtDate(rec.date)));
+  if(rec._fromLink)r2.appendChild(elSpan('⚠ بيانات من الربط'));
+  body.appendChild(r2);
+  half.appendChild(body);
+  return half;
+}
+
 /* ============ render recon ============ */
 let FILTER={status:'all',q:''};
 function passFilter(p){
-  if(FILTER.status==='issues'&&['matched','bill','amount'].includes(p.kind))return false;
-  if(FILTER.status==='matched'&&!['matched','manual','bill','amount','pulled'].includes(p.kind))return false;
+  if(FILTER.status==='issues'&&['matched','bill','amount','multi'].includes(p.kind))return false;
+  if(FILTER.status==='matched'&&!['matched','manual','bill','amount','pulled','multi'].includes(p.kind))return false;
   if(ACTIVE_BRANCH){
-    const inS=(p.sys?.store||'')===ACTIVE_BRANCH,inW=(p.wal?.store||'')===ACTIVE_BRANCH;
+    const ak=normBranch(ACTIVE_BRANCH);
+    const inS=(p.sys?.storeKey||'')===ak,inW=(p.wal?.storeKey||'')===ak;
     if(!inS&&!inW)return false;
   }
   if(FILTER.q){
@@ -421,6 +548,7 @@ function passFilter(p){
   return true;
 }
 function render(){
+  if(!$('#recon-rows'))return;   // تبويب التسوية أُلغي — الدالة محفوظة بدون تأثير
   buildPairs();
   const tb=$('#recon-rows');tb.innerHTML='';
   let cM=0,cD=0,cUs=0,cUw=0;
@@ -429,25 +557,52 @@ function render(){
     if(['matched','bill','amount'].includes(p.kind))pair.classList.add('matched');
     else if(p.kind==='diff')pair.classList.add('diff');
     else if(p.kind==='manual'||p.kind==='pulled')pair.classList.add('manual');
+    else if(p.kind==='multi'){pair.classList.add('manual');pair.classList.add('pair-multi');}
+    // وضع الربط: تعتيم الصفوف غير ذات الصلة بالأنكر/المرشّحين
+    if(LINK){
+      const isAnchorRow=(LINK.anchorSide==='wallet'&&p.wal&&p.wal.id===LINK.anchor.id)||(LINK.anchorSide==='system'&&p.sys&&p.sys.id===LINK.anchor.id);
+      const isCandidateRow=LINK.anchorSide==='wallet'?p.kind==='sys-only':p.kind==='wal-only';
+      if(!isAnchorRow&&!isCandidateRow)pair.classList.add('link-dim');
+    }
     // status badge once, on the pair (top-end corner)
     const[bc,bt]=statusInfo(p.kind);
     if(bt){const st=document.createElement('span');st.className='rstatus badge '+bc;st.textContent=bt;pair.appendChild(st);}
-    pair.appendChild(halfEl(p,'system'));
-    pair.appendChild(halfEl(p,'wallet'));
+    if(p.kind==='multi'){
+      const anchorSide=p.dir==='b2w'?'system':'wallet';
+      const manySide=p.dir==='b2w'?'wallet':'system';
+      const items=p.dir==='b2w'?(p.wallets||[]):(p.bills||[]);
+      const n=Math.max(items.length,1);
+      const anchorHalf=halfEl(p,anchorSide);
+      anchorHalf.style.gridColumn=anchorSide==='system'?'1':'2';
+      anchorHalf.style.gridRow=`1 / ${n+1}`;
+      anchorHalf.classList.add('multi-anchor');
+      pair.appendChild(anchorHalf);
+      items.forEach((it,i)=>{
+        const mh=multiItemHalf(it,manySide);
+        mh.style.gridColumn=manySide==='system'?'1':'2';
+        mh.style.gridRow=String(i+1);
+        if(i>0)mh.classList.add('multi-sep');
+        pair.appendChild(mh);
+      });
+    }else{
+      pair.appendChild(halfEl(p,'system'));
+      pair.appendChild(halfEl(p,'wallet'));
+    }
     tb.appendChild(pair);
   });
   PAIRS.forEach(p=>{
-    if(['matched','manual','bill','amount','pulled'].includes(p.kind))cM++;
+    if(['matched','manual','bill','amount','pulled','multi'].includes(p.kind))cM++;
     else if(p.kind==='diff')cD++;
     else if(p.kind==='sys-only')cUs++;
     else if(p.kind==='wal-only'||p.kind==='pulled-missing')cUw++;
   });
   $('#s-matched').textContent=cM;$('#s-diff').textContent=cD;$('#s-unsys').textContent=cUs;$('#s-unwal').textContent=cUw;
-  const sysN=SYSTEM.filter(s=>!ACTIVE_BRANCH||s.store===ACTIVE_BRANCH).length;
-  const walN=WALLET.filter(w=>!ACTIVE_BRANCH||w.store===ACTIVE_BRANCH).length;
+  const ak=ACTIVE_BRANCH?normBranch(ACTIVE_BRANCH):'';
+  const sysN=SYSTEM.filter(s=>!ak||s.storeKey===ak).length;
+  const walN=WALLET.filter(w=>!ak||w.storeKey===ak).length;
   $('#c-system').textContent=sysN+' فاتورة';$('#c-wallet').textContent=walN+' معاملة';
   if($('#show-hidden').checked)renderHidden();
-  attachDnD();
+  renderLinkBar();
 }
 function elSpan(t){const s=document.createElement('span');s.textContent=t;return s;}
 function srcChip(src,label){const s=document.createElement('span');s.className='src-chip src-'+src;s.innerHTML='<i class="fas '+SRC_ICON[src]+'"></i> '+label;return s;}
@@ -456,6 +611,7 @@ function billChip(t){const s=document.createElement('span');s.className='bill-ch
 function statusInfo(kind){
   return{matched:['badge-green','مطابَقة'],manual:['badge-blue','ربط يدوي'],bill:['badge-green','رقم الفاتورة'],
     amount:['badge-green','بالقيمة'],pulled:['badge-blue','فاتورة مستدعاة'],diff:['badge-yellow','فرق قيمة'],
+    multi:['badge-blue','ربط متعدد'],
     'sys-only':['badge-red','بلا دفع'],'wal-only':['badge-red','بلا فاتورة'],'pulled-missing':['badge-red','فاتورة غير موجودة']}[kind]||['badge-gray',''];
 }
 function ibtn(cls,icon,title,fn){const b=document.createElement('button');b.className='ibtn '+cls;b.title=title;b.innerHTML='<i class="fas '+icon+'"></i>';b.onclick=e=>{e.stopPropagation();fn();};return b;}
@@ -473,7 +629,7 @@ function halfEl(p,col){
       half.appendChild(elSpan('لا توجد معاملة دفع'));half.appendChild(b);
     }else{
       const b=document.createElement('button');b.className='add-here';
-      b.innerHTML='<i class="fas fa-magnifying-glass"></i> استدعاء فاتورة';b.onclick=()=>openPull(p.wal,p.billno);
+      b.innerHTML='<i class="fas fa-magnifying-glass"></i> استدعاء فاتورة';b.onclick=()=>lookupBillFromRow(p.billno);
       half.appendChild(elSpan(p.billno?('فاتورة '+p.billno+' غير موجودة'):'لا توجد فاتورة'));half.appendChild(b);
     }
     return half;
@@ -509,46 +665,193 @@ function halfEl(p,col){
   acts.appendChild(ibtn('danger','fa-eye-slash','إخفاء',()=>openHide(rec)));
   if(rec.id.startsWith('man-'))acts.appendChild(ibtn('','fa-pen','تعديل القيمة',()=>editAmount(rec)));
   if((p.kind==='manual'||p.kind==='pulled'))acts.appendChild(ibtn('','fa-link-slash','فك الربط',()=>unlink(p)));
-  if(p.kind==='sys-only'&&col==='system')acts.appendChild(ibtn('go','fa-link','ربط يدوي',()=>toggleSelect(p.sys,'system')));
-  if(p.kind==='wal-only'&&col==='wallet')acts.appendChild(ibtn('go','fa-link','ربط يدوي',()=>toggleSelect(p.wal,'wallet')));
+  if(p.kind==='bill')acts.appendChild(ibtn('','fa-link-slash','فك الربط',()=>unlinkBillMatch(p)));
+  if(p.kind==='amount')acts.appendChild(ibtn('','fa-link-slash','فك الربط',()=>excludeAutoMatch(p)));
+  if(p.kind==='multi'&&p.dir!=='b2w'&&col==='wallet')acts.appendChild(ibtn('','fa-link-slash','فك الربط المتعدد',()=>unlinkMulti(p.wal)));
+  if(p.kind==='multi'&&p.dir==='b2w'&&col==='system')acts.appendChild(ibtn('','fa-link-slash','فك الربط المتعدد',()=>unlinkMultiBill(p)));
+  if(!LINK&&p.kind==='sys-only'&&col==='system')acts.appendChild(ibtn('go','fa-link','ربط',()=>startLink(p.sys,'system')));
+  if(!LINK&&(p.kind==='wal-only'||p.kind==='diff')&&col==='wallet')acts.appendChild(ibtn('go','fa-link','ربط',()=>startLink(p.wal,'wallet')));
   half.appendChild(acts);
 
-  if((p.kind==='wal-only'||p.kind==='diff'||p.kind==='manual')&&col==='wallet'){half.classList.add('draggable');half.draggable=true;half.dataset.wid=rec.id;}
-  if((p.kind==='sys-only'||p.kind==='diff')&&col==='system'){half.dataset.sid=rec.id;half.dataset.drop='1';}
-  if(SEL&&SEL.id===rec.id)half.classList.add('sel');
+  /* ====== وضع الربط الموحّد (واحد لواحد + متعدد) ====== */
+  if(LINK){
+    const isAnchor=col===LINK.anchorSide&&LINK.anchor.id===rec.id;
+    const isCandidateRow=LINK.anchorSide==='wallet'?p.kind==='sys-only':p.kind==='wal-only';
+    if(isAnchor){
+      half.classList.add('link-anchor');
+      if(LINK_PICKS.size){
+        const grow=document.createElement('div');
+        grow.style.cssText='display:flex;flex-direction:column;gap:2px;margin-top:5px;padding-top:5px;border-top:1px dashed #86efac;';
+        [...LINK_PICKS.values()].forEach(pk=>{
+          const row=document.createElement('div');
+          row.style.cssText='font-size:0.72rem;color:#15803d;display:flex;justify-content:space-between;gap:8px;';
+          row.innerHTML=`<span><span class="link-pick-badge"><i class="fas fa-check"></i></span>${LINK.anchorSide==='wallet'?('فاتورة '+(pk.bill_no||'—')):(pk.srcLabel||'معاملة')}</span><b>${money(pk.amount)} ج</b>`;
+          grow.appendChild(row);
+        });
+        half.appendChild(grow);
+      }
+    }else if(col!==LINK.anchorSide&&isCandidateRow){
+      const picked=LINK_PICKS.has(rec.id);
+      half.classList.add(picked?'link-picked':'link-pickable');
+      half.addEventListener('click',e=>{ if(e.target.closest('button'))return; toggleLinkPick(rec); });
+      if(picked){
+        const bd=document.createElement('span');bd.className='link-pick-badge';bd.innerHTML='<i class="fas fa-check"></i>';
+        half.querySelector('.r1')?.prepend(bd);
+      }
+    }
+  }
+
   return half;
 }
 
-/* ============ selection + manual match ============ */
-let SEL=null;
-function toggleSelect(rec,side){
-  if(SEL&&SEL.id===rec.id){SEL=null;render();return;}
-  if(SEL&&SEL.side!==side){
-    const sid=side==='system'?rec.id:SEL.id, wid=side==='wallet'?rec.id:SEL.id;
-    overlay.matches[sid]=wid;saveOverlay();SEL=null;render();toast('تم الربط اليدوي','ok');
-    syncManualMatch(sid,wid);return;
-  }
-  SEL={id:rec.id,side,rec};render();toast('اختَر المعاملة المقابلة أو اسحبها','ok');
+/* ============ الربط الموحّد البصري (واحد لواحد + متعدد) ============ */
+let LINK=null;          // { anchorSide:'wallet'|'system', anchor:record }
+let LINK_PICKS=new Map(); // id -> record (المختارين من الناحية التانية)
+
+function startLink(rec,side){
+  LINK={anchorSide:side,anchor:rec};
+  LINK_PICKS=new Map();
+  render();
+  toast(side==='wallet'?'اختَر الفاتورة (أو الفواتير) المرتبطة':'اختَر المعاملة المرتبطة','ok');
 }
-function attachDnD(){
-  document.querySelectorAll('.half.draggable').forEach(r=>{
-    r.addEventListener('dragstart',e=>{r.classList.add('dragging');e.dataTransfer.setData('wid',r.dataset.wid);});
-    r.addEventListener('dragend',()=>r.classList.remove('dragging'));
-  });
-  document.querySelectorAll('.half[data-drop]').forEach(r=>{
-    r.addEventListener('dragover',e=>{e.preventDefault();r.classList.add('drop-ok');});
-    r.addEventListener('dragleave',()=>r.classList.remove('drop-ok'));
-    r.addEventListener('drop',e=>{
-      e.preventDefault();r.classList.remove('drop-ok');
-      const wid=e.dataTransfer.getData('wid'),sid=r.dataset.sid;
-      if(wid&&sid){
-        Object.keys(overlay.matches).forEach(k=>{if(k===sid||overlay.matches[k]===wid)delete overlay.matches[k];});
-        overlay.matches[sid]=wid;saveOverlay();render();toast('تم الربط بالسحب','ok');syncManualMatch(sid,wid);
-      }
-    });
-  });
+function cancelLink(){ LINK=null; LINK_PICKS=new Map(); render(); }
+
+function toggleLinkPick(rec){
+  if(!LINK)return;
+  if(LINK_PICKS.has(rec.id)){ LINK_PICKS.delete(rec.id); render(); return; }
+  LINK_PICKS.set(rec.id,rec);
+  render();
 }
 
+async function confirmLink(){
+  if(!LINK)return;
+  const picks=[...LINK_PICKS.values()];
+  if(!picks.length){ toast('اختَر عنصر واحد على الأقل','err'); return; }
+
+  const btn=$('#lb-confirm'); if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
+
+  try{
+    if(picks.length===1){
+      const pick=picks[0];
+      const sysRec=LINK.anchorSide==='wallet'?pick:LINK.anchor;
+      const walRec=LINK.anchorSide==='wallet'?LINK.anchor:pick;
+      const diff=+((sysRec.amount||0)-(walRec.amount||0)).toFixed(2);
+      if(Math.abs(diff)>=0.01&&!confirm(`القيمتين مختلفتين بفرق ${money(Math.abs(diff))} ج. تأكيد الربط بالرغم من الفرق؟`)){
+        if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> تأكيد الربط';} return;
+      }
+      const walId=(walRec.raw&&walRec.raw.id!=null)?walRec.raw.id:walRec.id;
+      await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:String(sysRec.bill_no||'')}});
+      delete overlay.excluded[walRec.id]; saveOverlay();
+    }else{
+      const branch=LINK.anchor.store||'';
+      const now=new Date().toISOString();
+      const anchorAmt=+(LINK.anchor.amount||0).toFixed(2);
+      const pickSum=+(picks.reduce((s,r)=>s+(+r.amount||0),0)).toFixed(2);
+      const diff=+(anchorAmt-pickSum).toFixed(2);
+      if(Math.abs(diff)>=0.01&&!confirm(`مجموع المختار (${money(pickSum)}) مختلف عن القيمة (${money(anchorAmt)}) بفرق ${money(Math.abs(diff))} ج.\n\nتأكيد الربط بالرغم من الفرق؟`)){
+        if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> تأكيد الربط';} return;
+      }
+      if(LINK.anchorSide==='wallet'){
+        // معاملة واحدة بفواتير متعددة
+        const wal=LINK.anchor;
+        const walId=(wal.raw&&wal.raw.id!=null)?wal.raw.id:wal.id;
+        for(const b of picks){
+          await posUpdate({table:'links',action:'insert',data:{
+            wallet_id:String(walId),bill_no:String(b.bill_no||''),branch,amount:String(b.amount||''),created_at:now,closed:false
+          }});
+        }
+        await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:'MULTI'}});
+      }else{
+        // فاتورة واحدة بمعاملات متعددة
+        const bill=LINK.anchor;
+        for(const w of picks){
+          const wId=(w.raw&&w.raw.id!=null)?w.raw.id:w.id;
+          await posUpdate({table:'links',action:'insert',data:{
+            wallet_id:String(wId),bill_no:String(bill.bill_no||''),branch,amount:String(w.amount||''),created_at:now,closed:false
+          }});
+          await posUpdate({table:'wallet',action:'update',id:wId,data:{bill_no:'MULTI'}});
+        }
+      }
+    }
+    cancelLink();
+    toast('تم الربط','ok');
+    await loadData();
+  }catch(e){
+    toast('فشل حفظ الربط','err');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> تأكيد الربط';}
+  }
+}
+
+function renderLinkBar(){
+  let bar=$('#link-bar');
+  if(!LINK){ if(bar) bar.remove(); return; }
+  if(!bar){
+    bar=document.createElement('div'); bar.id='link-bar';
+    const tb=$('#recon-rows'); tb.parentNode.insertBefore(bar,tb);
+  }
+  const picks=[...LINK_PICKS.values()];
+  const anchorAmt=+(LINK.anchor.amount||0).toFixed(2);
+  const pickSum=+(picks.reduce((s,r)=>s+(+r.amount||0),0)).toFixed(2);
+  const diff=+(anchorAmt-pickSum).toFixed(2);
+  const ok=picks.length>0&&Math.abs(diff)<0.01;
+  bar.innerHTML=`
+    <span class="lb-tag"><i class="fas fa-link"></i> وضع الربط</span>
+    <span class="lb-stat">${LINK.anchorSide==='wallet'?'المعاملة':'الفاتورة'}: <b>${money(anchorAmt)}</b> ج</span>
+    <span class="lb-stat">المختار: <b>${money(pickSum)}</b> ج (${picks.length})</span>
+    <span class="lb-diff" style="color:${ok?'#4ade80':(picks.length?'#fbbf24':'#94a3b8')}">${picks.length?(ok?'✓ متطابق':'الفرق: '+money(Math.abs(diff))+' ج'):'اختَر من الناحية الأخرى'}</span>
+    <div class="lb-actions">
+      <button class="lb-cancel" id="lb-cancel">إلغاء</button>
+      <button class="lb-confirm" id="lb-confirm"><i class="fas fa-check"></i> تأكيد الربط</button>
+    </div>`;
+  bar.querySelector('#lb-cancel').onclick=cancelLink;
+  bar.querySelector('#lb-confirm').onclick=confirmLink;
+}
+
+async function unlinkBillMatch(p){
+  if(!p.wal)return;
+  const walId=(p.wal.raw&&p.wal.raw.id!=null)?p.wal.raw.id:p.wal.id;
+  try{ await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:''}}); toast('تم فك الربط','ok'); await loadData(); }
+  catch(e){ toast('فشل فك الربط','err'); }
+}
+function excludeAutoMatch(p){
+  if(!p.wal)return;
+  overlay.excluded[p.wal.id]=true; saveOverlay(); render();
+  toast('تم فك الربط — المعاملة هتفضل غير مربوطة لحد ما تربطها يدوي','ok');
+}
+async function unlinkMulti(walRec){
+  if(!confirm('فك الربط المتعدد؟ هيتشال الربط وترجع المعاملة غير مربوطة.'))return;
+  const walId=(walRec.raw&&walRec.raw.id!=null)?walRec.raw.id:walRec.id;
+  const rawId=String(walId);
+  const myLinks=LINKS.filter(l=>String(l.wallet_id||'')===rawId);
+  try{
+    for(const l of myLinks){
+      if(l.id!=null) await posUpdate({table:'links',action:'update',id:l.id,data:{wallet_id:rawId,bill_no:'',branch:l.branch||'',amount:'0',created_at:l.created_at||'',closed:true}});
+    }
+    await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:''}});
+    toast('تم فك الربط المتعدد','ok');
+    await loadData();
+  }catch(e){ toast('فشل فك الربط','err'); }
+}
+
+/* فك ربط فاتورة واحدة مربوطة بعدّة معاملات */
+async function unlinkMultiBill(p){
+  if(!confirm('فك الربط المتعدد؟ هيتشال الربط وترجع المعاملات غير مربوطة.'))return;
+  const wallets=p.wallets||[];
+  try{
+    for(const w of wallets){
+      if(w._fromLink)continue; // سجل صوري، لا يوجد له صف فعلي
+      const walId=(w.raw&&w.raw.id!=null)?w.raw.id:w.id;
+      const rawId=String(walId);
+      const myLinks=LINKS.filter(l=>String(l.wallet_id||'')===rawId);
+      for(const l of myLinks){
+        if(l.id!=null) await posUpdate({table:'links',action:'update',id:l.id,data:{wallet_id:rawId,bill_no:'',branch:l.branch||'',amount:'0',created_at:l.created_at||'',closed:true}});
+      }
+      await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:''}});
+    }
+    toast('تم فك الربط المتعدد','ok');
+    await loadData();
+  }catch(e){ toast('فشل فك الربط','err'); }
+}
 /* ============ actions ============ */
 let HIDE_T=null;
 function openHide(rec){HIDE_T=rec;$('#hide-context').textContent=(rec.side==='system'?'فاتورة ':'معاملة ')+(rec.bill_no||rec.ref||'')+' · '+money(rec.amount)+' ج';$('#hide-reason').value=rec.side==='system'?'cash_saved_visa':'api_duplicate';openModal('modal-hide');}
@@ -597,7 +900,7 @@ function unlink(p){if(p.sys&&overlay.matches[p.sys.id])delete overlay.matches[p.
 
 function renderHidden(){
   const tb=$('#recon-rows');
-  [...SYSTEM,...WALLET].filter(r=>overlay.hidden[r.id]&&(!ACTIVE_BRANCH||r.store===ACTIVE_BRANCH)).forEach(r=>{
+  [...SYSTEM,...WALLET].filter(r=>overlay.hidden[r.id]&&(!ACTIVE_BRANCH||r.storeKey===normBranch(ACTIVE_BRANCH))).forEach(r=>{
     const pair=document.createElement('div');pair.className='pair hidden-soft';
     const mk=(rec)=>{
       const half=document.createElement('div');half.className='half '+(rec.side==='system'?'sys':'wal');
@@ -631,10 +934,17 @@ let closeDraft=JSON.parse(localStorage.getItem(LS_DRAFT)||'{}');
 function saveDraft(){localStorage.setItem(LS_DRAFT,JSON.stringify(closeDraft));}
 
 function branchWalletTotals(branch){
-  const rows=WALLET.filter(w=>!overlay.hidden[w.id]).filter(w=>branch?(w.store===branch):true);
+  const bk=branch?normBranch(branch):'';
+  const rows=WALLET.filter(w=>!overlay.hidden[w.id]).filter(w=>bk?(w.storeKey===bk):true);
   const g={};
   rows.forEach(w=>{const k=w.terminal?(w.srcLabel+' · '+w.terminal):w.srcLabel;if(!g[k])g[k]={label:k,src:w.src,count:0,total:0};g[k].count++;if(!isNaN(w.amount))g[k].total+=w.amount;});
   return Object.values(g).sort((a,b)=>b.total-a.total);
+}
+
+/* فواتير كاش بالغلط تتحوّل لمحفظة — المعلّقة (غير المصروفة) لفرع معيّن */
+function cashToWalletForBranch(branch){
+  const bk=branch?normBranch(branch):'';
+  return CASH2WALLET.filter(r=>!r.disbursed && (!bk || normBranch(r.branch)===bk));
 }
 
 function buildCloseView(){
@@ -644,18 +954,12 @@ function buildCloseView(){
     return;
   }
   if(!closeDraft.counts)closeDraft.counts={};
-  if(!closeDraft.custodies)closeDraft.custodies=[{name:'',amount:''}];
+  if(closeDraft.custodyTotal==null)closeDraft.custodyTotal='';
   if(closeDraft.notes==null)closeDraft.notes='';
 
-  const wt=branchWalletTotals(branch);const walletSum=wt.reduce((s,g)=>s+g.total,0);
+  const c2w=cashToWalletForBranch(branch);const c2wSum=c2w.reduce((s,r)=>s+(r.transaction_value||0),0);
 
   wrap.innerHTML=`
-    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <div><div style="font-weight:900;font-size:1.05rem">إغلاق شيفت — ${branch}</div>
-      <div style="color:var(--text-muted);font-size:0.8rem">${new Date().toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'})}</div></div>
-      <div style="flex:1"></div>
-      <input class="form-input" id="close-cashier" style="width:auto;min-width:200px" placeholder="اسم الكاشير المسؤول">
-    </div>
     <div class="close-grid">
       <div class="card">
         <div class="card-mini-head"><i class="fas fa-calculator" style="color:var(--accent-dark)"></i> جرد النقدية <span class="htot mono" id="cash-h">0.00 ج</span></div>
@@ -664,12 +968,20 @@ function buildCloseView(){
       <div style="display:flex;flex-direction:column;gap:16px">
         <div class="card">
           <div class="card-mini-head"><i class="fas fa-motorcycle" style="color:#c2410c"></i> العهدة مع الطيارين <span class="htot mono" id="cust-h">0.00 ج</span></div>
-          <div id="custodies"></div>
-          <button class="add-line-btn" id="add-custody"><i class="fas fa-plus"></i> إضافة طيار / عهدة</button>
+          <label class="modal-lbl" style="margin-top:0">إجمالي العهدة</label>
+          <input class="form-input mono" id="custody-total" type="number" step="0.01" placeholder="0.00" value="${closeDraft.custodyTotal}">
         </div>
         <div class="card">
-          <div class="card-mini-head"><i class="fas fa-wallet" style="color:#0369a1"></i> المحافظ والماكينات (تلقائي) <span class="htot mono" id="wallet-h">${money(walletSum)} ج</span></div>
-          <div>${wt.length?wt.map(g=>`<div class="wtot-line"><span class="src-chip src-${g.src}"><i class="fas ${SRC_ICON[g.src]}"></i> ${g.label}</span><span><span style="color:var(--text-muted);font-size:0.74rem">${g.count} معاملة · </span><b class="mono">${money(g.total)} ج</b></span></div>`).join(''):'<div class="empty-state" style="padding:20px"><i class="fas fa-inbox"></i>لا توجد معاملات محافظ لهذا الفرع في الشيفت الحالي.</div>'}</div>
+          <div class="card-mini-head"><i class="fas fa-file-circle-plus" style="color:#0369a1"></i> فواتير كاش محوّلة لمحفظة <span class="htot mono" id="c2w-h">${money(c2wSum)} ج</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+            <input class="form-input" id="c2w-bill" style="width:auto;flex:1;min-width:100px;max-width:140px" placeholder="رقم الفاتورة" inputmode="numeric" onkeydown="if(event.key==='Enter')lookupCashToWallet()">
+            <button class="btn btn-primary btn-sm" id="c2w-lookup-btn" onclick="lookupCashToWallet()"><i class="fas fa-search"></i> استدعاء</button>
+            <span id="c2w-msg" class="lk-msg"></span>
+          </div>
+          <div id="c2w-preview"></div>
+          ${c2w.length?`<table class="c2w-table"><thead><tr><th>الفاتورة</th><th>العميل</th><th class="num">قيمة الفاتورة</th><th class="num">قيمة المعاملة</th><th class="actions"></th></tr></thead><tbody>`+
+            c2w.map(r=>`<tr><td>${r.bill_no}</td><td>${r.customer_name||'—'}</td><td class="num mono">${money(r.invoice_amount)}</td><td class="num mono c2w-editable" data-id="${r.id}" data-v="${r.transaction_value}">${money(r.transaction_value)}</td><td class="actions"><button class="btn btn-sm btn-success" style="padding:4px 9px;font-size:0.72rem" onclick="disburseC2W(${r.id})"><i class="fas fa-check"></i> تم الصرف</button><button class="ibtn danger" onclick="deleteC2W(${r.id})" title="حذف"><i class="fas fa-trash"></i></button></td></tr>`).join('')+
+            `</tbody></table>`:'<div class="empty-state" style="padding:14px;font-size:0.8rem"><i class="fas fa-inbox"></i> لا توجد فواتير محوّلة حالياً.</div>'}
         </div>
         <div class="card">
           <div class="card-mini-head"><i class="fas fa-note-sticky" style="color:var(--text-secondary)"></i> ملاحظات</div>
@@ -679,23 +991,26 @@ function buildCloseView(){
       <div class="grand-card">
         <div class="grand-cell cash"><div class="gl">إجمالي الكاش</div><div class="gv mono" id="g-cash">0.00</div></div>
         <div class="grand-cell cust"><div class="gl">العهد مع الطيارين</div><div class="gv mono" id="g-cust">0.00</div></div>
-        <div class="grand-cell auto"><div class="gl">المحافظ والماكينات</div><div class="gv mono" id="g-auto">${money(walletSum)}</div></div>
+        <div class="grand-cell auto"><div class="gl">فواتير كاش محوّلة</div><div class="gv mono" id="g-auto">${money(c2wSum)}</div></div>
         <div class="grand-cell total"><div class="gl">الإجمالي المرحَّل</div><div class="gv mono" id="g-total">0.00</div></div>
       </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px">
-      <span style="color:var(--text-muted);font-size:0.8rem">الإجمالي المرحَّل = الكاش + العهد + المحافظ — ده اللي بيتصرف من نقطة البيع.</span>
+      <span style="color:var(--text-muted);font-size:0.8rem">الإجمالي المرحَّل = الكاش + العهد + فواتير الكاش المحوّلة — ده اللي بيتصرف من نقطة البيع.</span>
       <div style="flex:1"></div>
       <button class="btn btn-sm" style="background:var(--surface-3)" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
       <button class="btn btn-success" id="btn-save-close"><i class="fas fa-lock"></i> حفظ وإغلاق الشيفت</button>
     </div>`;
 
-  renderDenoms();renderCustodies();
-  $('#close-cashier').value=closeDraft.cashier||localStorage.getItem('activeUser')||'';
-  $('#close-cashier').addEventListener('input',e=>{closeDraft.cashier=e.target.value;saveDraft();});
+  renderDenoms();
+  document.querySelectorAll('.c2w-editable').forEach(td=>{
+    td.style.cursor='pointer';td.title='اضغط للتعديل';
+    td.onclick=()=>editC2WValue(+td.dataset.id,td,+td.dataset.v);
+  });
+  $('#close-cashier-top').value=closeDraft.cashier||localStorage.getItem('activeUser')||'';
   $('#close-notes').addEventListener('input',e=>{closeDraft.notes=e.target.value;saveDraft();});
-  $('#add-custody').onclick=()=>{closeDraft.custodies.push({name:'',amount:''});saveDraft();renderCustodies();recalc();};
-  $('#btn-save-close').onclick=()=>saveClose(branch,wt,walletSum);
+  $('#custody-total').addEventListener('input',e=>{closeDraft.custodyTotal=e.target.value;saveDraft();recalc();});
+  $('#btn-save-close').onclick=()=>saveClose(branch,c2wSum);
   recalc();
 }
 function renderDenoms(){
@@ -712,39 +1027,26 @@ function renderDenoms(){
     const d=parseFloat(inp.dataset.d),c=parseInt(inp.value)||0,sub=el.querySelector('[data-sub="'+d+'"]');sub.textContent=money(d*c);sub.classList.toggle('zero',!(d*c));
   });
 }
-function renderCustodies(){
-  const el=$('#custodies');el.innerHTML='';
-  closeDraft.custodies.forEach((c,i)=>{
-    const row=document.createElement('div');row.className='cust-line';
-    row.innerHTML='<input class="table-input" placeholder="اسم الطيار / الجهة" data-i="'+i+'" data-k="name" value="'+(c.name||'')+'"><input class="table-input mono" type="number" step="0.01" placeholder="المبلغ" data-i="'+i+'" data-k="amount" value="'+(c.amount||'')+'" style="text-align:center"><button class="ibtn danger" data-del="'+i+'">×</button>';
-    el.appendChild(row);
-  });
-  el.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{closeDraft.custodies[+inp.dataset.i][inp.dataset.k]=inp.value;saveDraft();recalc();}));
-  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{closeDraft.custodies.splice(+b.dataset.del,1);if(!closeDraft.custodies.length)closeDraft.custodies=[{name:'',amount:''}];saveDraft();renderCustodies();recalc();});
-}
 function recalc(){
   let cash=0;DENOMS.forEach(d=>cash+=d*(parseInt(closeDraft.counts[d])||0));
-  let cust=0;closeDraft.custodies.forEach(c=>cust+=parseFloat(c.amount)||0);
-  const walletSum=branchWalletTotals(ACTIVE_BRANCH).reduce((s,g)=>s+g.total,0);
+  const cust=parseFloat(closeDraft.custodyTotal)||0;
+  const c2wSum=cashToWalletForBranch(ACTIVE_BRANCH).reduce((s,r)=>s+(r.transaction_value||0),0);
   const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
-  set('#cash-h',money(cash)+' ج');set('#cust-h',money(cust)+' ج');
-  set('#g-cash',money(cash));set('#g-cust',money(cust));set('#g-auto',money(walletSum));set('#g-total',money(cash+cust+walletSum));
+  set('#cash-h',money(cash)+' ج');set('#cust-h',money(cust)+' ج');set('#c2w-h',money(c2wSum)+' ج');
+  set('#g-cash',money(cash));set('#g-cust',money(cust));set('#g-auto',money(c2wSum));set('#g-total',money(cash+cust+c2wSum));
 }
-async function saveClose(branch,wt,walletSum){
+async function saveClose(branch,c2wSum){
   let cash=0;DENOMS.forEach(d=>cash+=d*(parseInt(closeDraft.counts[d])||0));
-  const custodies=closeDraft.custodies.filter(c=>(c.name||'').trim()||parseFloat(c.amount));
-  const custSum=custodies.reduce((s,c)=>s+(parseFloat(c.amount)||0),0);
-  const cashier=($('#close-cashier')?.value||'').trim();
-  if(cash===0&&walletSum===0&&custSum===0){if(!confirm('كل المبالغ صفر. تأكيد إغلاق شيفت فاضي؟'))return;}
+  const custSum=parseFloat(closeDraft.custodyTotal)||0;
+  const cashier=($('#close-cashier-top')?.value||'').trim();
+  if(cash===0&&c2wSum===0&&custSum===0){if(!confirm('كل المبالغ صفر. تأكيد إغلاق شيفت فاضي؟'))return;}
 
-  const closedWalletIds=WALLET.filter(w=>!overlay.hidden[w.id]&&w.store===branch).map(w=>(w.raw&&w.raw.id!=null)?w.raw.id:w.id);
   const record={
     branch,cashier,closed_at:new Date().toISOString(),
     cash_breakdown:Object.fromEntries(DENOMS.map(d=>[d,parseInt(closeDraft.counts[d])||0]).filter(x=>x[1])),
-    cash_total:+cash.toFixed(2),custodies,custody_total:+custSum.toFixed(2),
-    wallets:wt.map(g=>({label:g.label,src:g.src,count:g.count,total:+g.total.toFixed(2)})),
-    wallet_total:+walletSum.toFixed(2),grand_total:+(cash+custSum+walletSum).toFixed(2),
-    notes:closeDraft.notes||'',closed_wallet_ids:closedWalletIds
+    cash_total:+cash.toFixed(2),custody_total:+custSum.toFixed(2),
+    wallet_total:+c2wSum.toFixed(2),grand_total:+(cash+custSum+c2wSum).toFixed(2),
+    notes:closeDraft.notes||''
   };
 
   $('#btn-save-close').disabled=true;
@@ -755,9 +1057,8 @@ async function saveClose(branch,wt,walletSum){
   local.unshift({...record,id:'local-'+Date.now(),_local:true,_synced:ok});
   localStorage.setItem('recon.closes.v1',JSON.stringify(local));
 
-  closedWalletIds.forEach(rid=>{const w=WALLET.find(x=>((x.raw&&x.raw.id)||x.id)===rid);if(w)overlay.hidden[w.id]={reason:'closed_shift',shift:record.closed_at,note:'مرحّلة بإغلاق شيفت '+branch,at:Date.now()};});
   saveOverlay();
-  closeDraft={counts:{},custodies:[{name:'',amount:''}],notes:'',cashier:''};saveDraft();
+  closeDraft={counts:{},custodyTotal:'',notes:'',cashier:''};saveDraft();
   $('#btn-save-close').disabled=false;
   toast(ok?'تم حفظ الإغلاق وترحيل الشيفت':'تم الحفظ محلياً (n8n غير موصّل)',ok?'ok':'bad');
   render();buildCloseView();
@@ -772,7 +1073,7 @@ async function loadHistory(){
   if(typeof fetchShiftCloses==='function'){try{const d=await fetchShiftCloses();rows=Array.isArray(d)?d:[];}catch(e){}}
   const local=JSON.parse(localStorage.getItem('recon.closes.v1')||'[]');
   const seen=new Set(rows.map(r=>r.closed_at));local.forEach(l=>{if(!seen.has(l.closed_at))rows.push(l);});
-  if(!IS_ADMIN)rows=rows.filter(r=>r.branch===USER_BRANCH);
+  if(!IS_ADMIN)rows=rows.filter(r=>normBranch(r.branch)===normBranch(USER_BRANCH));
   rows.sort((a,b)=>new Date(b.closed_at)-new Date(a.closed_at));
   if(!rows.length){body.innerHTML='<div class="empty-state"><i class="fas fa-folder-open"></i>مفيش إغلاقات محفوظة بعد.</div>';return;}
   body.innerHTML='<div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>الكاشير</th><th>الكاش</th><th>العهد</th><th>المحافظ</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead><tbody>'+
@@ -788,30 +1089,280 @@ function showDetail(r){
 }
 
 /* ============================================================
-   LOAD DATA (من api.js)
+   LOAD DATA — نداء واحد من webhook posmanagement
+   بيرجّع object: { sms, paymob, branch_visa_sales, machine }
    ============================================================ */
+const POSMGMT_URL = 'https://agent.ebrahimhamdy.com/webhook/posmanagement';
+const POSUPDATE_URL = 'https://agent.ebrahimhamdy.com/webhook/posupdate';
+
+/* نداء موحّد لـ posupdate (إضافة/تعديل/بحث) */
+async function posUpdate(payload){
+  const r = await fetch(POSUPDATE_URL,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  const t = await r.text();
+  let d = t && t.trim() ? JSON.parse(t) : {};
+  if(Array.isArray(d)) d = d[0] || {};
+  return d;
+}
+
+/* ====== استدعاء فاتورة من B Connect وإضافتها لـ sales_wallet ====== */
+function lookupActiveBranch(){
+  return ACTIVE_BRANCH || USER_BRANCH;
+}
+
+/* بحث مشترك: يستخدمه الشريط فوق وزر الاستدعاء داخل الصف */
+async function doBillLookup(billNo,branch,uiBtn,uiMsg){
+  if(uiBtn){ uiBtn.disabled=true; uiBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; }
+  if(uiMsg){ uiMsg.textContent='جاري البحث…'; uiMsg.className='lk-msg loading'; }
+  try{
+    const res = await posUpdate({ table:'lookup', action:'search', data:{ branch, bill_no:billNo } });
+    const data = res?.result?.Data || [];
+    if(!data.length){
+      if(uiMsg){ uiMsg.textContent='الفاتورة مش موجودة في السيستم'; uiMsg.className='lk-msg err'; }
+      else toast('الفاتورة رقم '+billNo+' مش موجودة في السيستم','err');
+    } else {
+      showBillConfirm(data[0], branch);
+      if(uiMsg){ uiMsg.textContent=''; uiMsg.className='lk-msg'; }
+    }
+  }catch(e){
+    if(uiMsg){ uiMsg.textContent='خطأ في الاتصال'; uiMsg.className='lk-msg err'; }
+    else toast('خطأ في الاتصال','err');
+  }
+  if(uiBtn){ uiBtn.disabled=false; uiBtn.innerHTML='<i class="fas fa-search"></i> استدعاء'; }
+}
+
+async function lookupBill(){
+  const inp = $('#lookup-bill-input');
+  const billNo = (inp?.value || '').trim();
+  const msg = $('#lookup-bill-msg');
+  if(!billNo){ if(msg){msg.textContent='اكتب رقم الفاتورة'; msg.className='lk-msg err';} return; }
+
+  const branch = lookupActiveBranch();
+  if(!branch){ if(msg){msg.textContent='اختر الفرع أولاً'; msg.className='lk-msg err';} return; }
+
+  const btn = $('#lookup-bill-btn');
+  await doBillLookup(billNo,branch,btn,msg);
+}
+
+/* استدعاء من داخل صف معاملة بلا فاتورة — نفس آلية الشريط فوق، مع ربط مباشر بالمعاملة دي */
+async function lookupBillFromRow(presetBillNo,forWallet){
+  const branch = lookupActiveBranch();
+  if(!branch){ toast('اختر الفرع أولاً','err'); return; }
+  let billNo=(presetBillNo||'').trim();
+  if(!billNo){
+    billNo=(prompt('رقم الفاتورة من B Connect:')||'').trim();
+    if(!billNo)return;
+  }
+  PENDING_FOR_WALLET=forWallet||null;
+  await doBillLookup(billNo,branch,null,null);
+}
+let PENDING_FOR_WALLET=null;
+
+let pendingBill = null;
+function showBillConfirm(bill, branch){
+  pendingBill = { bill, branch, forWallet: PENDING_FOR_WALLET };
+  PENDING_FOR_WALLET=null;
+  const net = parseFloat(bill.total_bill_net ?? bill.total_bill ?? 0);
+  const items = Array.isArray(bill.Items) ? bill.Items : [];
+  const itemsHtml = items.slice(0,6).map(it=>
+    `<div style="font-size:0.78rem;color:var(--text-secondary);padding:2px 0;">• ${it.itm_name_ar||''} — ${it.itm_qty||1}×${it.unit_price||0}</div>`
+  ).join('');
+  $('#bill-confirm-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:0.88rem;">
+      <b style="color:var(--text-muted);">رقم الفاتورة:</b><span>${bill.bill_no||'—'}</span>
+      <b style="color:var(--text-muted);">القيمة:</b><span style="color:var(--accent-dark);font-weight:800;">${net.toFixed(2)} ج</span>
+      <b style="color:var(--text-muted);">النوع:</b><span>${bill.bill_type||'—'}</span>
+      <b style="color:var(--text-muted);">العميل:</b><span>${bill.cust_name_ar||'—'}</span>
+      <b style="color:var(--text-muted);">الموظف:</b><span>${bill.employee_name||'—'}</span>
+      <b style="color:var(--text-muted);">التاريخ:</b><span style="font-size:0.8rem;">${bill.bill_date||'—'}</span>
+      <b style="color:var(--text-muted);">الفرع:</b><span>${branch}</span>
+    </div>
+    ${itemsHtml?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">${itemsHtml}</div>`:''}
+    ${pendingBill.forWallet?`<div style="margin-top:10px;background:#ecfdf5;color:#15803d;border-radius:8px;padding:8px 10px;font-size:0.8rem;font-weight:700;"><i class="fas fa-link"></i> هتتربط مباشرة بالمعاملة (${money(pendingBill.forWallet.amount)} ج · ${pendingBill.forWallet.srcLabel||''})</div>`:''}
+  `;
+  $('#bill-confirm-overlay').style.display='flex';
+}
+
+function closeBillConfirm(){
+  $('#bill-confirm-overlay').style.display='none';
+  pendingBill = null;
+}
+
+async function confirmAddBill(){
+  if(!pendingBill) return;
+  const { bill, branch, forWallet } = pendingBill;
+  const btn = $('#bill-confirm-add');
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإضافة…'; }
+
+  try{
+    const res = await posUpdate({
+      table:'sales_wallet', action:'insert',
+      data:{
+        bill_no:        String(bill.bill_no||''),
+        bill_date:      bill.bill_date || '',
+        net_ammount:    String(bill.total_bill_net ?? bill.total_bill ?? ''),
+        cust_code:      String(bill.cust_code||''),
+        cust_name_ar:   bill.cust_name_ar || '',
+        store_name:     bill.store_name || branch,
+        employee_name:  bill.employee_name || '',
+        employee_save_bill: bill.employee_save_bill || '',
+        bill_save_date: bill.bill_save_date || ''
+      }
+    });
+    if(res && res.ok){
+      // لو الاستدعاء كان من جنب معاملة معيّنة، نربطها بالفاتورة مباشرة وقطعياً
+      // (بغض النظر عن تطابق القيمة) عشان متفضلش يتيمة في انتظار مطابقة تلقائية
+      if(forWallet){
+        const walId=(forWallet.raw&&forWallet.raw.id!=null)?forWallet.raw.id:forWallet.id;
+        await posUpdate({table:'wallet',action:'update',id:walId,data:{bill_no:String(bill.bill_no||'')}});
+        delete overlay.excluded[forWallet.id]; saveOverlay();
+      }
+      closeBillConfirm();
+      const li = $('#lookup-bill-input'); if(li) li.value='';
+      await loadData();
+    } else {
+      if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-plus"></i> إضافة'; }
+      alert('فشل إضافة الفاتورة');
+    }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-plus"></i> إضافة'; }
+    alert('خطأ في الاتصال');
+  }
+}
+
+/* ====== فواتير كاش بالغلط تتحوّل لمحفظة (شاشة الإغلاق) ====== */
+let PENDING_C2W=null;
+
+async function lookupCashToWallet(){
+  const inp=$('#c2w-bill'); const billNo=(inp?.value||'').trim();
+  const msg=$('#c2w-msg');
+  if(!billNo){ if(msg){msg.textContent='اكتب رقم الفاتورة';msg.className='lk-msg err';} return; }
+  const branch=ACTIVE_BRANCH;
+  if(!branch){ toast('اختر الفرع أولاً','err'); return; }
+  const btn=$('#c2w-lookup-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
+  if(msg){msg.textContent='جاري البحث…';msg.className='lk-msg loading';}
+  try{
+    const res=await posUpdate({table:'lookup',action:'search',data:{branch,bill_no:billNo}});
+    const data=res?.result?.Data||[];
+    if(!data.length){ if(msg){msg.textContent='الفاتورة مش موجودة في السيستم';msg.className='lk-msg err';} }
+    else{ showC2WPreview(data[0],branch); if(msg){msg.textContent='';msg.className='lk-msg';} }
+  }catch(e){ if(msg){msg.textContent='خطأ في الاتصال';msg.className='lk-msg err';} }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> استدعاء';}
+}
+
+function showC2WPreview(bill,branch){
+  PENDING_C2W={bill,branch};
+  const net=parseFloat(bill.total_bill_net??bill.total_bill??0);
+  const el=$('#c2w-preview');
+  if(!el)return;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:0.82rem;">
+      <span>فاتورة <b>${bill.bill_no||'—'}</b> · ${bill.cust_name_ar||'—'}</span>
+      <span style="color:var(--text-muted);">قيمة الفاتورة: ${net.toFixed(2)} ج</span>
+      <label style="font-weight:700;">قيمة المعاملة:</label>
+      <input id="c2w-value-input" class="table-input mono" type="number" step="0.01" value="${net}" style="width:90px;text-align:center;">
+      <button class="btn btn-success btn-sm" id="c2w-confirm-btn"><i class="fas fa-plus"></i> إضافة</button>
+      <button class="btn btn-sm" style="background:var(--surface-3)" onclick="cancelC2WPreview()">إلغاء</button>
+    </div>`;
+  $('#c2w-confirm-btn').onclick=confirmAddC2W;
+}
+function cancelC2WPreview(){ PENDING_C2W=null; const el=$('#c2w-preview'); if(el)el.innerHTML=''; }
+
+async function confirmAddC2W(){
+  if(!PENDING_C2W)return;
+  const {bill,branch}=PENDING_C2W;
+  const val=num($('#c2w-value-input').value);
+  if(isNaN(val)){ toast('اكتب قيمة صحيحة','bad'); return; }
+  const btn=$('#c2w-confirm-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}
+  try{
+    const res=await posUpdate({table:'cash_to_wallet',action:'insert',data:{
+      bill_no:String(bill.bill_no||''), branch,
+      invoice_amount:String(bill.total_bill_net??bill.total_bill??''),
+      transaction_value:String(val), customer_name:bill.cust_name_ar||'',
+      created_at:new Date().toISOString(), disbursed:false, disbursed_at:''
+    }});
+    cancelC2WPreview(); const inp=$('#c2w-bill'); if(inp)inp.value='';
+    if(res&&res.ok)toast('تمت الإضافة','ok');
+    else toast('الرد غير واضح — بنحدّث الشاشة للتأكد من الحالة الفعلية','err');
+    await loadData();   // نحدّث دايماً، حتى لو الرد غامض، عشان نعرض الحقيقة الموجودة في القاعدة
+  }catch(e){
+    toast('تأخّر الرد أو انقطع الاتصال — العملية ممكن تكون نجحت فعلاً في القاعدة. بنحدّث الشاشة...','err');
+    cancelC2WPreview(); const inp=$('#c2w-bill'); if(inp)inp.value='';
+    await loadData();   // نحدّث برغم الخطأ الظاهر، لأن n8n ممكن يكون كمّل شغله في الخلفية
+  }
+}
+
+function editC2WValue(id,el,current){
+  const input=document.createElement('input');
+  input.type='number'; input.step='0.01'; input.value=current;
+  input.className='table-input mono'; input.style.width='90px'; input.style.textAlign='center';
+  el.replaceWith(input); input.focus(); input.select();
+  const save=async()=>{
+    const v=num(input.value);
+    if(isNaN(v)){ buildCloseView(); return; }
+    const row=CASH2WALLET.find(r=>r.id===id); if(row)row.transaction_value=v;
+    buildCloseView();
+    try{ await posUpdate({table:'cash_to_wallet',action:'update',id,data:{transaction_value:String(v)}}); }
+    catch(e){ toast('فشل حفظ التعديل','err'); }
+  };
+  input.addEventListener('blur',save);
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape'){input.value=current;input.blur();}});
+}
+
+async function disburseC2W(id){
+  if(!confirm('تأكيد صرف المبلغ من نقطة البيع؟ السطر هيتشال من القائمة.'))return;
+  try{
+    await posUpdate({table:'cash_to_wallet',action:'update',id,data:{disbursed:true,disbursed_at:new Date().toISOString()}});
+    toast('تم الصرف','ok');
+  }catch(e){ toast('تأخّر الرد — بنحدّث الشاشة للتأكد من الحالة الفعلية','err'); }
+  await loadData();
+}
+async function deleteC2W(id){
+  if(!confirm('حذف هذا السطر نهائياً؟'))return;
+  try{ await posUpdate({table:'cash_to_wallet',action:'delete',id}); toast('تم الحذف','ok'); }
+  catch(e){ toast('تأخّر الرد — بنحدّث الشاشة للتأكد من الحالة الفعلية','err'); }
+  await loadData();
+}
+
 async function loadData(){
   $('#btn-refresh').disabled=true;
-  $('#recon-rows').innerHTML='<div class="empty-state" style="padding:40px"><i class="fas fa-spinner fa-spin"></i> تحميل…</div>';
   try{
-    const [paymob,sms,machines,branchSales]=await Promise.all([
-      typeof fetchPaymob==='function'?fetchPaymob():[],
-      typeof fetchSms==='function'?fetchSms():[],
-      typeof fetchMachines==='function'?fetchMachines():[],
-      typeof fetchBranchSales==='function'?fetchBranchSales():[]
-    ]);
-    MACHINES=Array.isArray(machines)?machines:[];
-    buildMachineMaps();
-    SYSTEM=(Array.isArray(branchSales)?branchSales:[]).map(normSystem);
-    WALLET=[...(Array.isArray(paymob)?paymob:[]).map(normWallet),...(Array.isArray(sms)?sms:[]).map(normWallet)];
+    const res=await fetch(POSMGMT_URL);
+    const text=await res.text();
+    let data = text && text.trim() ? JSON.parse(text) : {};
+    // n8n ممكن يلف الرد في array: [{...}]
+    if(Array.isArray(data)) data = data[0] || {};
+
+    const pick=o=>Array.isArray(o)?o:[];
+    // البنية الجديدة: جدولين بس
+    const walletRows = pick(data.wallet);
+    const salesRows  = pick(data.sales_wallet || data.branch_visa_sales || data.branchvisasales);
+    LINKS = pick(data.links);   // اختياري: لو posmanagement بيرجّعه
+    CASH2WALLET = pick(data.cash_to_wallet).map(r=>({
+      id:r.id, bill_no:r.bill_no, branch:r.branch,
+      invoice_amount:num(r.invoice_amount), transaction_value:num(r.transaction_value),
+      customer_name:r.customer_name, created_at:r.created_at,
+      disbursed:(r.disbursed===true||r.disbursed==='true'), disbursed_at:r.disbursed_at
+    }));
+
+    MACHINES=[];
+    SYSTEM = salesRows.map(normSystem);
+    WALLET = walletRows.map(normWallet);
     overlay.manual.forEach(m=>WALLET.push(m));
-    ALL_STORES=[...new Set([...MACHINES.map(m=>m.store_name).filter(Boolean),...SYSTEM.map(s=>s.store).filter(Boolean)])].sort();
+    ALL_STORES=[...new Set([
+      ...WALLET.map(w=>w.store).filter(Boolean),
+      ...SYSTEM.map(s=>s.store).filter(Boolean)
+    ])].sort();
     populateBranches();
     render();
     if(CURRENT_TAB==='close')buildCloseView();
   }catch(e){
     console.error(e);
-    $('#recon-rows').innerHTML='<div class="empty-state"><i class="fas fa-circle-exclamation"></i>تعذّر تحميل البيانات. تأكد من اتصالك بالإنترنت.</div>';
+    toast('تعذّر تحميل البيانات — تأكد من اتصالك ومن أن posmanagement شغّال','err');
   }finally{$('#btn-refresh').disabled=false;}
 }
 
@@ -837,7 +1388,7 @@ function updateBranchTitle(){
 /* ============================================================
    TABS + WIRE UP
    ============================================================ */
-let CURRENT_TAB='recon';
+let CURRENT_TAB='close';
 document.querySelectorAll('.tab-btn').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
@@ -849,17 +1400,13 @@ document.querySelectorAll('.tab-btn').forEach(b=>{
   };
 });
 $('#btn-refresh').onclick=loadData;
+$('#close-cashier-top').addEventListener('input',e=>{closeDraft.cashier=e.target.value;saveDraft();});
 $('#hist-refresh').onclick=loadHistory;
-$('#search').addEventListener('input',e=>{FILTER.q=e.target.value.trim();render();});
-$('#show-hidden').addEventListener('change',render);
-document.querySelectorAll('.seg-btn').forEach(b=>{
-  b.onclick=()=>{document.querySelectorAll('.seg-btn').forEach(x=>{x.classList.remove('active');x.style.background='transparent';x.style.color='var(--text-secondary)';});b.classList.add('active');b.style.background='var(--accent)';b.style.color='var(--primary)';FILTER.status=b.dataset.f;render();};
-});
 $('#branch-select').addEventListener('change',e=>{
   ACTIVE_BRANCH=e.target.value;updateBranchTitle();render();
   if(CURRENT_TAB==='close')buildCloseView();
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));if(SEL){SEL=null;render();}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));if(LINK){cancelLink();}}});
 
 /* ============================================================
    INIT — حماية + تحميل
