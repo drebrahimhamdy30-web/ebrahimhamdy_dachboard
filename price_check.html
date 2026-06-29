@@ -9,8 +9,8 @@
   <style>
     .top-panel { margin-bottom:16px; }
     .filter-panel { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;overflow:hidden; }
-    .panel-head { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;background:var(--surface-3);border-bottom:1px solid var(--border); }
-    .panel-title { font-size:0.9rem;font-weight:800;color:var(--text-secondary);display:flex;align-items:center;gap:7px;margin:0; }
+    .panel-head { display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:var(--surface-3);border-bottom:1px solid var(--border);flex-wrap:wrap; }
+    .panel-title { font-size:0.85rem;font-weight:800;color:var(--text-secondary);display:flex;align-items:center;gap:7px;margin:0; }
     .panel-body { padding:16px 18px; }
 
     /* صندوق اللصق كجدول */
@@ -40,13 +40,13 @@
     .pt-del:hover { background:#fee2e2;color:var(--danger); }
     .paste-empty { text-align:center;padding:22px;color:var(--text-muted);font-size:0.8rem; }
 
-    .btn-calc { padding:11px 26px;font-size:0.9rem;font-weight:800;border:none;border-radius:var(--radius-md);background:var(--primary);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:filter 0.15s;white-space:nowrap; }
+    .btn-calc { padding:8px 18px;font-size:0.8rem;font-weight:800;border:none;border-radius:var(--radius-md);background:var(--primary);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:filter 0.15s;white-space:nowrap; }
     .btn-calc:hover { filter:brightness(1.08); }
     .btn-calc:disabled { opacity:0.5;cursor:not-allowed; }
-    .btn-excel { padding:11px 18px;font-size:0.88rem;font-weight:700;border:none;border-radius:var(--radius-md);background:#16a34a;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:filter 0.15s;white-space:nowrap; }
+    .btn-excel { padding:8px 13px;font-size:0.78rem;font-weight:700;border:none;border-radius:var(--radius-md);background:#16a34a;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:filter 0.15s;white-space:nowrap; }
     .btn-excel:hover { filter:brightness(1.08); }
     .btn-excel:disabled { opacity:0.5;cursor:not-allowed; }
-    .btn-clear { padding:11px 16px;font-size:0.85rem;font-weight:700;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s; }
+    .btn-clear { padding:8px 12px;font-size:0.78rem;font-weight:700;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap; }
     .btn-clear:hover { border-color:var(--danger);color:var(--danger); }
 
     .settings-strip { display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border); }
@@ -186,7 +186,12 @@
   <script src="nav.js"></script>
   <script>
     const INV_URL = 'https://agent.ebrahimhamdy.com/webhook/inventory';
+    // مسار السؤال اللحظي عن صنف واحد (GET query: code & branch)
+    // لو الـ webhook مختلف، غيّر السطر ده فقط:
+    const SEARCH_URL = 'https://agent.ebrahimhamdy.com/webhook/inventory';
     const BRANCHES = { mamora: 'المعمورة', san: 'سان ستيفانو', bishr: 'سيدى بشر' };
+    // الإملاء العربي للفرع كما يتوقعه الـ Switch/branchMap في n8n
+    const BRANCH_AR_FOR_API = { mamora:'المعمورة', san:'سان ستيفانو', bishr:'سيدى بشر' };
     // ربط اسم الفرع كما قد يظهر في بيانات اليوزر بكود الفرع
     const USER_BRANCH_MAP = {
       'mamora':'mamora', 'المعمورة':'mamora', 'الصيدلية':'mamora',
@@ -194,8 +199,6 @@
       'bishr':'bishr', 'سيدى بشر':'bishr', 'سيدي بشر':'bishr', 'ابراهيم حمدي 3':'bishr'
     };
 
-    var stockMamora=[], stockSan=[], stockBishr=[];
-    var stockLoaded=false;
     var myBranch='mamora';
     var parsedRows=[];        // الأصناف الملصوقة
     var results=[];           // نتيجة المقارنة
@@ -203,6 +206,7 @@
     var currentPage=1;
     const PAGE_SIZE=40;
     const LS_BRANCH='pricecheck_branch';
+    const LS_ROWS='pricecheck_rows';   // حفظ الأصناف الملصوقة عبر الريفريش
 
     // ===== تحديد الفرع من اليوزر المفتوح =====
     // المصدر الأساسي: localStorage.userBranch (نفس اللي يعتمده الـ nav) — قيمته بالعربي
@@ -241,7 +245,7 @@
     }
     function renderBranchBanner(fromUser){
       document.getElementById('branch-banner-wrap').innerHTML=
-        '<div class="branch-banner"><i class="fas fa-store"></i> أقارن بأسعار فرع: '+BRANCHES[myBranch]+
+        '<div class="branch-banner"><i class="fas fa-bolt"></i> أسعار لحظية — فرع: '+BRANCHES[myBranch]+
         (fromUser?' <span style="font-weight:600;color:var(--text-muted);font-size:0.7rem">(من حسابك)</span>':'')+'</div>';
     }
     function onBranchChange(){
@@ -273,38 +277,6 @@
       var saved=localStorage.getItem(LS_BRANCH);
       setMyBranch(saved && BRANCHES[saved] ? saved : 'mamora', false);
     });
-
-    async function loadStockData(){
-      if(stockLoaded) return true;
-      try {
-        var r = await Promise.all([
-          fetch(INV_URL+'?type=stock_mamora_all').then(function(x){return x.json();}),
-          fetch(INV_URL+'?type=stock_san_all').then(function(x){return x.json();}),
-          fetch(INV_URL+'?type=stock_bishr_all').then(function(x){return x.json();})
-        ]);
-        stockMamora=Array.isArray(r[0])?r[0]:(r[0].data||[]);
-        stockSan   =Array.isArray(r[1])?r[1]:(r[1].data||[]);
-        stockBishr =Array.isArray(r[2])?r[2]:(r[2].data||[]);
-        stockLoaded=true;
-        return true;
-      } catch(e){ return false; }
-    }
-
-    // خريطة كود → {price, name} لفرعي
-    function myStockMap(){
-      var arr = myBranch==='mamora'?stockMamora : myBranch==='san'?stockSan : stockBishr;
-      var map={};
-      arr.forEach(function(item){
-        var code=String(item.itm_code||'').trim();
-        if(!code) return;
-        map[code]={
-          price: parseFloat(item.itm_sell_price_big)||0,
-          name: item.itm_name_ar||'',
-          stock: parseFloat(item.sto_qty_big)||0
-        };
-      });
-      return map;
-    }
 
     // ===== تحليل النص الملصوق =====
     // ترتيب أعمدة برنامج المخزون عند النسخ (من بداية السطر / الشمال):
@@ -379,6 +351,19 @@
     }
 
     // ===== التقاط اللصق وتراكم الصفوف في الجدول =====
+    // ===== حفظ/تحميل الأصناف الملصوقة عبر الريفريش =====
+    function saveRows(){
+      try { localStorage.setItem(LS_ROWS, JSON.stringify(parsedRows)); } catch(e){}
+    }
+    function loadRows(){
+      try {
+        var raw=localStorage.getItem(LS_ROWS);
+        if(!raw) return;
+        var arr=JSON.parse(raw);
+        if(Array.isArray(arr)) parsedRows=arr.filter(function(r){ return r && r.code; });
+      } catch(e){ parsedRows=[]; }
+    }
+
     function addRows(newRows){
       var existing={};
       parsedRows.forEach(function(r){ existing[r.code]=true; });
@@ -389,6 +374,7 @@
         parsedRows.push(r);
         added++;
       });
+      saveRows();
       renderPasteTable();
       return added;
     }
@@ -416,6 +402,7 @@
 
     function removeRow(idx){
       parsedRows.splice(idx,1);
+      saveRows();
       renderPasteTable();
     }
 
@@ -448,6 +435,10 @@
       catcher.addEventListener('input', function(){
         if(catcher.textContent.length>0){ /* يُنظّف عند اللصق */ }
       });
+
+      // استرجاع الأصناف المحفوظة من جلسة سابقة (تبقى بعد الريفريش)
+      loadRows();
+      renderPasteTable();
     })();
 
     var flashTimer=null;
@@ -465,25 +456,78 @@
       }, 1600);
     }
 
+    // ===== السؤال اللحظي عن صنف واحد عبر الـ webhook (GET — يتفادى preflight) =====
+    // يرسل code & branch في الـ query string، ويتوقع رد فيه: found, sell_price, balance, itm_name_ar
+    async function searchItemLive(code, branchAr){
+      var url = SEARCH_URL +
+        (SEARCH_URL.indexOf('?')>-1 ? '&' : '?') +
+        'code='   + encodeURIComponent(String(code).trim()) +
+        '&branch='+ encodeURIComponent(branchAr);
+      var res = await fetch(url, { method:'GET' });
+      var raw = await res.json();
+      // الرد قد يأتي ككائن واحد أو مصفوفة أو داخل data
+      var obj = Array.isArray(raw) ? (raw[0]||{}) : (raw.data && !raw.found ? raw.data : raw);
+      if(Array.isArray(obj)) obj = obj[0]||{};
+      var found = (obj.found===true || obj.found==='true' || obj.found===1);
+      var price = obj.sell_price!=null ? parseFloat(obj.sell_price) : null;
+      // لو مفيش حقل found لكن فيه سعر، اعتبره موجوداً
+      if(!('found' in obj) && price!=null && !isNaN(price)) found=true;
+      return {
+        found: found,
+        price: (price!=null && !isNaN(price)) ? price : null,
+        name: obj.itm_name_ar || '',
+        balance: obj.balance!=null ? parseFloat(obj.balance) : null
+      };
+    }
+
+    var calcAbort=false;
     async function calculate(){
       if(!parsedRows.length){ alert('الصق الجدول الأول — مفيش أصناف في القائمة.'); return; }
 
-      document.getElementById('result-container').innerHTML='<div class="loading-overlay">⏳ جاري تحميل أسعار مخزونك...</div>';
-      var ok=await loadStockData();
-      if(!ok){ document.getElementById('result-container').innerHTML='<div class="loading-overlay" style="color:var(--danger)">❌ فشل تحميل المخزون</div>'; return; }
+      var branchAr = BRANCH_AR_FOR_API[myBranch] || BRANCHES[myBranch];
+      var total = parsedRows.length;
+      calcAbort=false;
+      results=[];
+      hasCalculated=false;
 
-      var map=myStockMap();
-      results=parsedRows.map(function(r){
-        var mine=map[r.code];
-        if(!mine){
-          return { code:r.code, name:r.name, newPrice:r.sellPrice, myPrice:null, found:false, diff:null, match:false };
+      // زر إيقاف أثناء السؤال
+      var container=document.getElementById('result-container');
+      function progressHTML(done){
+        var pct = Math.round((done/total)*100);
+        return '<div class="loading-overlay">'+
+          '<div style="font-size:1rem;font-weight:800;color:var(--text-secondary);margin-bottom:10px">⏳ جاري سؤال النظام عن الأسعار اللحظية...</div>'+
+          '<div style="max-width:420px;margin:0 auto">'+
+            '<div style="background:var(--surface-3);border-radius:20px;height:14px;overflow:hidden;border:1px solid var(--border)">'+
+              '<div style="background:var(--primary);height:100%;width:'+pct+'%;transition:width 0.2s"></div>'+
+            '</div>'+
+            '<div style="margin-top:8px;font-size:0.85rem;color:var(--text-muted)">'+done+' / '+total+' صنف ('+pct+'%)</div>'+
+          '</div>'+
+          '<button class="btn-clear" style="margin-top:14px" onclick="calcAbort=true"><i class="fas fa-stop"></i> إيقاف</button>'+
+        '</div>';
+      }
+      container.innerHTML=progressHTML(0);
+
+      for(var i=0;i<parsedRows.length;i++){
+        if(calcAbort) break;
+        var r=parsedRows[i];
+        var live;
+        try {
+          live = await searchItemLive(r.code, branchAr);
+        } catch(e){
+          live = { error:true, found:false, price:null, name:'', balance:null };
         }
-        var diff=r.sellPrice - mine.price; // موجب = الجاي أغلى من سعري
-        return {
-          code:r.code, name:r.name, newPrice:r.sellPrice,
-          myPrice:mine.price, myName:mine.name, found:true, diff:diff, match:false
-        };
-      });
+        if(live.error){
+          results.push({ code:r.code, name:r.name, newPrice:r.sellPrice, myPrice:null, found:false, error:true, diff:null, match:false, balance:null });
+        } else if(!live.found || live.price==null){
+          results.push({ code:r.code, name:r.name, newPrice:r.sellPrice, myPrice:null, found:false, diff:null, match:false, balance:live.balance });
+        } else {
+          var diff=r.sellPrice - live.price;
+          results.push({ code:r.code, name:r.name, newPrice:r.sellPrice,
+            myPrice:live.price, myName:live.name, found:true, diff:diff, match:false, balance:live.balance });
+        }
+        container.innerHTML=progressHTML(i+1);
+      }
+
       hasCalculated=true;
       currentPage=1;
       render();
@@ -503,6 +547,7 @@
 
       var foundRows=results.filter(function(r){return r.found;});
       var nfRows=results.filter(function(r){return !r.found;});
+      var errorRows=results.filter(function(r){return r.error;});
       var mismatchRows=foundRows.filter(function(r){return !r.match;});
       var matchRows=foundRows.filter(function(r){return r.match;});
 
@@ -517,12 +562,24 @@
         results.length+' صنف · '+mismatchRows.length+' مختلف · '+matchRows.length+' مطابق'+(nfRows.length?' · '+nfRows.length+' غير موجود':'');
       document.getElementById('excel-btn').disabled = mismatchRows.length===0 && nfRows.length===0;
 
+      // تحذير: لو كل (أو معظم) الأصناف خطأ اتصال، فالمشكلة في الـ webhook (CORS غالباً) مش في الأصناف
+      var html='';
+      if(errorRows.length){
+        var allErr = errorRows.length===results.length;
+        html+='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px;color:#991b1b;font-size:0.85rem;line-height:1.7">'+
+          '<div style="font-weight:800;margin-bottom:4px">⚠️ '+errorRows.length+' صنف تعذّر الاتصال بالنظام'+(allErr?' (كل الأصناف)':'')+'</div>'+
+          (allErr?'<div>غالباً مشكلة في الـ webhook (CORS أو غير مفعّل). تأكد أن الـ Webhook node في n8n يقبل POST، وأن خانة Allowed Origins فيها رابط الموقع، وأن الـ workflow مُفعّل (Active).</div>':'<div>بعض الأصناف فشل الاتصال بها — جرّب إعادة المحاولة.</div>')+
+          '<button class="btn-calc" style="margin-top:10px;padding:8px 18px;font-size:0.82rem" onclick="calculate()"><i class="fas fa-rotate-right"></i> إعادة المحاولة</button>'+
+        '</div>';
+      }
+
       // ملخص
-      var html='<div class="summary-bar">'+
+      html+='<div class="summary-bar">'+
         '<div class="summary-item">إجمالي المنسوخ: <b>'+results.length+'</b></div>'+
         '<div class="summary-item danger">أسعار مختلفة: <b>'+mismatchRows.length+'</b></div>'+
         '<div class="summary-item ok">مطابقة: <b>'+matchRows.length+'</b></div>'+
         (nfRows.length?'<div class="summary-item warn">غير موجود عندي: <b>'+nfRows.length+'</b></div>':'')+
+        (errorRows.length?'<div class="summary-item danger">خطأ اتصال: <b>'+errorRows.length+'</b></div>':'')+
         '</div>';
 
       if(!view.length){ container.innerHTML=html+'<div class="loading-overlay">لا توجد أصناف مختلفة 🎉 كل الأسعار مطابقة.</div>'; return; }
@@ -541,13 +598,16 @@
 
       pageRows.forEach(function(r){
         if(!r.found){
+          var nfBadge = r.error
+            ? '<span class="badge-nf" style="background:#fee2e2;color:#991b1b" title="تعذّر الاتصال بالنظام لهذا الصنف">⚠️ خطأ اتصال</span>'
+            : '<span class="badge-nf" title="الكود غير مسجّل في مخزون فرعك">غير مسجّل عندي</span>';
           html+='<tr class="notfound-row">'+
             '<td class="name-cell"><div style="font-weight:600">'+r.name+'</div></td>'+
             '<td>'+r.code+'</td>'+
             '<td class="price-new">'+r2(r.newPrice)+'</td>'+
             '<td class="zero-stock">—</td>'+
             '<td>—</td>'+
-            '<td><span class="badge-nf">غير موجود عندي</span></td></tr>';
+            '<td>'+nfBadge+'</td></tr>';
         } else {
           var diffCls = r.diff>0 ? 'diff-up' : (r.diff<0 ? 'diff-down' : '');
           var diffTxt = r.diff>0 ? '+'+r2(r.diff) : r2(r.diff);
@@ -587,6 +647,7 @@
     function clearAll(){
       var c=document.getElementById('paste-catcher'); if(c) c.textContent='';
       parsedRows=[]; results=[]; hasCalculated=false; currentPage=1;
+      try { localStorage.removeItem(LS_ROWS); } catch(e){}
       renderPasteTable();
       document.getElementById('result-count').textContent='';
       document.getElementById('excel-btn').disabled=true;
