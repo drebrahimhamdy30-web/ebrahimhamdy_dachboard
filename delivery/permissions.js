@@ -7,6 +7,7 @@ function getCurrentUser() {
   return {
     id: activeUser,
     legacyId: localStorage.getItem('legacyId') || null,
+    dbId: localStorage.getItem('userDbId') || null,
     username: activeUser,
     full_name: localStorage.getItem('fullName') || activeUser,
     role: localStorage.getItem('userRole') || '',
@@ -36,6 +37,7 @@ function logout() {
   localStorage.removeItem('userRole');
   localStorage.removeItem('fullName');
   localStorage.removeItem('legacyId');
+  localStorage.removeItem('userDbId');
   localStorage.removeItem('loginTime');
   window.location.href = 'auth.html';
 }
