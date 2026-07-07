@@ -566,7 +566,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
 
 async function loadDriver(){
   try{
-const {data}=await db.from('drivers').select('*,branches(name)').eq('branch_user_id',currentUser.legacyId);
+const {data}=await db.from('drivers').select('*,branches(name)').eq('branch_user_id',currentUser.dbId);
     driverRecord=data&&data.length>0?data[0]:null;
     if(driverRecord) document.getElementById('driverBranch').textContent=driverRecord.branches?.name||'—';
   }catch(e){console.error(e);}
@@ -1212,7 +1212,7 @@ async function pickupAll(tripId){
     const ids=(ordRes.data||[]).map(o=>o.id);
     if(ids.length){
       await db.from('orders').update({status:'picked',picked_at:now,updated_at:now}).in('id',ids);
-      for(const id of ids){try{await db.from('order_logs').insert({order_id:id,event:'order_picked',details:{bulk:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}}
+      for(const id of ids){try{await db.from('order_logs').insert({order_id:id,event:'order_picked',details:{bulk:true},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}}
     }
   }
   await loadAll();load(false);
@@ -1221,7 +1221,7 @@ async function pickupOne(orderId){
   load(true);
   const now=new Date().toISOString();
   await db.from('orders').update({status:'picked',picked_at:now,updated_at:now}).eq('id',orderId);
-  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
   await loadAll();load(false);
 }
 
@@ -1251,7 +1251,7 @@ async function confirmDeliver(){
   load(true);
   const now=new Date().toISOString();
   await db.from('orders').update({status:'delivered',payment_method:pay,collected_amount:amt,driver_notes:note||null,delivered_at:now,updated_at:now}).eq('id',id);
-  try{await db.from('order_logs').insert({order_id:id,event:'order_delivered',details:{payment:pay,amount:amt},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('order_logs').insert({order_id:id,event:'order_delivered',details:{payment:pay,amount:amt},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
   closeModal('deliverModal');await loadAll();load(false);
 }
 
@@ -1284,7 +1284,7 @@ async function confirmFail(){
     attempt_count:(o?.attempt_count||0)+1,
     updated_at:now
   }).eq('id',id);
-  try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{reason,kept_in_trip:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{reason,kept_in_trip:true},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
   closeModal('failModal');await loadAll();load(false);
 }
 async function retryFailed(orderId){
@@ -1296,7 +1296,7 @@ async function retryFailed(orderId){
     picked_at:now,
     updated_at:now
   }).eq('id',orderId);
-  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{retry:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{retry:true},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
   await loadAll();load(false);
 }
 async function completeTrip(tripId){
@@ -1309,7 +1309,7 @@ async function completeTrip(tripId){
     load(true);
     const now=new Date().toISOString();
     await db.from('trips').update({status:'pending_complete',updated_at:now}).eq('id',tripId);
-    try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_requested',details:{by:'driver'},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+    try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_requested',details:{by:'driver'},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
     await loadAll();load(false);
     return;
   }
@@ -1337,7 +1337,7 @@ async function completeTrip(tripId){
         await db.from('trip_orders').delete().eq('trip_id',tripId).eq('order_id',id);
       }
     }
-    for(const id of failedIds){try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{released_on_trip_complete:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}}
+    for(const id of failedIds){try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{released_on_trip_complete:true},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}}
   }
 
   // المُوصّلة → completed
@@ -1347,7 +1347,7 @@ async function completeTrip(tripId){
 
   if(tripId!=='direct')
     await db.from('trips').update({status:'completed',updated_at:now}).eq('id',tripId);
-  try{await db.from('trip_logs').insert({trip_id:tripId,event:'trip_completed',details:{by:'driver',failed_released:failedOrders.length},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('trip_logs').insert({trip_id:tripId,event:'trip_completed',details:{by:'driver',failed_released:failedOrders.length},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
 await loadAll();load(false);
 }
 
@@ -1356,7 +1356,7 @@ async function cancelCompleteRequest(tripId){
   load(true);
   const now=new Date().toISOString();
   await db.from('trips').update({status:'active',updated_at:now}).eq('id',tripId);
-  try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_cancelled',details:{by:'driver'},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_cancelled',details:{by:'driver'},user_id:currentUser.dbId,user_name:currentUser.full_name});}catch(e){}
   await loadAll();load(false);
 }
 
@@ -1380,7 +1380,7 @@ async function submitChangePassword(){
   load(true);
   try{
     const {data,error}=await db.rpc('change_user_password',{
-      p_user_id:currentUser.legacyId,
+      p_user_id:currentUser.dbId,
       p_old_password:oldP,
       p_new_password:newP
     });
