@@ -356,6 +356,7 @@
         localStorage.setItem('userRole',   result.role || 'employee');
         localStorage.setItem('fullName',   result.full_name || result.user);
         localStorage.setItem('legacyId',   result.legacy_id || '');
+        localStorage.setItem('userDbId',   result.id ?? '');
         localStorage.setItem('loginTime',  Date.now());
 
         // جلب وتخزين branch_id (uuid) مرة واحدة وقت الدخول لغير الـ admin
