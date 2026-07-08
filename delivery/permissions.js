@@ -5,9 +5,8 @@ function getCurrentUser() {
   const activeUser = localStorage.getItem('activeUser');
   if (!token || !activeUser) return null;
   return {
-    id: activeUser,
+    id: localStorage.getItem('userDbId') || null,
     legacyId: localStorage.getItem('legacyId') || null,
-    dbId: localStorage.getItem('userDbId') || null,
     username: activeUser,
     full_name: localStorage.getItem('fullName') || activeUser,
     role: localStorage.getItem('userRole') || '',
@@ -37,7 +36,7 @@ function logout() {
   localStorage.removeItem('userRole');
   localStorage.removeItem('fullName');
   localStorage.removeItem('legacyId');
-  localStorage.removeItem('userDbId');
+  localStorage.removeItem('userDbId');   // ← جديد
   localStorage.removeItem('loginTime');
   window.location.href = 'auth.html';
 }
