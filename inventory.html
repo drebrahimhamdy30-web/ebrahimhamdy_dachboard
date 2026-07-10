@@ -3,20 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>المخزون - Phalix</title>
+  <title>الجرد - صيدليات د. إبراهيم</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    .below-min { background: #fef2f2 !important; }
-    .below-min td { color: #991b1b; }
-    .stock-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; }
-    .badge-danger { background:#fee2e2; color:#991b1b; }
-    .badge-ok     { background:#dcfce7; color:#15803d; }
-    .lookup-box { background:var(--surface-2); border:1.5px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-bottom:20px; }
-    .min-input { width:70px; padding:4px 8px; border-radius:6px; border:1.5px solid var(--border); background:var(--surface-3); color:var(--text-primary); font-family:var(--font); font-size:0.85rem; text-align:center; }
-    .min-input:focus { border-color:var(--accent); outline:none; }
-    .save-min-btn { background:var(--success); color:#fff; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; font-size:0.85rem; font-weight:700; line-height:1.6; }
-    .save-min-btn:hover { opacity:0.85; }
+    .tabs-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .tab-btn {
+      padding:8px 18px; border-radius:20px; border:1px solid var(--border);
+      background:var(--surface-3); color:var(--text-secondary);
+      font-size:0.88rem; cursor:pointer; transition:all 0.2s; flex-shrink:0;
+    }
+    .tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:700; }
+
+    .btn-done {
+      padding:5px 12px; font-size:0.78rem; border-radius:8px;
+      border:1px solid var(--success,#16a34a); background:transparent;
+      color:var(--success,#16a34a); cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    }
+    .btn-done:hover, .btn-done.active { background:var(--success,#16a34a); color:#fff; }
+
+    .btn-mismatch {
+      padding:5px 12px; font-size:0.78rem; border-radius:8px;
+      border:1px solid var(--danger,#dc2626); background:transparent;
+      color:var(--danger,#dc2626); cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    }
+    .btn-mismatch:hover, .btn-mismatch.active { background:var(--danger,#dc2626); color:#fff; }
+
+    .btn-skip {
+      padding:5px 12px; font-size:0.78rem; border-radius:8px;
+      border:1px solid var(--text-muted); background:transparent;
+      color:var(--text-muted); cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    }
+    .btn-skip:hover, .btn-skip.active { background:var(--text-muted); color:#fff; }
+
+    .btn-balance {
+      padding:4px 10px; font-size:0.75rem; border-radius:8px;
+      border:1px solid var(--border); background:var(--surface-3);
+      cursor:pointer; color:var(--text-secondary); white-space:nowrap; transition:all 0.2s;
+    }
+    .btn-balance:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .balance-val { font-weight:700; font-size:1rem; color:var(--success,#16a34a); }
+
+    .btn-secondary {
+      background:var(--surface-3); color:var(--text-secondary); border:1px solid var(--border);
+    }
+    .btn-secondary:hover { background:var(--surface-2,#e9e9ee); }
+
+    .top-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .summary-inline {
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      font-size:0.8rem; padding:6px 12px;
+      background:var(--surface-3); border-radius:20px;
+    }
+    .pagination { display:flex; gap:6px; align-items:center; }
+    .page-btn {
+      padding:4px 10px; border-radius:8px;
+      border:1px solid var(--border); background:var(--surface-3);
+      color:var(--text-secondary); cursor:pointer; transition:all 0.2s; font-size:0.8rem;
+    }
+    .page-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .page-btn:disabled { opacity:0.4; cursor:not-allowed; }
+    .filter-toggle {
+      padding:6px 12px; border-radius:20px; font-size:0.8rem; cursor:pointer;
+      border:1px solid var(--border); background:var(--surface-3);
+      color:var(--text-secondary); white-space:nowrap; transition:all 0.2s;
+    }
+    .filter-toggle.all { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+    .header-actions { display:flex; gap:8px; }
+
+    .category-header-row td {
+      background:var(--surface-3) !important;
+      font-weight:800; font-size:0.82rem; color:var(--text-secondary);
+      padding:8px 10px !important; border:none !important;
+    }
+
+    .modal-overlay {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      width:100vw; height:100dvh;
+      background:rgba(0,0,0,0.55);
+      display:flex; align-items:center; justify-content:center;
+      z-index:999999; padding:16px; margin:0;
+    }
+    .modal-box {
+      background:var(--surface,#fff); border-radius:14px; padding:20px;
+      width:100%; max-width:420px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 10px 40px rgba(0,0,0,0.25);
+    }
+    .modal-box.report-box { max-width:700px; }
+    .modal-title {
+      font-size:1.05rem; font-weight:700; margin-bottom:14px; color:var(--text-primary);
+      display:flex; align-items:center; gap:6px;
+    }
+    .modal-item-info {
+      background:var(--surface-3); border-radius:10px; padding:10px 12px;
+      margin-bottom:14px; font-size:0.85rem; display:flex; flex-direction:column; gap:4px;
+    }
+    .modal-label { display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px; color:var(--text-secondary); }
+    .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
+    .modal-actions .btn { flex:1; min-width:100px; justify-content:center; }
+
+    .report-summary {
+      display:flex; gap:10px; flex-wrap:wrap; font-size:0.8rem;
+      padding:8px 12px; background:var(--surface-3); border-radius:10px; margin-bottom:16px;
+    }
+    .report-section { margin-bottom:18px; }
+    .report-section-title { font-weight:700; font-size:0.92rem; margin-bottom:8px; }
+    .report-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+    .report-table th, .report-table td { padding:6px 8px; border-bottom:1px solid var(--border); text-align:right; }
+    .report-table th { background:var(--surface-3); position:sticky; top:0; }
+
+    @media print {
+      body * { visibility:hidden; }
+      #report-modal, #report-modal * { visibility:visible; }
+      #report-modal { position:absolute; inset:0; background:#fff; padding:20px; display:block !important; }
+      .modal-actions { display:none; }
+    }
+
+    @media (max-width: 640px) {
+      .page-header { flex-direction:column; align-items:flex-start; gap:10px; }
+      .header-actions { width:100%; }
+      .header-actions .btn { flex:1; justify-content:center; }
+      .tabs-bar { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px; }
+      .tabs-bar::-webkit-scrollbar { height:4px; }
+      .top-bar { flex-direction:column; align-items:stretch; }
+      .top-bar .field-icon-wrap { max-width:none; }
+      .summary-inline { justify-content:space-between; width:100%; box-sizing:border-box; }
+      .pagination { justify-content:center; width:100%; }
+      .filter-toggle { width:100%; text-align:center; box-sizing:border-box; }
+      .inv-table-wrap { overflow-x:visible; }
+      table#inv-table thead { display:none; }
+      table#inv-table, table#inv-table tbody, table#inv-table tr, table#inv-table td { display:block; width:100%; }
+      table#inv-table tr {
+        margin-bottom:8px; border:1px solid var(--border); border-radius:10px;
+        padding:6px 10px; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.04);
+      }
+      table#inv-table tr.category-header-row {
+        border:none; box-shadow:none; background:transparent; padding:10px 4px 4px;
+      }
+      table#inv-table tr.category-header-row td { display:block !important; }
+      table#inv-table td {
+        padding:3px 0; border:none !important; display:flex;
+        align-items:center; gap:8px; text-align:right;
+      }
+      table#inv-table td::before {
+        content: attr(data-label); font-weight:700; color:var(--text-secondary);
+        font-size:0.7rem; flex:0 0 auto; min-width:60px; max-width:60px;
+      }
+      table#inv-table td > *:not(:only-child) { flex:1; min-width:0; }
+      table#inv-table td > div { display:flex; flex-wrap:wrap; gap:5px; }
+      table#inv-table tr.empty-row {
+        border:none !important; box-shadow:none !important; background:transparent !important;
+        margin-bottom:0 !important; padding:0 !important;
+      }
+      table#inv-table tr.empty-row td {
+        display:block !important; padding:30px 10px !important; text-align:center !important;
+      }
+      table#inv-table tr.empty-row td::before { content:none !important; }
+
+      /* ===== تحويل جداول التقارير (لم يُجرد منذ مدة / معدل الجرد اليومي / تقرير شامل) لكروت على الموبايل ===== */
+      table.report-table thead { display:none; }
+      table.report-table, table.report-table tbody, table.report-table tr, table.report-table td { display:block; width:100%; }
+      table.report-table tr {
+        margin-bottom:8px; border:1px solid var(--border); border-radius:10px;
+        padding:6px 10px; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.04);
+      }
+      table.report-table tr.category-header-row {
+        border:none; box-shadow:none; background:transparent; padding:10px 4px 4px; margin-bottom:2px;
+      }
+      table.report-table tr.category-header-row td { display:block !important; }
+      table.report-table td {
+        padding:3px 0; border:none !important; display:flex;
+        align-items:flex-start; gap:8px; text-align:right;
+      }
+      table.report-table td::before {
+        content: attr(data-label); font-weight:700; color:var(--text-secondary);
+        font-size:0.68rem; flex:0 0 auto; min-width:80px; max-width:100px;
+      }
+      table.report-table td > *:not(:only-child) { flex:1; min-width:0; }
+      table.report-table td > div { display:flex; flex-wrap:wrap; gap:5px; }
+      /* لو الخلية مالهاش data-label (مفيش عنوان مناسب)، منعرضش سطر فاضي قبلها */
+      table.report-table td:not([data-label])::before { content:none; }
+
+      #report-modal .report-date-filter { flex-direction:column; align-items:stretch; }
+      #report-modal .report-date-filter > div { width:100%; }
+      #report-modal #report-date-from,
+      #report-modal #report-date-to { width:100% !important; box-sizing:border-box; }
+      #report-modal .report-date-filter .btn { width:100%; justify-content:center; }
+      .modal-overlay { padding:0; align-items:stretch; }
+      .modal-box, .modal-box.report-box {
+        max-width:100%; width:100%; height:100%; max-height:100%;
+        border-radius:0; padding:16px; padding-top:max(16px, env(safe-area-inset-top));
+        padding-bottom:max(16px, env(safe-area-inset-bottom));
+        display:flex; flex-direction:column;
+      }
+      .modal-actions { position:sticky; bottom:0; background:var(--surface,#fff); margin:auto -16px -16px; padding:12px 16px; padding-bottom:max(12px, env(safe-area-inset-bottom)); border-top:1px solid var(--border); }
+      .report-table th, .report-table td { font-size:0.74rem; padding:5px 6px; }
+    }
   </style>
 </head>
 <body>
@@ -24,367 +208,1424 @@
   <div class="container">
     <div class="card">
       <div class="page-header">
-        <div class="page-title"><i class="fas fa-boxes"></i> حدود المخزون</div>
-        <button class="btn btn-primary" onclick="loadAll()"><i class="fas fa-sync-alt"></i> تحديث</button>
-      </div>
-
-      <!-- بحث بكود الصنف -->
-      <div class="lookup-box">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text-secondary);margin-bottom:12px;">
-          <i class="fas fa-search"></i> إضافة صنف جديد
+        <div class="page-title">
+          <i class="fas fa-clipboard-list"></i> الجرد
+          <span class="highlight" id="branch-tag"></span>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-          <div>
-            <label style="display:block;font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:5px;">كود الصنف</label>
-            <input type="text" id="lookup-code" class="form-input" style="width:160px;"
-              placeholder="أدخل الكود..."
-              oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-              onkeydown="if(event.key==='Enter') lookupItem()">
+        <div class="header-actions">
+          <span id="my-daily-count" style="font-size:0.82rem;font-weight:700;color:var(--primary);padding:6px 12px;background:var(--surface-3);border-radius:20px;white-space:nowrap;">
+            📊 معدلك اليومي: <b>0</b>
+          </span>
+          <button class="btn btn-secondary" onclick="openFullReport()">
+            <i class="fas fa-list-check"></i> تقرير شامل
+          </button>
+          <button class="btn btn-secondary" onclick="openDailyStats()">
+            <i class="fas fa-users"></i> معدل موظف الجرد اليومي
+          </button>
+          <button class="btn btn-secondary" onclick="openStaleReport()">
+            <i class="fas fa-hourglass-half"></i> لم يُجرد منذ مدة
+          </button>
+          <div class="field-icon-wrap" style="min-width:170px;">
+            <i class="fas fa-list field-icon"></i>
+            <select id="category-select" class="form-select" onchange="onCategoryChange(this.value)" style="padding-right:34px;">
+              <option value="erp" selected>🖥️ ERP</option>
+              <option value="تلاجه">🧊 تلاجة</option>
+              <option value="غوالى">💊 غوالي</option>
+              <option value="fastmove">⚡ سريع</option>
+              <option value="مرتجعات">🔄 مرتجعات</option>
+            </select>
           </div>
-          <div id="lookup-result" style="flex:1;min-width:200px;"></div>
-          <button class="btn btn-primary" onclick="lookupItem()" id="lookup-btn">
-            <i class="fas fa-search"></i> جلب البيانات
+          <button class="btn btn-primary" onclick="loadCurrentTab()">
+            <i class="fas fa-sync-alt"></i> تحديث
           </button>
         </div>
-
-        <!-- نتيجة البحث -->
-        <div id="lookup-details" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:flex-end;">
-            <div>
-              <label style="display:block;font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:5px;">اسم الصنف</label>
-              <input type="text" id="lookup-name" class="form-input" readonly style="background:var(--surface-3);color:var(--text-muted);">
-            </div>
-            <div>
-              <label style="display:block;font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:5px;">الرصيد الحالي</label>
-              <input type="text" id="lookup-stock" class="form-input" readonly style="background:var(--surface-3);color:var(--text-muted);">
-            </div>
-            <div>
-              <label style="display:block;font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:5px;">نوع الصنف</label>
-              <input type="text" id="lookup-type" class="form-input" readonly style="background:var(--surface-3);color:var(--text-muted);">
-            </div>
-            <div>
-              <label style="display:block;font-size:0.78rem;font-weight:700;color:#94a3b8;margin-bottom:5px;">الحد الأدنى</label>
-              <input type="number" id="lookup-min" class="form-input" min="0" placeholder="0">
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:12px;">
-            <button class="btn btn-primary" onclick="saveNewItem()" id="save-btn">
-              <i class="fas fa-save"></i> حفظ الصنف
-            </button>
-            <button class="btn" onclick="resetLookup()" style="background:var(--surface-3);color:var(--text-muted);border:none;">إلغاء</button>
-          </div>
-        </div>
       </div>
 
-      <!-- فلتر -->
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-        <div class="field-icon-wrap" style="min-width:220px;">
+      <div class="top-bar">
+        <div class="field-icon-wrap" style="min-width:180px;flex:1;max-width:240px;">
           <i class="fas fa-search field-icon"></i>
           <input type="text" id="searchInput" class="form-input"
-            placeholder="بحث بالكود أو الاسم..." oninput="applyFilter()" style="padding-right:34px;">
+            placeholder="بحث بالكود أو الاسم..."
+            oninput="onSearch()"
+            style="padding-right:34px;">
         </div>
-        <select id="branchFilter" class="form-select" style="width:auto;" onchange="applyFilter()">
-          <option value="all">كل الفروع</option>
-          <option value="المعمورة">المعمورة</option>
-          <option value="سان ستيفانو">سان ستيفانو</option>
-          <option value="سيدي بشر">سيدي بشر</option>
-        </select>
-        <select id="typeFilter" class="form-select" style="width:auto;" onchange="applyFilter()">
-          <option value="all">كل الأنواع</option>
-          <option value="دواء">💊 دواء</option>
-          <option value="غير دواء">🧴 غير دواء</option>
-        </select>
-        <label class="check-label">
-          <input type="checkbox" id="belowOnly" onchange="applyFilter()">
-          تحت الحد الأدنى فقط ⚠️
-        </label>
-        <div id="stats-bar" style="display:flex;gap:8px;align-items:center;font-size:0.82rem;margin-right:auto;"></div>
+
+        <button id="filter-btn" class="filter-toggle" onclick="toggleFilter()">
+          ⏳ غير مجروده
+        </button>
+
+        <div class="summary-inline">
+          <span>📦 <b id="sum-total">0</b></span>
+          <span style="color:var(--success,#16a34a);">✅ <b id="sum-done">0</b></span>
+          <span style="color:var(--danger,#dc2626);">❌ <b id="sum-mismatch">0</b></span>
+          <span style="color:var(--text-muted);">⏭️ <b id="sum-skip">0</b></span>
+          <span style="color:var(--warning);">⏳ <b id="sum-pending">0</b></span>
+        </div>
+
+        <div class="pagination">
+          <button class="page-btn" id="btn-prev" onclick="changePage(-1)">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          <span id="page-info" style="font-size:0.8rem;color:var(--text-secondary);white-space:nowrap;">
+            1 / 1
+          </span>
+          <button class="page-btn" id="btn-next" onclick="changePage(1)">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- الجدول -->
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>كود الصنف</th>
-              <th>اسم الصنف</th>
-              <th>النوع</th>
-              <th>الفرع</th>
-              <th>الرصيد الحالي</th>
-              <th>الحد الأدنى</th>
-              <th>الحالة</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:var(--surface-3);border-radius:10px;">
+        <span style="font-size:0.82rem;font-weight:700;color:var(--text-secondary);white-space:nowrap;">
+          <i class="fas fa-magnifying-glass-dollar" style="color:var(--primary);"></i> بحث عن رصيد كود:
+        </span>
+        <input type="text" id="balance-code-input" class="form-input" style="width:160px;"
+          placeholder="اكتب الكود..." inputmode="numeric"
+          onkeydown="if(event.key==='Enter') lookupBalance()">
+        <button class="btn btn-primary" onclick="lookupBalance()" id="balance-lookup-btn">
+          <i class="fas fa-search"></i> بحث
+        </button>
+        <div id="balance-result" style="font-size:0.85rem;"></div>
+      </div>
+
+      <div class="table-wrap inv-table-wrap">
+        <table id="inv-table">
+          <thead id="inv-thead"></thead>
           <tbody id="table-body">
-            <tr class="loading-row"><td colspan="8">⏳ جاري التحميل...</td></tr>
+            <tr class="loading-row empty-row"><td colspan="6">⏳ جاري التحميل...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <script src="api.js"></script>
-  <script src="nav.js" defer></script>
-  <script>
-    let activeUser = null;
-    let userBranch = '';
-    let allData    = [];
+  <!-- مودال: تسجيل عدم المطابقة (مشترك بين النظامين) -->
+  <div id="mismatch-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-title">❌ تسجيل عدم مطابقة</div>
+      <div class="modal-item-info" id="mismatch-item-info"></div>
+      <label class="modal-label">الرصيد الفعلي (اللي اتجرد فعلياً):</label>
+      <input type="number" id="mismatch-balance-input" class="form-input" inputmode="decimal" placeholder="اكتب الرصيد الفعلي...">
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeMismatchModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="confirmMismatch()">
+          <i class="fas fa-check"></i> تأكيد
+        </button>
+      </div>
+    </div>
+  </div>
 
-    checkAuth().then(user => {
+  <!-- مودال: الأصناف اللي لم تُجرد منذ مدة (مقارنة مباشرة بالمخزون الحالي) -->
+  <div id="stale-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box report-box">
+      <div class="modal-title">⏰ أصناف لم تُجرد منذ مدة</div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--surface-3);border-radius:10px;">
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">لم تُجرد منذ (بالشهور)</label>
+          <input type="number" id="stale-months-input" class="form-input" value="3" min="1" style="width:100px;">
+        </div>
+        <button class="btn btn-primary" onclick="loadStaleReport()">
+          <i class="fas fa-search"></i> بحث
+        </button>
+      </div>
+
+      <div id="stale-summary" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;"></div>
+
+      <div class="table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>كود</th><th>الاسم عربي</th><th>الاسم إنجليزي</th><th>آخر جرد</th><th>الرصيد</th><th>إجراء</th></tr>
+          </thead>
+          <tbody id="stale-report-body">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">اكتب عدد الشهور واضغط بحث</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination" style="justify-content:center;margin-top:12px;">
+        <button class="page-btn" id="stale-btn-prev" onclick="changeStalePage(-1)">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <span id="stale-page-info" style="font-size:0.8rem;color:var(--text-secondary);white-space:nowrap;">1 / 1</span>
+        <button class="page-btn" id="stale-btn-next" onclick="changeStalePage(1)">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="exportStaleReportToExcel()">
+          <i class="fas fa-file-excel"></i> تصدير إكسل
+        </button>
+        <button class="btn btn-primary" onclick="closeStaleReport()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال: معدل الجرد اليومي (لكل الموظفين — بيبقى ظاهر للموظف نفسه وللإدارة) -->
+  <div id="daily-stats-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box report-box">
+      <div class="modal-title">📈 معدل الجرد اليومي</div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--surface-3);border-radius:10px;">
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">من تاريخ</label>
+          <input type="date" id="daily-stats-from" class="form-input" style="width:150px;">
+        </div>
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">إلى تاريخ</label>
+          <input type="date" id="daily-stats-to" class="form-input" style="width:150px;">
+        </div>
+        <button class="btn btn-primary" onclick="loadDailyStats()">
+          <i class="fas fa-search"></i> عرض
+        </button>
+      </div>
+
+      <div id="daily-stats-summary" style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:14px;padding:8px 12px;background:var(--surface-3);border-radius:10px;"></div>
+
+      <div class="report-section">
+        <div class="report-section-title">📅 إجمالي الأصناف كل يوم</div>
+        <div class="table-wrap">
+          <table class="report-table">
+            <thead><tr><th>التاريخ</th><th>عدد الأصناف المجرودة</th></tr></thead>
+            <tbody id="daily-stats-by-date-body">
+              <tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="report-section">
+        <div class="report-section-title">👤 إجمالي كل موظف خلال المدة</div>
+        <div class="table-wrap">
+          <table class="report-table">
+            <thead><tr><th>الموظف</th><th>الفرع</th><th>إجمالي الأصناف</th></tr></thead>
+            <tbody id="daily-stats-by-employee-body">
+              <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeDailyStats()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال: التقرير الشامل لكل عمليات الجرد (كل الفئات مع بعض) -->
+  <div id="full-report-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box report-box">
+      <div class="modal-title">📋 تقرير شامل لكل عمليات الجرد</div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--surface-3);border-radius:10px;">
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">الفئة</label>
+          <select id="full-report-category" class="form-select" style="width:150px;">
+            <option value="">كل الفئات</option>
+            <option value="تلاجه">🧊 تلاجة</option>
+            <option value="غوالى">💊 غوالي</option>
+            <option value="fastmove">⚡ سريع</option>
+            <option value="مرتجعات">🔄 مرتجعات</option>
+            <option value="erp">🖥️ ERP</option>
+          </select>
+        </div>
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">من تاريخ</label>
+          <input type="date" id="full-report-from" class="form-input" style="width:150px;">
+        </div>
+        <div>
+          <label class="modal-label" style="margin-bottom:4px;">إلى تاريخ</label>
+          <input type="date" id="full-report-to" class="form-input" style="width:150px;">
+        </div>
+        <button class="btn btn-primary" onclick="loadFullReport()">
+          <i class="fas fa-search"></i> بحث
+        </button>
+      </div>
+
+      <div id="full-report-summary" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;"></div>
+
+      <div class="table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>الكود</th><th>الاسم</th><th>الفئة</th><th>الحالة</th><th>رصيد النظام</th><th>الرصيد الفعلي</th><th>بواسطة</th><th>التاريخ</th></tr>
+          </thead>
+          <tbody id="full-report-body">
+            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">اضغط بحث لعرض النتائج</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="exportFullReportToExcel()">
+          <i class="fas fa-file-excel"></i> تصدير إكسل
+        </button>
+        <button class="btn btn-primary" onclick="closeFullReport()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+<script src="api.js"></script>
+<script src="nav.js" defer></script>
+  <script>
+    const BALANCE_URL = "https://agent.ebrahimhamdy.com/webhook/get_balance";
+    const PAGE_SIZE   = 20;
+
+    const LIVE_CATEGORIES = new Set(['تلاجه', 'غوالى', 'fastmove']);
+    function isLiveTab(tab) { return LIVE_CATEGORIES.has(tab); }
+
+    const TAB_COLS = {
+      'تلاجه':    ['code', 'itm_name_ar', 'itm_name_en'],
+      'غوالى':    ['code', 'itm_name_ar', 'itm_name_en'],
+      'fastmove': ['code', 'itm_name_ar', 'itm_name_en'],
+      'مرتجعات':  ['code', 'itm_name_ar', 'itm_name_en', 'time', 'bill_no'],
+      'erp':      ['code', 'itm_name_ar', 'itm_name_en']
+    };
+
+    const COL_LABELS = {
+      code:        'كود',
+      itm_name_ar: 'الاسم عربي',
+      itm_name_en: 'الاسم إنجليزي',
+      time:        'تاريخ المرتجع',
+      bill_no:     'رقم الفاتورة'
+    };
+
+    const TAB_DISPLAY_NAMES = {
+      'تلاجه':    '🧊 تلاجة',
+      'غوالى':    '💊 غوالي',
+      'fastmove': '⚡ سريع',
+      'مرتجعات':  '🔄 مرتجعات',
+      'erp':      '🖥️ ERP'
+    };
+
+    // ===== تصنيف شكل الصنف الدوائي (أقراص/أشربة/حقن/لبوس/كريمات) لترتيب العرض =====
+    // القواعد بتتحمل من jard_settings (قابلة للتعديل من صفحة الإعدادات)، مش ثابتة في الكود
+    const FORM_CATEGORY_NAMES = ['أقراص', 'أشربة', 'حقن', 'لبوس', 'كريمات'];
+    const FORM_ICON_MAP = { 'أقراص': '💊', 'أشربة': '🧴', 'حقن': '💉', 'لبوس': '🔹', 'كريمات': '🧪' };
+    const OTHER_CATEGORY = { key: 'اخرى', order: 99, label: '📦 أصناف أخرى' };
+
+    let formCategoryRules = []; // بيتملى من loadFormCategoryRules() عند التحميل
+
+    async function loadFormCategoryRules() {
+      try {
+        const settings = await getJardSettings();
+        formCategoryRules = settings
+          .filter(s => FORM_CATEGORY_NAMES.includes(s.category))
+          .map(s => ({
+            key: s.category,
+            order: s.sort_order ?? 0,
+            label: `${FORM_ICON_MAP[s.category] || '📦'} ${s.category}`,
+            ar: (s.keywords_ar || []).map(k => String(k).toLowerCase()),
+            en: (s.keywords_en || []).map(k => String(k).toLowerCase())
+          }))
+          .sort((a, b) => a.order - b.order);
+      } catch(e) {
+        console.error('loadFormCategoryRules failed', e);
+        formCategoryRules = [];
+      }
+    }
+
+    function detectCategory(item) {
+      const nameAr = String(item.itm_name_ar || '').toLowerCase();
+      const nameEn = String(item.itm_name_en || '').toLowerCase();
+      for (const cat of formCategoryRules) {
+        if (cat.ar.some(k => k && nameAr.includes(k))) return cat;
+        if (cat.en.some(k => k && nameEn.includes(k))) return cat;
+      }
+      return OTHER_CATEGORY;
+    }
+
+    function sortDisplayName(item) {
+      const en = String(item.itm_name_en || '').trim();
+      if (en) return en;
+      return String(item.itm_name_ar || '').trim();
+    }
+
+    function sortItemsForAudit(items) {
+      return items.slice().sort((a, b) => {
+        const catA = detectCategory(a);
+        const catB = detectCategory(b);
+        if (catA.order !== catB.order) return catA.order - catB.order;
+        const nameA = sortDisplayName(a);
+        const nameB = sortDisplayName(b);
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+      });
+    }
+
+    let activeUser       = null;
+    let employeeName     = '';
+    let rawData          = [];
+    let filteredData      = [];
+    let currentTab       = 'erp';
+    let userBranch       = '';
+    let userRole         = '';
+    let currentPage      = 1;
+    let showPending      = true;
+    let mismatchTargetId = null;
+    let mismatchSource   = 'old'; // 'old' | 'live' | 'stale'
+
+    checkAuth().then(async user => {
       activeUser = user;
       if (user) {
-        userBranch = (localStorage.getItem('userBranch') || '').trim();
-        loadAll();
+        userBranch   = (localStorage.getItem('userBranch') || '').trim();
+        userRole     = (localStorage.getItem('userRole')   || 'employee').trim();
+        employeeName = (localStorage.getItem('fullName') || activeUser || '').trim();
+        document.getElementById('branch-tag').textContent = userBranch;
+        updateFilterBtn();
+        updateTabUIVisibility();
+        await loadFormCategoryRules();
+        loadCurrentTab();
+        loadMyDailyCount();
       }
     });
 
-    async function loadAll() {
-      const tbody = document.getElementById('table-body');
-      tbody.innerHTML = '<tr class="loading-row"><td colspan="8">⏳ جاري جلب البيانات...</td></tr>';
-      try {
-        const response = await fetchFromN8N('stock_limit');
-        allData = Array.isArray(response) ? response : (response.data || []);
-        applyFilter();
-      } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:30px;">❌ فشل الاتصال</td></tr>';
+    function updateTabUIVisibility() {
+      const live = isLiveTab(currentTab);
+      document.getElementById('filter-btn').style.display  = live ? 'none' : '';
+    }
+
+    function onCategoryChange(value) {
+      currentTab  = value;
+      currentPage = 1;
+      showPending = true;
+      document.getElementById('searchInput').value = '';
+      updateFilterBtn();
+      updateTabUIVisibility();
+      loadCurrentTab();
+    }
+
+    function toggleFilter() {
+      showPending = !showPending;
+      currentPage = 1;
+      updateFilterBtn();
+      applyFilter();
+    }
+
+    function updateFilterBtn() {
+      const btn = document.getElementById('filter-btn');
+      if (showPending) {
+        btn.textContent = '⏳ غير مجروده';
+        btn.classList.remove('all');
+      } else {
+        btn.textContent = '📦 الكل';
+        btn.classList.add('all');
       }
     }
 
-    function applyFilter() {
-      const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
-      const belowOnly = document.getElementById('belowOnly').checked;
-      const branchVal = document.getElementById('branchFilter').value;
-      const typeVal   = document.getElementById('typeFilter').value;
+    async function loadCurrentTab() {
+      const tbody = document.getElementById('table-body');
+      const cols  = TAB_COLS[currentTab] || ['code', 'itm_name_ar'];
+      tbody.innerHTML = `<tr class="loading-row empty-row"><td colspan="${cols.length + 2}">⏳ جاري جلب البيانات...</td></tr>`;
 
-      const filtered = allData.filter(item => {
-        const searchMatch = !searchVal || [item.item_code, item.item_name]
-          .some(v => String(v || '').toLowerCase().includes(searchVal));
-        const belowMatch  = !belowOnly || (parseFloat(item.current_stock) < parseFloat(item.min_stock));
-        const branchMatch = branchVal === 'all' || String(item.branch    || '').trim() === branchVal;
-        const typeMatch   = typeVal   === 'all' || String(item.item_type || '').trim() === typeVal;
-        return searchMatch && belowMatch && branchMatch && typeMatch;
-      });
+      try {
+        if (isLiveTab(currentTab)) {
+          const items = await fetchJardItems(userBranch, currentTab);
+          rawData = items.map(it => ({
+            ...it,
+            code: String(it.code || '').trim(),
+            _balanceFetched: false,
+            _systemQty: null
+          }));
+        } else {
+          const items = await fetchInventoryAudit();
+          rawData = items.filter(item => {
+            const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
+            const branchMatch = (item.branch || '') === userBranch;
+            return typeMatch && branchMatch;
+          });
+        }
 
-      renderStats();
-      renderTable(filtered);
+        rawData = sortItemsForAudit(rawData);
+        buildTableHeader();
+        applyFilter();
+      } catch(e) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols.length + 2}" style="text-align:center;color:var(--danger);padding:30px;">❌ خطأ في الاتصال</td></tr>`;
+      }
     }
 
-    function renderStats() {
-      const total = allData.length;
-      const below = allData.filter(i => parseFloat(i.current_stock) < parseFloat(i.min_stock)).length;
-      document.getElementById('stats-bar').innerHTML = `
-        <span style="background:var(--surface-3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-weight:700;color:var(--text-secondary);">📦 الكل: ${total}</span>
-        ${below > 0 ? `<span style="background:#fee2e2;border-radius:20px;padding:4px 12px;font-weight:700;color:#991b1b;">⚠️ تحت الحد: ${below}</span>` : ''}`;
+    function buildTableHeader() {
+      const cols    = TAB_COLS[currentTab] || ['code', 'itm_name_ar'];
+      const canEdit = (userRole === 'inventory' || userRole === 'admin');
+      document.getElementById('inv-thead').innerHTML = `
+        <tr>
+          ${cols.map(c => `<th>${COL_LABELS[c] || c}</th>`).join('')}
+          <th>الرصيد الحالي</th>
+          ${canEdit ? '<th>إجراء</th>' : '<th>الحالة</th>'}
+        </tr>`;
+    }
+
+    function onSearch() {
+      currentPage = 1;
+      applyFilter();
+    }
+
+    function isItemDone(item)     { return item.done     === true || item.done     === 'true'; }
+    function isItemSkip(item)     { return item.skip     === true || item.skip     === 'true'; }
+    function isItemMismatch(item) { return item.mismatch === true || item.mismatch === 'true'; }
+
+    function applyFilter() {
+      const search = document.getElementById('searchInput').value.trim().toLowerCase();
+      let data = rawData;
+
+      if (!isLiveTab(currentTab) && showPending) {
+        data = data.filter(item => !isItemDone(item) && !isItemSkip(item) && !isItemMismatch(item));
+      }
+
+      filteredData = !search
+        ? data
+        : data.filter(item =>
+            ['code','itm_name_ar','itm_name_en','bill_no']
+              .some(k => String(item[k] || '').toLowerCase().includes(search))
+          );
+
+      updateSummary();
+      updatePagination();
+      renderPage();
+    }
+
+    function updatePagination() {
+      const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      document.getElementById('page-info').textContent = `${currentPage} / ${totalPages}`;
+      document.getElementById('btn-prev').disabled = currentPage <= 1;
+      document.getElementById('btn-next').disabled = currentPage >= totalPages;
+    }
+
+    function changePage(dir) {
+      const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+      currentPage = Math.min(Math.max(1, currentPage + dir), totalPages);
+      updatePagination();
+      renderPage();
+    }
+
+    function renderPage() {
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const page  = filteredData.slice(start, start + PAGE_SIZE);
+      renderTable(page);
+    }
+
+    function computePrimaryFlags(items) {
+      const seenPending = new Set();
+      const flags = new Map();
+      items.forEach(item => {
+        const isDone     = isItemDone(item);
+        const isSkip     = isItemSkip(item);
+        const isMismatch = isItemMismatch(item);
+        const code       = String(item.code || '').trim();
+
+        if (isDone || isSkip || isMismatch || !code || code === '---') {
+          flags.set(String(item.id), true);
+          return;
+        }
+        if (seenPending.has(code)) {
+          flags.set(String(item.id), false);
+        } else {
+          seenPending.add(code);
+          flags.set(String(item.id), true);
+        }
+      });
+      return flags;
     }
 
     function renderTable(items) {
-      const tbody = document.getElementById('table-body');
-      if (!items.length) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">لا توجد نتائج</td></tr>';
+      const tbody   = document.getElementById('table-body');
+      const cols    = TAB_COLS[currentTab] || ['code', 'itm_name_ar'];
+      const canEdit = (userRole === 'inventory' || userRole === 'admin');
+      const live    = isLiveTab(currentTab);
+
+      if (items.length === 0) {
+        const emptyMsg = live
+          ? 'مفيش أصناف محتاجة جرد دلوقتي في الفئة دي ✅'
+          : (showPending
+              ? `تم جرد كل الأصناف ✅<br>
+                 <button class="btn btn-primary" style="margin-top:10px;" onclick="openFullReport()">
+                   <i class="fas fa-list-check"></i> عرض التقرير الشامل
+                 </button>`
+              : 'لا توجد أصناف');
+        const emptyTr = document.createElement('tr');
+        emptyTr.className = 'empty-row';
+        emptyTr.innerHTML = `<td colspan="${cols.length + 2}" style="text-align:center;padding:40px;color:var(--text-muted);">
+          ${emptyMsg}
+        </td>`;
+        tbody.innerHTML = '';
+        tbody.appendChild(emptyTr);
         return;
       }
-      items.sort((a, b) => {
-        const aB = parseFloat(a.current_stock) < parseFloat(a.min_stock);
-        const bB = parseFloat(b.current_stock) < parseFloat(b.min_stock);
-        if (aB && !bB) return -1;
-        if (!aB && bB) return 1;
-        return String(a.item_code).localeCompare(String(b.item_code));
+
+      const primaryFlags = live ? null : computePrimaryFlags(items);
+
+      tbody.innerHTML = '';
+      let lastCategoryKey = null;
+
+      items.forEach(item => {
+        const id = live ? item.code : item.id;
+
+        const cat = detectCategory(item);
+        if (cat.key !== lastCategoryKey) {
+          lastCategoryKey = cat.key;
+          const catTr = document.createElement('tr');
+          catTr.className = 'category-header-row';
+          catTr.innerHTML = `<td colspan="${cols.length + 2}">${cat.label}</td>`;
+          tbody.appendChild(catTr);
+        }
+
+        let timeVal = item.time || '';
+        if (timeVal) {
+          try { timeVal = new Date(timeVal).toLocaleDateString('ar-EG'); } catch(e) {}
+        }
+
+        const colCells = cols.map(c => {
+          const val = c === 'time' ? timeVal : (item[c] || '---');
+          return `<td style="font-size:0.82rem;" id="col-${c}-${id}" data-label="${COL_LABELS[c] || c}">${val}</td>`;
+        }).join('');
+
+        let balCell, actionCell;
+
+        if (live) {
+          if (!item._balanceFetched) {
+            balCell = `<td id="bal-cell-${id}" data-label="الرصيد الحالي">
+                 <button class="btn-balance" onclick="fetchLiveBalance('${item.code}', this)">
+                   <i class="fas fa-database"></i> الرصيد
+                 </button>
+               </td>`;
+            actionCell = `<td data-label="إجراء">
+                 <span style="font-size:0.75rem;color:var(--text-muted);">اضغط الرصيد أولاً</span>
+               </td>`;
+          } else {
+            balCell = `<td id="bal-cell-${id}" data-label="الرصيد الحالي">
+                 <span class="balance-val">${item._systemQty}</span>
+               </td>`;
+            actionCell = `<td data-label="إجراء">
+                 <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                   <button class="btn-done" onclick="submitLiveMatched('${item.code}')">✅ مطابق</button>
+                   <button class="btn-mismatch" onclick="openMismatchModal('${item.code}')">❌ غير مطابق</button>
+                 </div>
+               </td>`;
+          }
+        } else {
+          const isDone      = isItemDone(item);
+          const isSkip      = isItemSkip(item);
+          const isMismatch  = isItemMismatch(item);
+          const isPrimary   = primaryFlags.get(String(id)) !== false;
+
+          balCell = `<td id="bal-cell-${id}" data-label="الرصيد الحالي">
+               <button class="btn-balance" onclick="fetchBalance('${id}', '${(item.code||'').replace(/'/g,"\\'")}', this)">
+                 <i class="fas fa-database"></i> الرصيد
+               </button>
+             </td>`;
+
+          if (!canEdit) {
+            const statusText = isDone ? '✅ مطابق'
+                              : isMismatch ? '❌ غير مطابق'
+                              : isSkip ? '⏭️ تجاهل'
+                              : '⏳ لم يُجرد';
+            actionCell = `<td data-label="الحالة">
+                 <span style="font-size:0.78rem;color:var(--text-muted);">${statusText}</span>
+               </td>`;
+          } else if (!isPrimary) {
+            actionCell = `<td data-label="إجراء">
+                 <span style="font-size:0.75rem;color:var(--text-muted);background:var(--surface-3);padding:3px 8px;border-radius:8px;">
+                   🔁 نسخة مكررة — تتبع الأولى
+                 </span>
+               </td>`;
+          } else {
+            actionCell = `<td data-label="إجراء">
+                 <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                   <button class="btn-done ${isDone ? 'active' : ''}" id="done-btn-${id}"
+                     onclick="handleAction('${id}', 'done')">✅ مطابق</button>
+                   <button class="btn-mismatch ${isMismatch ? 'active' : ''}" id="mismatch-btn-${id}"
+                     onclick="openMismatchModal('${id}')">❌ غير مطابق</button>
+                   <button class="btn-skip ${isSkip ? 'active' : ''}" id="skip-btn-${id}"
+                     onclick="handleAction('${id}', 'skip')">⏭️ تجاهل</button>
+                 </div>
+               </td>`;
+          }
+        }
+
+        const tr = document.createElement('tr');
+        tr.id = `row-${id}`;
+        tr.innerHTML = `${colCells}${balCell}${actionCell}`;
+        tbody.appendChild(tr);
       });
-      tbody.innerHTML = items.map(item => {
-        const stock     = parseFloat(item.current_stock) || 0;
-        const minS      = parseFloat(item.min_stock)     || 0;
-        const isBelow   = stock < minS;
-        const typeColor = item.item_type === 'دواء' ? '#0ea5e9' : '#8b5cf6';
-        return `
-          <tr class="${isBelow ? 'below-min' : ''}" id="row-${item.id}">
-            <td><code style="font-size:0.82rem;">${item.item_code || '---'}</code></td>
-            <td style="font-weight:600;font-size:0.85rem;">${item.item_name || '---'}</td>
-            <td><span style="font-size:0.78rem;font-weight:700;color:${typeColor};">${item.item_type === 'دواء' ? '💊' : '🧴'} ${item.item_type || '---'}</span></td>
-            <td><span class="branch-tag">${item.branch || '---'}</span></td>
-            <td><b id="stock-${item.id}" style="color:${isBelow ? 'var(--danger)' : 'var(--success)'};">${stock}</b></td>
-            <td>
-              <div style="display:flex;gap:4px;align-items:center;">
-                <input type="number" class="min-input" value="${minS}" min="0" id="min-${item.id}"
-                  onkeydown="if(event.key==='Enter') saveMinStock('${item.id}', this.value)">
-                <button class="save-min-btn" onclick="saveMinStock('${item.id}', document.getElementById('min-${item.id}').value)" title="حفظ">✓</button>
-              </div>
-            </td>
-            <td><span class="stock-badge ${isBelow ? 'badge-danger' : 'badge-ok'}" id="badge-${item.id}">${isBelow ? '⚠️ تحت الحد' : '✅ كافي'}</span></td>
-            <td>
-              <div style="display:flex;gap:4px;">
-                <button class="btn btn-sm" onclick="refreshItem('${item.id}', '${item.item_code}')" style="background:var(--accent);color:#fff;padding:5px 8px;" title="تحديث الرصيد"><i class="fas fa-sync-alt"></i></button>
-                <button class="btn btn-sm" onclick="deleteItem('${item.id}', '${item.item_name}')" style="background:var(--danger);color:#fff;padding:5px 8px;" title="حذف"><i class="fas fa-trash"></i></button>
-              </div>
-            </td>
-          </tr>`;
-      }).join('');
     }
 
-    // ===== lookup بنفس مسار main.html =====
-    async function lookupItem() {
-      const code = document.getElementById('lookup-code').value.trim();
-      if (!code) { alert('برجاء إدخال كود الصنف'); return; }
-
-      const btn = document.getElementById('lookup-btn');
+    async function fetchLiveBalance(code, btn) {
+      const item = rawData.find(x => x.code === code);
+      if (!item) return;
       btn.disabled  = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
       try {
-        // جلب اسم الصنف من item_lookup — نفس مسار main.html
-        const nameResp = await fetch(FETCH_URL + '?type=item_lookup&code=' + encodeURIComponent(code));
-        const nameRaw  = await nameResp.json();
-        const nameItem = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
-        const itemName = nameItem?.itm_name_ar || nameItem?.data?.[0]?.itm_name_ar || '';
-        const itemType = nameItem?.item_type   || nameItem?.data?.[0]?.item_type   || '';
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const raw  = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
 
-        if (!itemName) {
-          document.getElementById('lookup-result').innerHTML =
-            `<span style="color:var(--danger);font-size:0.85rem;">❌ لم يتم العثور على الصنف</span>`;
-          document.getElementById('lookup-details').style.display = 'none';
-          return;
+        if (data && data.found) {
+          item._systemQty      = data.balance;
+          item._balanceFetched = true;
+          renderPage();
+        } else {
+          btn.disabled  = false;
+          btn.innerHTML = '<i class="fas fa-database"></i> الرصيد';
+          alert('⚠️ الكود غير موجود في مخزون الفرع حاليًا');
         }
-
-        // جلب الرصيد من get_balance
-        let balance = 0;
-        try {
-          const balResp = await fetch(
-            'https://agent.ebrahimhamdy.com/webhook/get_balance?code=' +
-            encodeURIComponent(code) + '&branch=' + encodeURIComponent(userBranch)
-          );
-          const balRaw  = await balResp.json();
-          const balData = Array.isArray(balRaw) ? balRaw[0] : balRaw;
-          balance = balData?.balance ?? 0;
-        } catch(e) {}
-
-        // تحقق لو موجود بالفعل
-        const alreadyExists = allData.some(x =>
-          String(x.item_code).trim() === String(code).trim() &&
-          String(x.branch).trim()    === String(userBranch).trim()
-        );
-        if (alreadyExists) {
-          document.getElementById('lookup-result').innerHTML =
-            `<span style="color:var(--warning);font-size:0.85rem;">⚠️ الصنف موجود بالفعل لفرع ${userBranch}</span>`;
-          document.getElementById('lookup-details').style.display = 'none';
-          return;
-        }
-
-        document.getElementById('lookup-name').value  = itemName;
-        document.getElementById('lookup-stock').value = balance;
-        document.getElementById('lookup-type').value  = itemType;
-        document.getElementById('lookup-min').value   = '';
-        document.getElementById('lookup-result').innerHTML = '';
-        document.getElementById('lookup-details').style.display = '';
-
       } catch(e) {
-        document.getElementById('lookup-result').innerHTML =
-          `<span style="color:var(--danger);font-size:0.85rem;">❌ خطأ في الاتصال</span>`;
-      } finally {
         btn.disabled  = false;
-        btn.innerHTML = '<i class="fas fa-search"></i> جلب البيانات';
+        btn.innerHTML = '<i class="fas fa-database"></i> الرصيد';
+        alert('❌ فشل الاتصال، حاول تاني');
       }
     }
 
-    async function saveNewItem() {
-      const code  = document.getElementById('lookup-code').value.trim();
-      const name  = document.getElementById('lookup-name').value.trim();
-      const stock = document.getElementById('lookup-stock').value;
-      const type  = document.getElementById('lookup-type').value.trim();
-      const minS  = document.getElementById('lookup-min').value.trim();
-      if (!minS) { alert('برجاء إدخال الحد الأدنى'); return; }
+    async function submitLiveMatched(code) {
+      const item = rawData.find(x => x.code === code);
+      if (!item || !item._balanceFetched) return;
 
-      const btn = document.getElementById('save-btn');
-      btn.disabled  = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
-
-      const success = await updateData({
-        type: 'inventory_insert', item_code: code, item_name: name,
-        current_stock: stock, min_stock: minS, item_type: type, branch: userBranch
+      const ok = await submitJardAudit({
+        branch:      userBranch,
+        category:    currentTab,
+        code:        item.code,
+        itm_name_ar: item.itm_name_ar,
+        itm_name_en: item.itm_name_en,
+        matched:     true,
+        system_qty:  item._systemQty,
+        actual_qty:  item._systemQty,
+        audited_by:  employeeName
       });
 
-      if (success) { resetLookup(); await loadAll(); }
-      else alert('❌ فشل الحفظ');
-
-      btn.disabled  = false;
-      btn.innerHTML = '<i class="fas fa-save"></i> حفظ الصنف';
+      if (ok) {
+        showToast();
+        rawData      = rawData.filter(x => x.code !== code);
+        filteredData = filteredData.filter(x => x.code !== code);
+        updateSummary();
+        updatePagination();
+        renderPage();
+        loadMyDailyCount();
+      } else {
+        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
+      }
     }
 
-    function resetLookup() {
-      document.getElementById('lookup-code').value       = '';
-      document.getElementById('lookup-name').value       = '';
-      document.getElementById('lookup-stock').value      = '';
-      document.getElementById('lookup-type').value       = '';
-      document.getElementById('lookup-min').value        = '';
-      document.getElementById('lookup-result').innerHTML = '';
-      document.getElementById('lookup-details').style.display = 'none';
-    }
+    async function submitLiveMismatchResult(code, actualVal) {
+      const item = rawData.find(x => x.code === code);
+      if (!item) return;
 
-    async function saveMinStock(id, newMin) {
-      const item = allData.find(x => String(x.id) === String(id));
-      const success = await updateData({
-        type: 'inventory_update', id, min_stock: newMin, current_stock: item?.current_stock ?? 0
+      const ok = await submitJardAudit({
+        branch:      userBranch,
+        category:    currentTab,
+        code:        item.code,
+        itm_name_ar: item.itm_name_ar,
+        itm_name_en: item.itm_name_en,
+        matched:     false,
+        system_qty:  item._systemQty,
+        actual_qty:  Number(actualVal),
+        audited_by:  employeeName
       });
-      if (success) {
-        if (item) {
-          item.min_stock = parseFloat(newMin);
-          const stock = parseFloat(item.current_stock) || 0;
-          const minS  = parseFloat(newMin) || 0;
-          const isBelow = stock < minS;
-          const row   = document.getElementById(`row-${id}`);
-          const badge = document.getElementById(`badge-${id}`);
-          const stockEl = document.getElementById(`stock-${id}`);
-          if (row)    row.className = isBelow ? 'below-min' : '';
-          if (badge)  { badge.className = `stock-badge ${isBelow ? 'badge-danger' : 'badge-ok'}`; badge.textContent = isBelow ? '⚠️ تحت الحد' : '✅ كافي'; }
-          if (stockEl) stockEl.style.color = isBelow ? 'var(--danger)' : 'var(--success)';
-          renderStats();
-        }
-      } else { alert('❌ فشل التحديث'); loadAll(); }
+
+      if (ok) {
+        showToast();
+        rawData      = rawData.filter(x => x.code !== code);
+        filteredData = filteredData.filter(x => x.code !== code);
+        updateSummary();
+        updatePagination();
+        renderPage();
+        loadMyDailyCount();
+      } else {
+        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
+      }
     }
 
-    async function refreshItem(id, itemCode) {
+    async function lookupBalance() {
+      const input = document.getElementById('balance-code-input');
+      const resEl = document.getElementById('balance-result');
+      const btn   = document.getElementById('balance-lookup-btn');
+      const code  = input.value.trim();
+
+      if (!code) { resEl.innerHTML = '<span style="color:var(--warning);">اكتب الكود أولاً</span>'; return; }
+
+      btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      resEl.innerHTML = '<span style="color:var(--text-muted);">⏳ جاري البحث...</span>';
+
       try {
-        const item = allData.find(x => String(x.id) === String(id));
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const raw  = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
 
-        // نفس مسار item_lookup
-        const nameResp = await fetch(FETCH_URL + '?type=item_lookup&code=' + encodeURIComponent(itemCode));
-        const nameRaw  = await nameResp.json();
-        const nameItem = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+        if (data && data.found) {
+          resEl.innerHTML =
+            `<span style="font-weight:700;color:var(--text-primary);">${data.itm_name_ar || '---'}</span>` +
+            ` — الرصيد: <b class="balance-val">${data.balance}</b>`;
+        } else {
+          resEl.innerHTML = '<span style="color:var(--warning);">⚠️ الكود غير موجود</span>';
+        }
+      } catch(e) {
+        resEl.innerHTML = '<span style="color:var(--danger);">❌ فشل الاتصال</span>';
+      }
 
-        // جلب الرصيد
-        const balResp = await fetch(
-          'https://agent.ebrahimhamdy.com/webhook/get_balance?code=' +
-          encodeURIComponent(itemCode) + '&branch=' + encodeURIComponent(item?.branch || userBranch)
-        );
-        const balRaw  = await balResp.json();
-        const balData = Array.isArray(balRaw) ? balRaw[0] : balRaw;
-        const balance = balData?.balance ?? 0;
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> بحث';
+    }
 
-        await updateData({
-          type: 'inventory_update', id, current_stock: balance, min_stock: item?.min_stock ?? 0
+    async function fetchBalance(id, code, btn) {
+      const cell     = document.getElementById(`bal-cell-${id}`);
+      const nameCell = document.getElementById(`col-itm_name_ar-${id}`);
+      btn.disabled   = true;
+      btn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i>';
+      try {
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const raw  = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
+
+        if (data && data.found) {
+          cell.innerHTML = `<span class="balance-val">${data.balance}</span>`;
+          const it = rawData.find(x => String(x.id) === String(id));
+          if (it) it.system_balance = data.balance;
+          if (nameCell && (!nameCell.textContent.trim() || nameCell.textContent.trim() === '---')) {
+            nameCell.textContent = data.itm_name_ar || '---';
+          }
+        } else {
+          cell.innerHTML = `<span style="color:var(--warning);font-size:0.78rem;">⚠️ غير موجود</span>`;
+        }
+      } catch(e) {
+        cell.innerHTML = `<span style="color:var(--danger);font-size:0.78rem;">❌ فشل</span>`;
+      }
+    }
+
+    let savedScrollY = 0;
+    function openModalFullScreen(modalEl) {
+      if (modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+      }
+      savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow  = 'hidden';
+      document.body.style.position  = 'fixed';
+      document.body.style.top       = `-${savedScrollY}px`;
+      document.body.style.width     = '100%';
+      modalEl.style.display = 'flex';
+    }
+
+    function closeModalFullScreen(modalEl) {
+      modalEl.style.display = 'none';
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow  = '';
+      document.body.style.position  = '';
+      document.body.style.top       = '';
+      document.body.style.width     = '';
+      window.scrollTo(0, savedScrollY);
+    }
+
+    function openMismatchModal(idOrCode, source) {
+      // source: 'stale' لو جايه من شاشة "لم يُجرد منذ مدة"، وإلا بيتحدد تلقائيًا من التبويب الحالي
+      mismatchSource   = source || (isLiveTab(currentTab) ? 'live' : 'old');
+      mismatchTargetId = idOrCode;
+
+      const item = mismatchSource === 'stale'
+        ? currentStaleData.find(x => x.code === idOrCode)
+        : mismatchSource === 'live'
+          ? rawData.find(x => x.code === idOrCode)
+          : rawData.find(x => String(x.id) === String(idOrCode));
+
+      const sys  = mismatchSource === 'old' ? item?.system_balance : item?._systemQty;
+      const info = document.getElementById('mismatch-item-info');
+
+      info.innerHTML = `
+        <div><b>الكود:</b> ${item?.code || '---'}</div>
+        <div><b>الاسم:</b> ${item?.itm_name_ar || '---'}</div>
+        ${sys !== undefined && sys !== null && sys !== '' ? `<div><b>رصيد النظام:</b> <span class="balance-val">${sys}</span></div>`
+                                            : `<div style="color:var(--text-muted);font-size:0.78rem;">💡 لم يتم جلب رصيد النظام لهذا الصنف بعد</div>`}
+      `;
+
+      const balInput = document.getElementById('mismatch-balance-input');
+      balInput.value = '';
+      balInput.style.borderColor = '';
+      openModalFullScreen(document.getElementById('mismatch-modal'));
+      setTimeout(() => balInput.focus(), 100);
+    }
+
+    function closeMismatchModal() {
+      closeModalFullScreen(document.getElementById('mismatch-modal'));
+      mismatchTargetId = null;
+    }
+
+    async function confirmMismatch() {
+      const input = document.getElementById('mismatch-balance-input');
+      const val   = input.value.trim();
+
+      if (val === '') {
+        input.style.borderColor = 'var(--danger,#dc2626)';
+        input.focus();
+        return;
+      }
+
+      const id = mismatchTargetId;
+      closeMismatchModal();
+
+      if (mismatchSource === 'stale') {
+        await submitStaleMismatchResult(id, val);
+      } else if (mismatchSource === 'live') {
+        await submitLiveMismatchResult(id, val);
+      } else {
+        const item = rawData.find(x => String(x.id) === String(id));
+        const sys  = item ? item.system_balance : undefined;
+        await handleAction(id, 'mismatch', { actual_balance: val, system_balance: sys });
+      }
+    }
+
+    async function handleAction(id, action, extra = {}) {
+      const doneBtn     = document.getElementById(`done-btn-${id}`);
+      const skipBtn     = document.getElementById(`skip-btn-${id}`);
+      const mismatchBtn = document.getElementById(`mismatch-btn-${id}`);
+      const isDone      = action === 'done';
+      const isSkip      = action === 'skip';
+      const isMismatch  = action === 'mismatch';
+
+      if (doneBtn)     doneBtn.disabled = true;
+      if (skipBtn)      skipBtn.disabled = true;
+      if (mismatchBtn)  mismatchBtn.disabled = true;
+      if (doneBtn)     doneBtn.classList.toggle('active', isDone);
+      if (skipBtn)      skipBtn.classList.toggle('active', isSkip);
+      if (mismatchBtn)  mismatchBtn.classList.toggle('active', isMismatch);
+
+      const clicked = rawData.find(x => x.id == id);
+      const code    = String(clicked?.code || '').trim();
+      const nowIso  = new Date().toISOString();
+
+      const sameCode = (code && code !== '---')
+        ? rawData.filter(x =>
+            String(x.code || '').trim() === code &&
+            (x.type || '').toLowerCase() === currentTab.toLowerCase() &&
+            !isItemDone(x) && !isItemSkip(x) && !isItemMismatch(x)
+          )
+        : [clicked];
+
+      let success = true;
+      for (const it of sameCode) {
+        const isPrimaryItem = String(it.id) === String(id);
+        const itDone     = isPrimaryItem ? isDone : false;
+        const itSkip     = isPrimaryItem ? isSkip : true;
+        const itMismatch = isPrimaryItem ? isMismatch : false;
+
+        const payload = {
+          id:          it.id,
+          done:        itDone,
+          skip:        itSkip,
+          mismatch:    itMismatch,
+          action_time: nowIso,
+          type:        currentTab,
+          action:      "update_status"
+        };
+        if (isPrimaryItem && isMismatch) {
+          payload.actual_balance = extra.actual_balance;
+          payload.system_balance = extra.system_balance ?? (it.system_balance ?? '');
+        }
+
+        const ok = await updateInventoryAudit(payload);
+        if (!ok) success = false;
+      }
+
+      // تسجيل موحّد في jard_audit_log كمان (عشان يدخل في التقرير الشامل ومعدل الفريق)
+      // بس لو الإجراء فعلي (مطابق أو غير مطابق)، مش تجاهل
+      if (success && (isDone || isMismatch)) {
+        await submitJardAudit({
+          branch:      userBranch,
+          category:    currentTab,
+          code:        clicked?.code,
+          itm_name_ar: clicked?.itm_name_ar,
+          itm_name_en: clicked?.itm_name_en,
+          matched:     isDone,
+          system_qty:  extra.system_balance ?? clicked?.system_balance ?? null,
+          actual_qty:  isDone ? (extra.system_balance ?? clicked?.system_balance ?? null) : extra.actual_balance,
+          audited_by:  employeeName
+        });
+        loadMyDailyCount();
+      }
+
+      if (doneBtn)    doneBtn.disabled = false;
+      if (skipBtn)     skipBtn.disabled = false;
+      if (mismatchBtn) mismatchBtn.disabled = false;
+
+      if (success) {
+        sameCode.forEach(it => {
+          const isPrimaryItem = String(it.id) === String(id);
+          it.done     = isPrimaryItem ? isDone : false;
+          it.skip     = isPrimaryItem ? isSkip : true;
+          it.mismatch = isPrimaryItem ? isMismatch : false;
+          it.action_time = nowIso;
+          if (isPrimaryItem && isMismatch) {
+            it.actual_balance = extra.actual_balance;
+            if (extra.system_balance !== undefined) it.system_balance = extra.system_balance;
+          }
         });
 
-        if (item) {
-          item.current_stock = balance;
-          const stock   = parseFloat(balance) || 0;
-          const minS    = parseFloat(item.min_stock) || 0;
-          const isBelow = stock < minS;
-          const row     = document.getElementById(`row-${id}`);
-          const badge   = document.getElementById(`badge-${id}`);
-          const stockEl = document.getElementById(`stock-${id}`);
-          if (row)    row.className = isBelow ? 'below-min' : '';
-          if (badge)  { badge.className = `stock-badge ${isBelow ? 'badge-danger' : 'badge-ok'}`; badge.textContent = isBelow ? '⚠️ تحت الحد' : '✅ كافي'; }
-          if (stockEl) { stockEl.textContent = stock; stockEl.style.color = isBelow ? 'var(--danger)' : 'var(--success)'; }
-          renderStats();
+        const ids = new Set(sameCode.map(it => String(it.id)));
+        filteredData.forEach(f => {
+          if (!ids.has(String(f.id))) return;
+          const orig = sameCode.find(it => String(it.id) === String(f.id));
+          if (!orig) return;
+          f.done = orig.done; f.skip = orig.skip; f.mismatch = orig.mismatch;
+          f.action_time = orig.action_time;
+          if (orig.actual_balance !== undefined) f.actual_balance = orig.actual_balance;
+        });
+
+        updateSummary();
+
+        if (showPending) {
+          setTimeout(() => {
+            filteredData = filteredData.filter(x => !ids.has(String(x.id)));
+            updatePagination();
+            renderPage();
+          }, 800);
+        } else {
+          renderPage();
         }
-      } catch(e) { alert('❌ خطأ في الاتصال'); }
+      } else {
+        const oldItem = rawData.find(x => x.id == id);
+        if (oldItem) {
+          if (doneBtn)     doneBtn.classList.toggle('active', isItemDone(oldItem));
+          if (skipBtn)      skipBtn.classList.toggle('active', isItemSkip(oldItem));
+          if (mismatchBtn)  mismatchBtn.classList.toggle('active', isItemMismatch(oldItem));
+        }
+        alert("⚠️ فشل الحفظ، يرجى المحاولة مجدداً");
+      }
     }
 
-    async function deleteItem(id, itemName) {
-      if (!confirm(`هل تريد حذف "${itemName}" من قائمة حدود المخزون؟`)) return;
-      const success = await updateData({ type: 'inventory_delete', id });
-      if (success) { allData = allData.filter(x => String(x.id) !== String(id)); renderStats(); applyFilter(); }
-      else alert('❌ فشل الحذف');
+    function updateSummary() {
+      if (isLiveTab(currentTab)) {
+        document.getElementById('sum-total').textContent    = rawData.length;
+        document.getElementById('sum-done').textContent     = '—';
+        document.getElementById('sum-mismatch').textContent = '—';
+        document.getElementById('sum-skip').textContent     = '—';
+        document.getElementById('sum-pending').textContent  = rawData.length;
+        return;
+      }
+      const done       = rawData.filter(isItemDone).length;
+      const mismatched = rawData.filter(isItemMismatch).length;
+      const skipped    = rawData.filter(isItemSkip).length;
+      const pending    = rawData.length - done - skipped - mismatched;
+
+      document.getElementById('sum-total').textContent    = rawData.length;
+      document.getElementById('sum-done').textContent     = done;
+      document.getElementById('sum-mismatch').textContent = mismatched;
+      document.getElementById('sum-skip').textContent     = skipped;
+      document.getElementById('sum-pending').textContent  = pending;
     }
+
+    function showToast() {
+      const el  = document.getElementById('balance-result');
+      const old = el.innerHTML;
+      el.innerHTML = '<span style="color:var(--success,#16a34a);font-weight:700;">✅ تم الحفظ</span>';
+      setTimeout(() => { el.innerHTML = old; }, 1500);
+    }
+
+    // ===== التقرير الشامل لكل عمليات الجرد (كل الفئات) =====
+    let currentFullReportData = [];
+    const FULL_REPORT_CATEGORY_LABELS = {
+      'تلاجه': '🧊 تلاجة', 'غوالى': '💊 غوالي', 'fastmove': '⚡ سريع',
+      'مرتجعات': '🔄 مرتجعات', 'erp': '🖥️ ERP'
+    };
+
+    function openFullReport() {
+      openModalFullScreen(document.getElementById('full-report-modal'));
+      if (!currentFullReportData.length) loadFullReport();
+    }
+
+    function closeFullReport() {
+      closeModalFullScreen(document.getElementById('full-report-modal'));
+    }
+
+    async function loadFullReport() {
+      const category = document.getElementById('full-report-category').value;
+      const dateFrom = document.getElementById('full-report-from').value;
+      const dateTo   = document.getElementById('full-report-to').value;
+      const body     = document.getElementById('full-report-body');
+      const summary  = document.getElementById('full-report-summary');
+
+      body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري التحميل...</td></tr>';
+
+      try {
+        const items = await fetchFullJardReport({ branch: userBranch, category, dateFrom, dateTo });
+        currentFullReportData = items;
+
+        const matchedCount    = items.filter(i => i.matched === true || i.matched === 'true').length;
+        const mismatchedCount = items.length - matchedCount;
+        summary.textContent = `📦 الإجمالي: ${items.length} — ✅ مطابق: ${matchedCount} — ❌ غير مطابق: ${mismatchedCount}`;
+
+        if (!items.length) {
+          body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">لا توجد نتائج</td></tr>';
+          return;
+        }
+
+        body.innerHTML = items.map(i => {
+          const isMatched = (i.matched === true || i.matched === 'true');
+          let dateStr = '';
+          try { dateStr = new Date(i.audited_at).toLocaleString('ar-EG'); } catch(e) {}
+          return `<tr>
+            <td data-label="الكود">${i.code || '---'}</td>
+            <td data-label="الاسم">${i.itm_name_ar || '---'}</td>
+            <td data-label="الفئة">${FULL_REPORT_CATEGORY_LABELS[i.category] || i.category || '---'}</td>
+            <td data-label="الحالة" style="color:${isMatched ? 'var(--success,#16a34a)' : 'var(--danger,#dc2626)'};font-weight:700;">${isMatched ? '✅ مطابق' : '❌ غير مطابق'}</td>
+            <td data-label="رصيد النظام">${i.system_qty ?? '—'}</td>
+            <td data-label="الرصيد الفعلي">${i.actual_qty ?? '—'}</td>
+            <td data-label="بواسطة">${i.audited_by || '—'}</td>
+            <td data-label="التاريخ" style="font-size:0.72rem;">${dateStr}</td>
+          </tr>`;
+        }).join('');
+      } catch(e) {
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">❌ فشل تحميل التقرير</td></tr>';
+      }
+    }
+
+    function exportFullReportToExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert('⚠️ مكتبة التصدير لسه بتتحمّل، جرب تاني بعد ثانية');
+        return;
+      }
+      if (!currentFullReportData.length) { alert('لا توجد بيانات للتصدير'); return; }
+
+      const rows = currentFullReportData.map(i => ({
+        'الكود': i.code || '---',
+        'الاسم': i.itm_name_ar || '---',
+        'الفئة': FULL_REPORT_CATEGORY_LABELS[i.category] || i.category || '---',
+        'الحالة': (i.matched === true || i.matched === 'true') ? 'مطابق' : 'غير مطابق',
+        'رصيد النظام': i.system_qty ?? '',
+        'الرصيد الفعلي': i.actual_qty ?? '',
+        'بواسطة': i.audited_by || '',
+        'التاريخ': i.audited_at ? new Date(i.audited_at).toLocaleString('ar-EG') : ''
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'تقرير شامل');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `تقرير_جرد_شامل_${userBranch}_${dateStr}.xlsx`);
+    }
+
+    // ===== معدل الجرد اليومي (شخصي + فريق) =====
+    async function loadMyDailyCount() {
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        // بنجيب كل تاريخ الموظف (من بداية النظام لحد النهاردة) عشان نحسب معدل حقيقي
+        const stats = await fetchDailyJardStats('2020-01-01', todayStr, userBranch);
+        const mine  = stats.filter(s => s.audited_by === employeeName);
+        const total = mine.reduce((sum, s) => sum + (parseInt(s.audits_count) || 0), 0);
+        const daysWorked = new Set(mine.map(s => s.audit_date)).size;
+        const avg = daysWorked > 0 ? (total / daysWorked).toFixed(1) : '0';
+        document.getElementById('my-daily-count').innerHTML = `📊 معدلك اليومي: <b>${avg}</b>`;
+      } catch(e) {
+        // تجاهل بصمت لو فشل، مش حرج للصفحة الأساسية
+      }
+    }
+
+    function openDailyStats() {
+      const fromInput = document.getElementById('daily-stats-from');
+      const toInput   = document.getElementById('daily-stats-to');
+      const today = new Date().toISOString().slice(0, 10);
+      if (!fromInput.value) fromInput.value = today;
+      if (!toInput.value)   toInput.value   = today;
+      openModalFullScreen(document.getElementById('daily-stats-modal'));
+      loadDailyStats();
+    }
+
+    function closeDailyStats() {
+      closeModalFullScreen(document.getElementById('daily-stats-modal'));
+    }
+
+    // بيحسب عدد الأيام (شامل الطرفين) بين تاريخين — لازم للمتوسط اليومي
+    function daysBetweenInclusive(fromStr, toStr) {
+      const from = new Date(fromStr + 'T00:00:00');
+      const to   = new Date(toStr   + 'T00:00:00');
+      const diff = Math.round((to - from) / 86400000);
+      return Math.max(1, diff + 1);
+    }
+
+    async function loadDailyStats() {
+      const dateFrom = document.getElementById('daily-stats-from').value;
+      const dateTo   = document.getElementById('daily-stats-to').value;
+      const summary  = document.getElementById('daily-stats-summary');
+      const byDateBody = document.getElementById('daily-stats-by-date-body');
+      const byEmpBody   = document.getElementById('daily-stats-by-employee-body');
+
+      byDateBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري التحميل...</td></tr>';
+      byEmpBody.innerHTML  = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري التحميل...</td></tr>';
+      summary.textContent = '';
+
+      try {
+        const rows = await fetchDailyJardStats(dateFrom, dateTo, userBranch);
+
+        if (!rows.length) {
+          summary.textContent = 'لا توجد عمليات جرد مسجلة خلال هذه المدة';
+          byDateBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:20px;">لا توجد بيانات</td></tr>';
+          byEmpBody.innerHTML  = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">لا توجد بيانات</td></tr>';
+          return;
+        }
+
+        // إجمالي كل يوم (تجميع كل الموظفين مع بعض لكل تاريخ)
+        const byDate = {};
+        // إجمالي كل موظف خلال المدة كلها
+        const byEmployee = {};
+
+        rows.forEach(r => {
+          const count = parseInt(r.audits_count) || 0;
+          const date  = r.audit_date;
+          byDate[date] = (byDate[date] || 0) + count;
+
+          const key = `${r.audited_by}|${r.branch}`;
+          if (!byEmployee[key]) byEmployee[key] = { audited_by: r.audited_by, branch: r.branch, total: 0 };
+          byEmployee[key].total += count;
+        });
+
+        const totalAll  = Object.values(byDate).reduce((s, c) => s + c, 0);
+        const daysCount = daysBetweenInclusive(dateFrom, dateTo);
+        const avgPerDay = (totalAll / daysCount).toFixed(1);
+        const workedDays = Object.keys(byDate).length;
+        const avgPerWorkedDay = workedDays > 0 ? (totalAll / workedDays).toFixed(1) : '0';
+
+        summary.innerHTML = `
+          📦 إجمالي الأصناف المجرودة: <b>${totalAll}</b> &nbsp;|&nbsp;
+          📅 عدد أيام المدة: <b>${daysCount}</b> &nbsp;|&nbsp;
+          📊 المتوسط اليومي (على كل المدة): <b>${avgPerDay}</b> &nbsp;|&nbsp;
+          📊 المتوسط في أيام الشغل الفعلية (${workedDays} يوم): <b>${avgPerWorkedDay}</b>
+        `;
+
+        // جدول: إجمالي كل يوم (مرتب من الأحدث للأقدم)
+        const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+        byDateBody.innerHTML = sortedDates.map(d => {
+          let dStr = d;
+          try { dStr = new Date(d).toLocaleDateString('ar-EG'); } catch(e) {}
+          return `<tr><td data-label="التاريخ">${dStr}</td><td data-label="عدد الأصناف" style="font-weight:700;">${byDate[d]}</td></tr>`;
+        }).join('');
+
+        // جدول: إجمالي كل موظف (مرتب تنازليًا حسب العدد)
+        const employeeRows = Object.values(byEmployee).sort((a, b) => b.total - a.total);
+        byEmpBody.innerHTML = employeeRows.map(e => {
+          const isMe = e.audited_by === employeeName;
+          return `<tr style="${isMe ? 'background:var(--surface-3);font-weight:800;' : ''}">
+            <td data-label="الموظف">${e.audited_by || 'غير معروف'} ${isMe ? '⭐ (أنت)' : ''}</td>
+            <td data-label="الفرع">${e.branch || '---'}</td>
+            <td data-label="الإجمالي">${e.total}</td>
+          </tr>`;
+        }).join('');
+      } catch(e) {
+        byDateBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--danger);padding:20px;">❌ فشل تحميل البيانات</td></tr>';
+        byEmpBody.innerHTML  = '<tr><td colspan="3" style="text-align:center;color:var(--danger);padding:20px;">❌ فشل تحميل البيانات</td></tr>';
+      }
+    }
+
+    // ===== تقرير الأصناف اللي لم تُجرد منذ مدة =====
+    let currentStaleData = [];
+    let staleCurrentPage  = 1;
+    const STALE_PAGE_SIZE = 20;
+
+    function openStaleReport() {
+      openModalFullScreen(document.getElementById('stale-modal'));
+      loadStaleReport();
+    }
+
+    function closeStaleReport() {
+      closeModalFullScreen(document.getElementById('stale-modal'));
+    }
+
+    async function loadStaleReport() {
+      const months = parseInt(document.getElementById('stale-months-input').value) || 3;
+      const body   = document.getElementById('stale-report-body');
+      const summary = document.getElementById('stale-summary');
+      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">⏳ جاري البحث...</td></tr>';
+      summary.textContent = '';
+      staleCurrentPage = 1;
+
+      try {
+        const items = await fetchStaleItems(userBranch, months);
+        // نفس منطق الترتيب حسب الفئة (أقراص/أشربة/حقن/لبوس/كريمات) ثم أبجديًا، المستخدم في باقي الصفحة
+        currentStaleData = sortItemsForAudit(items).map(it => ({
+          ...it,
+          _balanceFetched: false,
+          _systemQty: null
+        }));
+
+        summary.textContent = `📦 عدد الأصناف: ${currentStaleData.length} — لم تُجرد منذ ${months} شهر أو أكتر (أو لم تُجرد أبدًا)`;
+
+        if (!currentStaleData.length) {
+          body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--success,#16a34a);padding:20px;">✅ كل الأصناف اتجردت خلال المدة المحددة</td></tr>';
+          updateStalePagination();
+          return;
+        }
+
+        renderStaleTable();
+      } catch(e) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:20px;">❌ فشل تحميل التقرير</td></tr>';
+      }
+    }
+
+    function updateStalePagination() {
+      const totalPages = Math.max(1, Math.ceil(currentStaleData.length / STALE_PAGE_SIZE));
+      if (staleCurrentPage > totalPages) staleCurrentPage = totalPages;
+      document.getElementById('stale-page-info').textContent = `${staleCurrentPage} / ${totalPages}`;
+      document.getElementById('stale-btn-prev').disabled = staleCurrentPage <= 1;
+      document.getElementById('stale-btn-next').disabled = staleCurrentPage >= totalPages;
+    }
+
+    function changeStalePage(dir) {
+      const totalPages = Math.max(1, Math.ceil(currentStaleData.length / STALE_PAGE_SIZE));
+      staleCurrentPage = Math.min(Math.max(1, staleCurrentPage + dir), totalPages);
+      renderStaleTable();
+    }
+
+    function renderStaleTable() {
+      const body  = document.getElementById('stale-report-body');
+      const start = (staleCurrentPage - 1) * STALE_PAGE_SIZE;
+      const pageItems = currentStaleData.slice(start, start + STALE_PAGE_SIZE);
+
+      body.innerHTML = '';
+      let lastCategoryKey = null;
+
+      pageItems.forEach(item => {
+        const cat = detectCategory(item);
+        if (cat.key !== lastCategoryKey) {
+          lastCategoryKey = cat.key;
+          const catTr = document.createElement('tr');
+          catTr.className = 'category-header-row';
+          catTr.innerHTML = `<td colspan="6">${cat.label}</td>`;
+          body.appendChild(catTr);
+        }
+
+        let lastAudited = 'لم يُجرد أبدًا';
+        if (item.last_audited) {
+          try { lastAudited = new Date(item.last_audited).toLocaleDateString('ar-EG'); } catch(e) {}
+        }
+
+        let balCell, actionCell;
+        if (!item._balanceFetched) {
+          balCell = `<td id="stale-bal-${item.code}" data-label="الرصيد">
+              <button class="btn-balance" onclick="fetchStaleBalance('${item.code}', this)">
+                <i class="fas fa-database"></i> الرصيد
+              </button>
+            </td>`;
+          actionCell = `<td data-label="إجراء"><span style="font-size:0.75rem;color:var(--text-muted);">اضغط الرصيد أولاً</span></td>`;
+        } else {
+          balCell = `<td id="stale-bal-${item.code}" data-label="الرصيد"><span class="balance-val">${item._systemQty}</span></td>`;
+          actionCell = `<td data-label="إجراء">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn-done" onclick="submitStaleMatched('${item.code}')">✅ مطابق</button>
+                <button class="btn-mismatch" onclick="openMismatchModal('${item.code}', 'stale')">❌ غير مطابق</button>
+              </div>
+            </td>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.id = `stale-row-${item.code}`;
+        tr.innerHTML = `
+          <td data-label="كود">${item.code || '---'}</td>
+          <td data-label="الاسم عربي">${item.itm_name_ar || '---'}</td>
+          <td data-label="الاسم إنجليزي">${item.itm_name_en || '---'}</td>
+          <td data-label="آخر جرد" style="${!item.last_audited ? 'color:var(--danger,#dc2626);font-weight:700;' : ''}">${lastAudited}</td>
+          ${balCell}
+          ${actionCell}
+        `;
+        body.appendChild(tr);
+      });
+
+      updateStalePagination();
+    }
+
+    async function fetchStaleBalance(code, btn) {
+      const item = currentStaleData.find(x => x.code === code);
+      if (!item) return;
+      btn.disabled  = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      try {
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const raw  = await res.json();
+        const data = Array.isArray(raw) ? raw[0] : raw;
+
+        if (data && data.found) {
+          item._systemQty      = data.balance;
+          item._balanceFetched = true;
+          renderStaleTable();
+        } else {
+          btn.disabled  = false;
+          btn.innerHTML = '<i class="fas fa-database"></i> الرصيد';
+          alert('⚠️ الكود غير موجود في مخزون الفرع حاليًا');
+        }
+      } catch(e) {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fas fa-database"></i> الرصيد';
+        alert('❌ فشل الاتصال، حاول تاني');
+      }
+    }
+
+    // بنسجّل جرد الأصناف اللي جايه من شاشة "لم يُجرد منذ مدة" بفئة "عام"
+    // (لأنها مش تابعة لفئة محددة من الفئات الرسمية الخمسة، هي مراجعة عامة على كل المخزون)
+    const STALE_AUDIT_CATEGORY = 'عام';
+
+    async function submitStaleMatched(code) {
+      const item = currentStaleData.find(x => x.code === code);
+      if (!item || !item._balanceFetched) return;
+
+      const ok = await submitJardAudit({
+        branch:      userBranch,
+        category:    STALE_AUDIT_CATEGORY,
+        code:        item.code,
+        itm_name_ar: item.itm_name_ar,
+        itm_name_en: item.itm_name_en,
+        matched:     true,
+        system_qty:  item._systemQty,
+        actual_qty:  item._systemQty,
+        audited_by:  employeeName
+      });
+
+      if (ok) {
+        currentStaleData = currentStaleData.filter(x => x.code !== code);
+        renderStaleTable();
+        loadMyDailyCount();
+      } else {
+        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
+      }
+    }
+
+    async function submitStaleMismatchResult(code, actualVal) {
+      const item = currentStaleData.find(x => x.code === code);
+      if (!item) return;
+
+      const ok = await submitJardAudit({
+        branch:      userBranch,
+        category:    STALE_AUDIT_CATEGORY,
+        code:        item.code,
+        itm_name_ar: item.itm_name_ar,
+        itm_name_en: item.itm_name_en,
+        matched:     false,
+        system_qty:  item._systemQty,
+        actual_qty:  Number(actualVal),
+        audited_by:  employeeName
+      });
+
+      if (ok) {
+        currentStaleData = currentStaleData.filter(x => x.code !== code);
+        renderStaleTable();
+        loadMyDailyCount();
+      } else {
+        alert('⚠️ فشل الحفظ، يرجى المحاولة مجدداً');
+      }
+    }
+
+    function exportStaleReportToExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert('⚠️ مكتبة التصدير لسه بتتحمّل، جرب تاني بعد ثانية');
+        return;
+      }
+      if (!currentStaleData.length) { alert('لا توجد بيانات للتصدير'); return; }
+
+      const rows = currentStaleData.map(item => ({
+        'الكود': item.code || '---',
+        'الاسم عربي': item.itm_name_ar || '---',
+        'الاسم إنجليزي': item.itm_name_en || '---',
+        'آخر جرد': item.last_audited ? new Date(item.last_audited).toLocaleDateString('ar-EG') : 'لم يُجرد أبدًا'
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'لم يُجرد منذ مدة');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `اصناف_لم_تجرد_${userBranch}_${dateStr}.xlsx`);
+    }
+
   </script>
 </body>
 </html>
