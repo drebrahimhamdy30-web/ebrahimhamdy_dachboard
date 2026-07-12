@@ -223,6 +223,11 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
 .btn-red{background:var(--red);color:white}
 .btn-yellow{background:var(--yellow);color:white}
 
+/* Add Order Tabs */
+.ao-tab{flex:1;padding:.5rem .3rem;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--text-muted);transition:all .15s}
+.ao-tab:hover{border-color:var(--primary)}
+.ao-tab.active{background:var(--primary);color:white;border-color:var(--primary)}
+
 /* Payment */
 .pay-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
 .pay-opt{padding:.5rem .3rem;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;border:2px solid var(--border);background:white;text-align:center;transition:all .15s}
@@ -313,10 +318,70 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <button class="ftab" onclick="setFilter('postponed',this)">مؤجل <span id="f-postponed">0</span></button>
     <button class="ftab" onclick="setFilter('picked',this)">في الطريق <span id="f-picked">0</span></button>
     <button class="ftab" onclick="setFilter('late',this)">⚠️ متأخر <span id="f-late">0</span></button>
+    <button class="ftab" onclick="openAddOrder()" style="background:var(--green-light);color:#15803d;border-color:#bbf7d0;font-weight:700">➕ إضافة طلب</button>
     <span class="sel-info" id="selInfo"></span>
     <button class="batch-btn" id="batchBtn" onclick="openAssignModal()">🚗 تعيين طيار</button>
   </div>
   <div class="orders-grid" id="ordersGrid"></div>
+</div>
+
+<!-- Modal: Add Order -->
+<div class="modal-overlay" id="addOrderModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">➕ إضافة طلب</span>
+      <button class="modal-close" onclick="closeModal('addOrderModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- تبويبات الأنواع -->
+      <div style="display:flex;gap:.4rem;margin-bottom:1rem">
+        <button class="ao-tab active" data-type="invoice" onclick="setAoType('invoice',this)">🧾 فاتورة</button>
+        <button class="ao-tab" data-type="transfer" onclick="setAoType('transfer',this)">🔄 تحويلة</button>
+        <button class="ao-tab" data-type="driver_request" onclick="setAoType('driver_request',this)">🚗 طلب من طيار</button>
+      </div>
+
+      <!-- نوع 1: فاتورة -->
+      <div id="ao-invoice">
+        <div class="form-group">
+          <label>رقم الفاتورة *</label>
+          <div style="display:flex;gap:.4rem">
+            <input type="text" class="form-control" id="ao-billno" placeholder="مثال: 186407" style="flex:1" onkeydown="if(event.key==='Enter')fetchInvoice()">
+            <button class="btn btn-primary" onclick="fetchInvoice()" id="ao-fetch-btn" style="white-space:nowrap">🔍 بحث</button>
+          </div>
+        </div>
+        <div id="ao-invoice-preview"></div>
+      </div>
+
+      <!-- نوع 2 و 3: تحويلة / طلب طيار -->
+      <div id="ao-manual" style="display:none">
+        <div class="form-group">
+          <label>اسم العميل / الجهة</label>
+          <input type="text" class="form-control" id="ao-cust" placeholder="اختياري">
+        </div>
+        <div class="form-group">
+          <label>العنوان</label>
+          <input type="text" class="form-control" id="ao-addr" placeholder="اختياري">
+        </div>
+        <div class="form-group">
+          <label>المنطقة *</label>
+          <select class="form-control" id="ao-region"></select>
+        </div>
+        <div class="form-group">
+          <label>القيمة (ج.م) *</label>
+          <input type="number" class="form-control" id="ao-amount" value="0" min="0" step="0.01">
+          <div style="font-size:.68rem;color:var(--text-muted);margin-top:.25rem">صفر مقبول — مثلاً مرتجع أو مشوار بدون مبلغ</div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>ملاحظات</label>
+          <textarea class="form-control" id="ao-notes" placeholder="تفاصيل المطلوب..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addOrderModal')">إلغاء</button>
+      <button class="btn btn-green" onclick="saveNewOrder()" id="ao-save-btn">✓ إضافة الطلب</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: Assign -->
@@ -1215,6 +1280,204 @@ async function openLog(orderId,e){
       </div>
     </div>`;
   }).join('')}</div>`;
+}
+
+// ═══════════════ إضافة طلب يدوي ═══════════════
+const INVOICE_WEBHOOK = 'https://agent.ebrahimhamdy.com/webhook/deliveryinvoice';
+let aoType = 'invoice';
+let aoInvoiceData = null;
+
+async function openAddOrder(){
+  const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
+  if(!branchId){ showToast('اختر الفرع أولاً'); return; }
+
+  aoType='invoice'; aoInvoiceData=null;
+  document.querySelectorAll('.ao-tab').forEach(t=>t.classList.toggle('active', t.dataset.type==='invoice'));
+  document.getElementById('ao-invoice').style.display='block';
+  document.getElementById('ao-manual').style.display='none';
+  document.getElementById('ao-billno').value='';
+  document.getElementById('ao-invoice-preview').innerHTML='';
+  document.getElementById('ao-cust').value='';
+  document.getElementById('ao-addr').value='';
+  document.getElementById('ao-amount').value='0';
+  document.getElementById('ao-notes').value='';
+
+  // حمّل المناطق
+  const {data:regions} = await db.from('regions').select('name').eq('branch_id',branchId).eq('is_active',true).order('name');
+  document.getElementById('ao-region').innerHTML =
+    '<option value="">— اختر المنطقة —</option>' +
+    (regions||[]).map(r=>`<option value="${r.name}">${r.name}</option>`).join('');
+
+  document.getElementById('addOrderModal').classList.add('open');
+}
+
+function setAoType(type, btn){
+  aoType=type; aoInvoiceData=null;
+  document.querySelectorAll('.ao-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ao-invoice').style.display = type==='invoice'?'block':'none';
+  document.getElementById('ao-manual').style.display  = type==='invoice'?'none':'block';
+  document.getElementById('ao-invoice-preview').innerHTML='';
+}
+
+async function fetchInvoice(){
+  const billNo = document.getElementById('ao-billno').value.trim();
+  if(!billNo){ showToast('اكتب رقم الفاتورة'); return; }
+
+  const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
+  const preview = document.getElementById('ao-invoice-preview');
+  const btn = document.getElementById('ao-fetch-btn');
+
+  // الفاتورة موجودة بالفعل؟
+  const {data:existing} = await db.from('orders').select('id,status,bill_no').eq('bill_no',billNo).limit(1);
+  if(existing?.length){
+    preview.innerHTML = `<div style="background:var(--red-light);color:#b91c1c;padding:.75rem;border-radius:8px;font-size:.8rem;font-weight:600">
+      ⚠️ الفاتورة #${billNo} موجودة بالفعل في النظام (الحالة: ${SL[existing[0].status]||existing[0].status})</div>`;
+    aoInvoiceData=null;
+    return;
+  }
+
+  btn.disabled=true; btn.textContent='...';
+  preview.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text-muted)">جاري البحث...</div>';
+
+  try{
+    const res = await fetch(INVOICE_WEBHOOK, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ bill_no: billNo, branch_id: branchId })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+
+    // الـ response ممكن يكون array أو object
+    const payload = Array.isArray(json) ? json[0] : json;
+    const rec = payload?.Data?.[0];
+
+    if(!rec){
+      preview.innerHTML = `<div style="background:var(--red-light);color:#b91c1c;padding:.75rem;border-radius:8px;font-size:.8rem;font-weight:600">
+        ❌ لم يتم العثور على الفاتورة #${billNo}${payload?.Error?' — '+payload.Error:''}</div>`;
+      aoInvoiceData=null;
+      return;
+    }
+
+    aoInvoiceData = rec;
+    const regKnown = knownRegions.has(rec.cust_region);
+    preview.innerHTML = `
+      <div style="background:var(--green-light);border:1px solid #bbf7d0;border-radius:10px;padding:.75rem">
+        <div style="font-weight:800;color:#15803d;margin-bottom:.5rem">✓ تم العثور على الفاتورة</div>
+        <div class="d-row"><span class="d-lbl">العميل</span><strong class="d-val">${rec.cust_name||'—'}</strong></div>
+        <div class="d-row"><span class="d-lbl">العنوان</span><span class="d-val">${rec.cust_address||'—'}</span></div>
+        <div class="d-row"><span class="d-lbl">المنطقة</span><span class="d-val" style="${!regKnown?'color:#b91c1c;font-weight:700':''}">${rec.cust_region||'—'}${!regKnown&&rec.cust_region?' ⚠️ غير مسجلة':''}</span></div>
+        <div class="d-row"><span class="d-lbl">المبلغ</span><strong class="d-val">${Number(rec.total_bill_net||0).toLocaleString()} ج.م</strong></div>
+        <div class="d-row"><span class="d-lbl">النوع</span><span class="d-val">${rec.bill_type||'—'}</span></div>
+        <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${rec.count_of_items||0}</span></div>
+      </div>`;
+  }catch(e){
+    console.error(e);
+    preview.innerHTML = `<div style="background:var(--red-light);color:#b91c1c;padding:.75rem;border-radius:8px;font-size:.8rem;font-weight:600">
+      ❌ فشل الاتصال بنظام الفواتير — ${e.message}</div>`;
+    aoInvoiceData=null;
+  }finally{
+    btn.disabled=false; btn.textContent='🔍 بحث';
+  }
+}
+
+async function saveNewOrder(){
+  const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
+  if(!branchId){ showToast('اختر الفرع أولاً'); return; }
+
+  const now = new Date().toISOString();
+  let payload = null;
+
+  if(aoType === 'invoice'){
+    if(!aoInvoiceData){ showToast('ابحث عن الفاتورة أولاً'); return; }
+    const r = aoInvoiceData;
+    const pay = (r.bill_type||'').includes('فيزا') ? 'visa'
+              : (r.bill_type||'').includes('تحويل') ? 'transfer'
+              : (r.bill_type||'').includes('آجل') ? 'deferred' : 'cash';
+    payload = {
+      bill_no: String(r.bill_no),
+      bill_type: r.bill_type||null,
+      bill_status: r.bill_status||null,
+      bill_date: r.bill_date ? new Date(r.bill_date).toISOString() : now,
+      cust_code: r.cust_code||null,
+      cust_name: r.cust_name||null,
+      customer_name: r.cust_name||null,
+      cust_address: r.cust_address||null,
+      customer_address: r.cust_address||null,
+      cust_region: r.cust_region||null,
+      count_of_items: r.count_of_items||0,
+      total_bill_net: Number(r.total_bill_net||0),
+      amount: Number(r.total_bill_net||0),
+      current_customer_balance: Number(r.current_customer_balance||0),
+      additional_expenses: Number(r.AddithionalExpenses||0),
+      employee_name: r.employee_name||null,
+      payment_method: pay,
+      notes: r.notes||null,
+      branch_id: branchId,
+      status: 'pending',
+      driver_id: null,
+      deliveryman: null,
+      source_data: { source:'manual_invoice', added_by: currentUser?.full_name||'—', raw: r },
+      created_at: now,
+      updated_at: now
+    };
+  } else {
+    const region = document.getElementById('ao-region').value;
+    if(!region){ showToast('اختر المنطقة'); return; }
+    const amount = parseFloat(document.getElementById('ao-amount').value);
+    if(isNaN(amount) || amount < 0){ showToast('القيمة غير صحيحة'); return; }
+
+    const isTransfer = aoType==='transfer';
+    const prefix = isTransfer ? 'TRF' : 'DRV';
+    const label  = isTransfer ? 'تحويلة' : 'طلب من طيار';
+    const billNo = `${prefix}-${Date.now().toString().slice(-8)}`;
+    const cust   = document.getElementById('ao-cust').value.trim();
+    const addr   = document.getElementById('ao-addr').value.trim();
+    const notes  = document.getElementById('ao-notes').value.trim();
+
+    payload = {
+      bill_no: billNo,
+      bill_type: label,
+      bill_date: now,
+      cust_name: cust || label,
+      customer_name: cust || label,
+      cust_address: addr || null,
+      customer_address: addr || null,
+      cust_region: region,
+      count_of_items: 0,
+      total_bill_net: amount,
+      amount: amount,
+      payment_method: amount > 0 ? 'cash' : null,
+      notes: notes || null,
+      staff_notes: `📌 ${label}`,
+      branch_id: branchId,
+      status: 'pending',
+      driver_id: null,
+      deliveryman: null,
+      source_data: { source: aoType, added_by: currentUser?.full_name||'—' },
+      created_at: now,
+      updated_at: now
+    };
+  }
+
+  showLoading(true);
+  try{
+    const {data:ins, error} = await db.from('orders').insert(payload).select().single();
+    if(error) throw error;
+    await addOrderLog(ins.id, 'order_created', {
+      source: aoType==='invoice' ? 'فاتورة يدوية' : (aoType==='transfer' ? 'تحويلة' : 'طلب من طيار'),
+      bill_no: payload.bill_no,
+      amount: payload.total_bill_net
+    });
+    closeModal('addOrderModal');
+    showToast(`✓ تم إضافة الطلب ${payload.bill_no}`);
+    await loadAll();
+  }catch(e){
+    console.error(e);
+    showToast(e.code==='23505' ? '❌ رقم الفاتورة موجود بالفعل' : ('حدث خطأ: '+(e.message||'')));
+  }
+  showLoading(false);
 }
 
 // ===== ACTIONS =====
