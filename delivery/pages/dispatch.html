@@ -117,6 +117,11 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .tc-row{display:flex;align-items:center;gap:.35rem;padding:.28rem .4rem;border-radius:7px;background:var(--bg);font-size:.67rem;cursor:pointer;transition:background .1s}
 .tc-row:hover{background:var(--primary-light)}
 .tc-row.late{background:var(--red-light)}
+.tc-row.st-assigned{background:#fef3c7;color:#000}
+.tc-row.st-picked{background:#dbeafe;color:#000}
+.tc-row.st-delivered{background:#dcfce7;color:#000}
+.tc-row.st-assigned .tc-rno,.tc-row.st-picked .tc-rno,.tc-row.st-delivered .tc-rno{color:#000}
+.tc-row.st-assigned .tc-rnm,.tc-row.st-picked .tc-rnm,.tc-row.st-delivered .tc-rnm{color:#000}
 .tc-rno{font-weight:700;color:var(--primary);flex-shrink:0;min-width:48px}
 .tc-rnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tc-rdt{width:6px;height:6px;border-radius:50%;flex-shrink:0}
@@ -661,7 +666,7 @@ function renderHeader(){
   const p=allOrders.filter(o=>['assigned','picked'].includes(o.status)).length;
   const l=allOrders.filter(o=>isLate(o)).length;
 // عدد الطيارين المتاحين (حاضرين online ومش في استراحة)
-const availableDrivers=allDrivers.filter(d=>['online','break'].includes(getDriverAttStatus(d.id))).length;
+const availableDrivers=allDrivers.filter(d=>isDriverAvailable(d.id)).length;
 
 document.getElementById('headerStats').innerHTML=`
     <span class="dh-stat dhs-pending">📦 ${u} غير موزع</span>
@@ -694,6 +699,30 @@ function getDriverAttStatus(driverId){
   const recs=attendanceToday.filter(r=>r.driver_id===driverId).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   if(!recs.length)return 'offline';
   return recs[0].status;
+}
+
+// نفس منطق auto_dispatch_tick على السيرفر بالظبط
+// متاح = حاضر ومعتمد + مخرجش برحلة (أول استلام يقفل عليه لحد إنهاء الرحلة)
+function isDriverAvailable(driverId){
+  const recs=attendanceToday.filter(r=>r.driver_id===driverId)
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const last=recs[0];
+  if(!last||last.status!=='online'||!last.approved_at) return false;
+
+  const myTrips=activeTrips.filter(t=>t.driver_id===driverId&&['active','pending_complete'].includes(t.status));
+  for(const t of myTrips){
+    const oIds=tripOrdersMap[t.id]||[];
+    const wentOut=oIds.some(id=>{
+      const o=allOrders.find(x=>x.id===id);
+      return o&&['picked','delivered','failed'].includes(o.status);
+    });
+    if(wentOut) return false;
+  }
+
+  const loose=allOrders.some(o=>o.driver_id===driverId&&['picked','failed'].includes(o.status));
+  if(loose) return false;
+
+  return true;
 }
 
 function getDriverWorkMins(driverId){
@@ -857,14 +886,18 @@ const pickedMap={};allOrders.filter(o=>['picked','failed'].includes(o.status)&&o
     const onTrip=(pickedMap[d.id]||0)+(assignedMap[d.id]||0);
     const workMins=getDriverWorkMins(d.id);
 
-    // تحديد اللون والحالة
+    // تحديد اللون والحالة (متاح = نفس شروط التوزيع التلقائي)
     let sc,st,sl;
     if(attStatus==='break'){
       sc='sr';st='st-r';sl='استراحة';
+    } else if(attStatus==='online_request'){
+      sc='sd';st='st-r';sl='بانتظار الموافقة';
     } else if(onTrip>0){
       sc='sb';st='st-b';sl=`${onTrip} طلب`;
-    } else {
+    } else if(isDriverAvailable(d.id)){
       sc='sf';st='st-f';sl='متاح';
+    } else {
+      sc='sd';st='st-r';sl='غير متاح';
     }
 
     const ini=(d.full_name||'?').split(' ').slice(0,2).map(w=>w[0]).join('');
@@ -965,20 +998,23 @@ function renderTrips(){
         ${tO.length?tO.map(o=>{
           const late=isLate(o);
           const base=getBillDate(o);
-          // العداد حسب الحالة
-          let timerLabel='', timerVal=0, timerCls='';
+          // التسمية حسب الحالة (العداد نفسه زي ما هو)
+          let timerLabel='', timerVal=0, timerCls='', rowCls='';
           if(o.status==='assigned'){
-            timerLabel='منذ التعيين';
+            timerLabel='على رحلة';
             timerVal=dm(o.assigned_at||base);
-            timerCls=timerVal>(dispatchSettings?.max_assigned_minutes||10)?'color:#f87171':'color:#94a3b8';
+            timerCls=timerVal>(dispatchSettings?.max_assigned_minutes||10)?'color:#b91c1c':'color:#000';
+            rowCls='st-assigned';
           } else if(o.status==='picked'){
-            timerLabel='مع الطيار';
+            timerLabel='تم الاستلام';
             timerVal=dm(o.picked_at||base);
-            timerCls=timerVal>(dispatchSettings?.max_picked_minutes||30)?'color:#f87171':'color:#60a5fa';
-} else if(o.status==='delivered'){
-            timerLabel='منذ التوصيل';
+            timerCls=timerVal>(dispatchSettings?.max_picked_minutes||30)?'color:#b91c1c':'color:#000';
+            rowCls='st-picked';
+          } else if(o.status==='delivered'){
+            timerLabel='تم التوصيل';
             timerVal=dm(o.delivered_at);
-            timerCls='color:#4ade80';
+            timerCls='color:#000';
+            rowCls='st-delivered';
           } else if(o.status==='failed'){
             timerLabel='⚠️ متعذر منذ';
             timerVal=dm(o.updated_at);
@@ -988,7 +1024,7 @@ function renderTrips(){
             timerVal=dm(base);
             timerCls=late?'color:#f87171':'color:#94a3b8';
           }
-          return `<div class="tc-row ${late?'late':''}" onclick="openTripOrderDetail('${o.id}','${trip.id}')">
+          return `<div class="tc-row ${rowCls} ${late&&!rowCls?'late':''}" onclick="openTripOrderDetail('${o.id}','${trip.id}')">
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:.35rem">
                 <span class="tc-rno">${o.bill_no||o.id?.slice(0,6)}</span>
