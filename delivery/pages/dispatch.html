@@ -1431,38 +1431,34 @@ async function saveNewOrder(){
     const amount = parseFloat(document.getElementById('ao-amount').value);
     if(isNaN(amount) || amount < 0){ showToast('القيمة غير صحيحة'); return; }
 
-    const isTransfer = aoType==='transfer';
-    const prefix = isTransfer ? 'TRF' : 'DRV';
-    const label  = isTransfer ? 'تحويلة' : 'طلب من طيار';
-    const billNo = `${prefix}-${Date.now().toString().slice(-8)}`;
-    const cust   = document.getElementById('ao-cust').value.trim();
-    const addr   = document.getElementById('ao-addr').value.trim();
-    const notes  = document.getElementById('ao-notes').value.trim();
-
-    payload = {
-      bill_no: billNo,
-      bill_type: label,
-      bill_date: now,
-      cust_name: cust || label,
-      customer_name: cust || label,
-      cust_address: addr || null,
-      customer_address: addr || null,
-      cust_region: region,
-      count_of_items: 0,
-      total_bill_net: amount,
-      amount: amount,
-      payment_method: amount > 0 ? 'cash' : null,
-      notes: notes || null,
-      staff_notes: `📌 ${label}`,
-      branch_id: branchId,
-      status: 'pending',
-      driver_id: null,
-      deliveryman: null,
-      source_data: { source: aoType, added_by: currentUser?.full_name||'—' },
-      created_at: now,
-      updated_at: now
-    };
-  }
+const isTransfer = aoType==='transfer';
+const prefix = isTransfer ? 'TRF' : 'DRV';
+const label  = isTransfer ? 'تحويلة' : 'طلب من طيار';
+const billNo = `${prefix}-${Date.now().toString().slice(-8)}`;
+const cust   = document.getElementById('ao-cust').value.trim();
+const addr   = document.getElementById('ao-addr').value.trim();
+const notes  = document.getElementById('ao-notes').value.trim();
+payload = {
+  bill_no: billNo,
+  bill_type: label,
+  bill_date: now,
+  customer_name: cust || label,
+  customer_address: addr || null,
+  cust_region: region,
+  count_of_items: 0,
+  total_bill_net: amount,
+  amount: amount,
+  payment_method: amount > 0 ? 'cash' : null,
+  notes: notes || null,
+  staff_notes: `📌 ${label}`,
+  branch_id: branchId,
+  status: 'pending',
+  driver_id: null,
+  deliveryman: null,
+  source_data: { source: aoType, added_by: currentUser?.full_name||'—' },
+  created_at: now,
+  updated_at: now
+};
 
   showLoading(true);
   try{
