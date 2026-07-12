@@ -1400,25 +1400,27 @@ async function saveNewOrder(){
               : (r.bill_type||'').includes('آجل') ? 'deferred' : 'cash';
     payload = {
       bill_no: String(r.bill_no),
-      bill_type: r.bill_type||null,
-      bill_status: r.bill_status||null,
+      bill_type: r.bill_type || null,
+      bill_status: r.bill_status || null,
       bill_date: r.bill_date ? new Date(r.bill_date).toISOString() : now,
-      cust_code: r.cust_code||null,
-      customer_name: r.cust_name||null,
-      customer_address: r.cust_address||null,
-      cust_region: r.cust_region||null,
-      count_of_items: r.count_of_items||0,
-      total_bill_net: Number(r.total_bill_net||0),
-      amount: Number(r.total_bill_net||0),
-      current_customer_balance: Number(r.current_customer_balance||0),
-      additional_expenses: Number(r.AddithionalExpenses||0),
-      employee_name: r.employee_name||null,
+      cust_code: r.cust_code || null,
+      customer_name: r.cust_name || null,
+      customer_address: r.cust_address || null,
+      cust_region: r.cust_region || null,
+      count_of_items: r.count_of_items || 0,
+      total_bill_net: Number(r.total_bill_net || 0),
+      amount: Number(r.total_bill_net || 0),
+      current_customer_balance: Number(r.current_customer_balance || 0),
+      additional_expenses: Number(r.AddithionalExpenses || 0),
+      money_with_deliveryman: Number(r.money_with_deliveryman || 0),
+      employee_name: r.employee_name || null,
       payment_method: pay,
-      notes: r.notes||null,
+      notes: r.notes || null,
       branch_id: branchId,
       status: 'pending',
       driver_id: null,
       deliveryman: null,
+      attempt_count: 0,
       source_data: { source:'manual_invoice', added_by: currentUser?.full_name||'—', raw: r },
       created_at: now,
       updated_at: now
@@ -1429,7 +1431,7 @@ async function saveNewOrder(){
     const amount = parseFloat(document.getElementById('ao-amount').value);
     if(isNaN(amount) || amount < 0){ showToast('القيمة غير صحيحة'); return; }
 
-    const isTransfer = aoType==='transfer';
+    const isTransfer = aoType === 'transfer';
     const prefix = isTransfer ? 'TRF' : 'DRV';
     const label  = isTransfer ? 'تحويلة' : 'طلب من طيار';
     const billNo = `${prefix}-${Date.now().toString().slice(-8)}`;
@@ -1437,10 +1439,15 @@ async function saveNewOrder(){
     const addr   = document.getElementById('ao-addr').value.trim();
     const notes  = document.getElementById('ao-notes').value.trim();
 
+    // الدالة على السيرفر بتخصم ساعتين من bill_date، فنعوّضها هنا
+    // عشان الطلب اليدوي يحترم وقت الانتظار زي أي طلب عادي
+    const billDate = new Date(Date.now() + 2*60*60*1000).toISOString();
+
     payload = {
       bill_no: billNo,
       bill_type: label,
-      bill_date: now,
+      bill_status: 'Pending',
+      bill_date: billDate,
       customer_name: cust || label,
       customer_address: addr || null,
       cust_region: region,
@@ -1454,6 +1461,7 @@ async function saveNewOrder(){
       status: 'pending',
       driver_id: null,
       deliveryman: null,
+      attempt_count: 0,
       source_data: { source: aoType, added_by: currentUser?.full_name||'—' },
       created_at: now,
       updated_at: now
@@ -1473,8 +1481,8 @@ async function saveNewOrder(){
     showToast(`✓ تم إضافة الطلب ${payload.bill_no}`);
     await loadAll();
   }catch(e){
-    console.error(e);
-    showToast(e.code==='23505' ? '❌ رقم الفاتورة موجود بالفعل' : ('حدث خطأ: '+(e.message||'')));
+    console.error('saveNewOrder:', e);
+    showToast(e.code==='23505' ? '❌ رقم الفاتورة موجود بالفعل' : ('حدث خطأ: '+(e.message||e.hint||'')));
   }
   showLoading(false);
 }
