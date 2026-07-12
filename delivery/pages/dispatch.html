@@ -112,10 +112,10 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .tc-nm{font-size:.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-mt{font-size:.62rem;color:var(--text-muted)}
 .tc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.tc-orders{padding:.4rem .5rem;display:flex;flex-direction:column;gap:.25rem;max-height:120px;overflow-y:auto;flex:1}
+.tc-orders{padding:.4rem .5rem;display:flex;flex-direction:column;gap:.3rem;max-height:145px;overflow-y:auto;flex:1}
 .tc-orders::-webkit-scrollbar{width:3px}
 .tc-orders::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.tc-row{display:flex;align-items:center;gap:.35rem;padding:.28rem .4rem;border-radius:7px;background:var(--bg);font-size:.67rem;cursor:pointer;transition:background .1s}
+.tc-row{display:flex;align-items:center;gap:.35rem;padding:.35rem .45rem;border-radius:7px;background:var(--bg);font-size:.75rem;cursor:pointer;transition:background .1s}
 .tc-row:hover{background:var(--primary-light)}
 .tc-row.late{background:var(--red-light)}
 .tc-row.st-assigned{background:#fef3c7;color:#000}
@@ -123,8 +123,13 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .tc-row.st-delivered{background:#dcfce7;color:#000}
 .tc-row.st-assigned .tc-rno,.tc-row.st-picked .tc-rno,.tc-row.st-delivered .tc-rno{color:#000}
 .tc-row.st-assigned .tc-rnm,.tc-row.st-picked .tc-rnm,.tc-row.st-delivered .tc-rnm{color:#000}
-.tc-rno{font-weight:700;color:var(--primary);flex-shrink:0;min-width:48px}
-.tc-rnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* تجاوز الحد الزمني — خلفية حمراء صريحة تغلب أي لون تاني */
+.tc-row.st-over{background:#dc2626!important;color:#fff!important}
+.tc-row.st-over .tc-rno,.tc-row.st-over .tc-rnm,.tc-row.st-over .tc-timer{color:#fff!important;font-weight:800}
+/* عداد صف الرحلة — أكبر وأوضح */
+.tc-timer{font-size:.72rem;font-weight:700;margin-top:.15rem}
+.tc-rno{font-weight:800;color:var(--primary);flex-shrink:0;min-width:52px;font-size:.78rem}
+.tc-rnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:.75rem}
 .tc-rdt{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .tc-rmt{font-size:.58rem;color:var(--text-muted);flex-shrink:0}
 .tc-ft{padding:.4rem .75rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#fafafa}
@@ -1081,42 +1086,40 @@ function renderTrips(){
       </div>
       <div class="tc-orders">
         ${tO.length?tO.map(o=>{
-          const late=isLate(o);
           const base=getBillDate(o);
-          // التسمية حسب الحالة (العداد نفسه زي ما هو)
-          let timerLabel='', timerVal=0, timerCls='', rowCls='';
+          // التسمية + العداد + فحص تجاوز الحد (كل حالة وحدها الخاص بيها)
+          let timerLabel='', timerVal=0, rowCls='', over=false;
           if(o.status==='assigned'){
             timerLabel='على رحلة';
             timerVal=dm(o.assigned_at||base);
-            timerCls=timerVal>(dispatchSettings?.max_assigned_minutes||10)?'color:#b91c1c':'color:#000';
+            over=timerVal>(dispatchSettings?.max_assigned_minutes||10);
             rowCls='st-assigned';
           } else if(o.status==='picked'){
             timerLabel='تم الاستلام';
             timerVal=dm(o.picked_at||base);
-            timerCls=timerVal>(dispatchSettings?.max_picked_minutes||30)?'color:#b91c1c':'color:#000';
+            over=timerVal>(dispatchSettings?.max_picked_minutes||30);
             rowCls='st-picked';
           } else if(o.status==='delivered'){
             timerLabel='تم التوصيل';
             timerVal=dm(o.delivered_at);
-            timerCls='color:#000';
             rowCls='st-delivered';
           } else if(o.status==='failed'){
             timerLabel='⚠️ متعذر منذ';
             timerVal=dm(o.updated_at);
-            timerCls='color:#f87171';
+            over=true;
           } else {
             timerLabel='منذ الإنشاء';
             timerVal=dm(base);
-            timerCls=late?'color:#f87171':'color:#94a3b8';
+            over=timerVal>(dispatchSettings?.max_pending_minutes||10);
           }
-          return `<div class="tc-row ${rowCls} ${late&&!rowCls?'late':''}" onclick="openTripOrderDetail('${o.id}','${trip.id}')">
+          return `<div class="tc-row ${rowCls} ${over?'st-over':''}" onclick="openTripOrderDetail('${o.id}','${trip.id}')">
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:.35rem">
                 <span class="tc-rno">${o.bill_no||o.id?.slice(0,6)}</span>
                 <span class="tc-rnm">${o.customer_name||o.cust_name||'—'}</span>
-                <div class="tc-rdt" style="background:${SC[o.status]||'#9ca3af'};flex-shrink:0"></div>
+                <div class="tc-rdt" style="background:${over?'#fff':(SC[o.status]||'#9ca3af')};flex-shrink:0"></div>
               </div>
-              <div style="font-size:.58rem;${timerCls};margin-top:.1rem">${timerLabel}: ${fm(timerVal)}</div>
+              <div class="tc-timer" style="color:${over?'#fff':'#000'}">${timerLabel}: ${fm(timerVal)}</div>
             </div>
           </div>`;
         }).join(''):'<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.4rem">لا توجد طلبات</div>'}
