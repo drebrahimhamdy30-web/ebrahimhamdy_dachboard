@@ -571,17 +571,42 @@ async function saveSettings(){
     updated_by:                  user?.full_name||'admin'
   };
   try{
+    let saved=null;
     if(curSettings?.id){
-      await db.from('dispatch_settings').update(payload).eq('id',curSettings.id);
+      // .select() ضروري عشان نتأكد إن الصف اتحدّث فعلاً
+      const {data,error}=await db.from('dispatch_settings')
+        .update(payload).eq('id',curSettings.id).select();
+      if(error) throw error;
+      if(!data || data.length===0){
+        // الصف مش موجود بالـ id ده → جرّب بالفرع
+        const {data:d2,error:e2}=await db.from('dispatch_settings')
+          .update(payload).eq('branch_id',curBranchId).select();
+        if(e2) throw e2;
+        if(!d2 || d2.length===0)
+          throw new Error('لم يتم العثور على إعدادات هذا الفرع — لم يُحفظ أي شيء');
+        saved=d2[0];
+      }else{
+        saved=data[0];
+      }
     }else{
-      const {data}=await db.from('dispatch_settings').insert(payload).select();
-      curSettings=data?data[0]:null;
+      const {data,error}=await db.from('dispatch_settings').insert(payload).select();
+      if(error) throw error;
+      if(!data || data.length===0) throw new Error('فشل إنشاء إعدادات الفرع');
+      saved=data[0];
     }
+
+    curSettings=saved;
+    fillSettings(saved);   // اعرض القيم المحفوظة فعلاً من قاعدة البيانات
     changed=false;
     setBStatus('saved');
-    document.getElementById('saveInfo').textContent=`آخر حفظ: ${new Date().toLocaleString('ar-EG')} · ${user?.full_name||'—'}`;
+    const t=new Date(saved.updated_at).toLocaleString('ar-EG');
+    document.getElementById('saveInfo').textContent=`آخر حفظ: ${t} · ${saved.updated_by||user?.full_name||'—'}`;
     toast('✓ تم حفظ إعدادات الفرع');
-  }catch(e){console.error(e);alert('خطأ في الحفظ: '+e.message);}
+  }catch(e){
+    console.error('saveSettings:',e);
+    setBStatus('unsaved');
+    alert('❌ فشل الحفظ: '+(e.message||e.hint||'خطأ غير معروف'));
+  }
   load(false);
 }
 
