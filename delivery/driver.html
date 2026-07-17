@@ -1014,6 +1014,85 @@ const {data:trips}=await db.from('trips').select('*')
 
 function fm(mins){if(mins<0)mins=0;return mins<60?`${mins}د`:`${Math.floor(mins/60)}س${String(mins%60).padStart(2,'0')}د`}
 function dm(from,to=new Date()){if(!from)return 0;return Math.floor((new Date(to)-new Date(from))/60000)}
+// ═══════════════ التحقق من موقع الاستلام ═══════════════
+// مسافة هافرساين بين نقطتين بالمتر
+function distanceMeters(lat1, lng1, lat2, lng2){
+  const R = 6371000; // نصف قطر الأرض بالمتر
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+// يجيب موقع الطيار — يرجّع {lat,lng} أو null لو رفض/فشل
+function getMyLocation(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy}),
+      ()  => resolve(null),
+      { enableHighAccuracy:true, timeout:8000, maximumAge:30000 }
+    );
+  });
+}
+
+// يفحص موقع الاستلام. يرجّع:
+//  {ok:true}                     → داخل النطاق (أو الفحص مقفول)
+//  {ok:false, distance, noLoc}   → مخالفة (بره النطاق أو مفيش موقع)
+async function checkPickupLocation(){
+  // الفحص مفعّل؟ وفيه إحداثيات للصيدلية؟
+  if(!settings?.location_check_enabled) return {ok:true};
+  const plat = parseFloat(settings.pharmacy_lat);
+  const plng = parseFloat(settings.pharmacy_lng);
+  if(!plat || !plng) return {ok:true}; // مفيش إحداثيات → منعدرش نفحص
+
+  const radius = (settings.pickup_radius_meters || 150) + 50; // هامش للـ GPS
+  const loc = await getMyLocation();
+
+  if(!loc){
+    // رفض الإذن أو فشل الـ GPS → مخالفة "بدون موقع" بس الاستلام يعدي
+    return {ok:false, noLoc:true, distance:null};
+  }
+
+  const dist = distanceMeters(loc.lat, loc.lng, plat, plng);
+  if(dist > radius){
+    return {ok:false, distance:dist, noLoc:false, acc:loc.acc};
+  }
+  return {ok:true, distance:dist};
+}
+
+// يعرض تنبيه المخالفة (الاستلام بيتم برضه)
+function showPickupViolation(res){
+  if(res.noLoc){
+    alert('⚠️ تعذّر تحديد موقعك\n\nتم استلام الطلب وتسجيل ملاحظة للمراجعة من الإدارة.\nيُفضّل تفعيل خدمة الموقع (GPS).');
+  }else{
+    alert(`⚠️ تم تسجيل مخالفة: استلام خارج حدود الفرع\n\nأنت على بُعد ${res.distance} متر من الصيدلية.\nتم استلام الطلب وتحويله للمراجعة من الإدارة.`);
+  }
+}
+
+// معرّف المستخدم الصحيح للوجات: id (integer) مش legacyId (UUID)
+function logUserId(){
+  const uid = currentUser?.id;
+  return (uid!=null && uid!=='') ? parseInt(uid) : null;
+}
+// تسجيل لوج — بيفحص error بدل ما يعدي بصمت (Supabase مبيرميش exception)
+async function addOrderLog(orderId, event, details={}){
+  const {error} = await db.from('order_logs').insert({
+    order_id: orderId, event, details,
+    user_id: logUserId(), user_name: currentUser?.full_name || '—'
+  });
+  if(error) console.error('❌ فشل لوج الطلب:', error.message, {orderId, event});
+}
+async function addTripLog(tripId, event, details={}){
+  const {error} = await db.from('trip_logs').insert({
+    trip_id: tripId, event, details,
+    user_id: logUserId(), user_name: currentUser?.full_name || '—'
+  });
+  if(error) console.error('❌ فشل لوج الرحلة:', error.message, {tripId, event});
+}
+
 function getBillDate(o){if(!o.bill_date)return new Date(o.created_at);return new Date(o.bill_date);}
 
 function isLate(o){
@@ -1200,27 +1279,42 @@ function toggleOrder(id){
 
 async function pickupAll(tripId){
   if(!confirm('تأكيد استلام جميع الطلبات؟'))return;
+
+  // فحص الموقع مرة واحدة للكل
+  const loc = await checkPickupLocation();
+  if(!loc.ok) showPickupViolation(loc);
+
   load(true);
   const now=new Date().toISOString();
-  // اقرأ طلبات الرحلة الحقيقية من قاعدة البيانات (مش من الذاكرة)
   const toRes=await db.from('trip_orders').select('order_id').eq('trip_id',tripId);
   const orderIds=(toRes.data||[]).map(r=>r.order_id);
   if(orderIds.length){
-    // خُد بس اللي حالتها assigned فعلاً دلوقتي (تجاهل المؤجل/المشال)
     const ordRes=await db.from('orders').select('id,status').in('id',orderIds).eq('status','assigned');
     const ids=(ordRes.data||[]).map(o=>o.id);
     if(ids.length){
       await db.from('orders').update({status:'picked',picked_at:now,updated_at:now}).in('id',ids);
-      for(const id of ids){try{await db.from('order_logs').insert({order_id:id,event:'order_picked',details:{bulk:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}}
+      const logDetails = loc.ok ? {bulk:true} : {
+        bulk:true, pickup_violation:true,
+        distance_m: loc.distance, no_location: !!loc.noLoc
+      };
+      for(const id of ids){await addOrderLog(id,'order_picked',logDetails);}
     }
   }
   await loadAll();load(false);
 }
 async function pickupOne(orderId){
+  // فحص الموقع قبل الاستلام
+  const loc = await checkPickupLocation();
+  if(!loc.ok) showPickupViolation(loc);
+
   load(true);
   const now=new Date().toISOString();
   await db.from('orders').update({status:'picked',picked_at:now,updated_at:now}).eq('id',orderId);
-  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addOrderLog(orderId,'order_picked', loc.ok ? {} : {
+    pickup_violation:true,
+    distance_m: loc.distance,
+    no_location: !!loc.noLoc
+  });
   await loadAll();load(false);
 }
 
@@ -1250,7 +1344,7 @@ async function confirmDeliver(){
   load(true);
   const now=new Date().toISOString();
   await db.from('orders').update({status:'delivered',payment_method:pay,collected_amount:amt,driver_notes:note||null,delivered_at:now,updated_at:now}).eq('id',id);
-  try{await db.from('order_logs').insert({order_id:id,event:'order_delivered',details:{payment:pay,amount:amt},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addOrderLog(id,'order_delivered',{payment:pay,amount:amt});
   closeModal('deliverModal');await loadAll();load(false);
 }
 
@@ -1283,7 +1377,7 @@ async function confirmFail(){
     attempt_count:(o?.attempt_count||0)+1,
     updated_at:now
   }).eq('id',id);
-  try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{reason,kept_in_trip:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addOrderLog(id,'order_postponed',{reason,kept_in_trip:true});
   closeModal('failModal');await loadAll();load(false);
 }
 async function retryFailed(orderId){
@@ -1295,7 +1389,7 @@ async function retryFailed(orderId){
     picked_at:now,
     updated_at:now
   }).eq('id',orderId);
-  try{await db.from('order_logs').insert({order_id:orderId,event:'order_picked',details:{retry:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addOrderLog(orderId,'order_picked',{retry:true});
   await loadAll();load(false);
 }
 async function completeTrip(tripId){
@@ -1308,7 +1402,7 @@ async function completeTrip(tripId){
     load(true);
     const now=new Date().toISOString();
     await db.from('trips').update({status:'pending_complete',updated_at:now}).eq('id',tripId);
-    try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_requested',details:{by:'driver'},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+    await addTripLog(tripId,'complete_requested',{by:'driver'});
     await loadAll();load(false);
     return;
   }
@@ -1336,7 +1430,7 @@ async function completeTrip(tripId){
         await db.from('trip_orders').delete().eq('trip_id',tripId).eq('order_id',id);
       }
     }
-    for(const id of failedIds){try{await db.from('order_logs').insert({order_id:id,event:'order_postponed',details:{released_on_trip_complete:true},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}}
+    for(const id of failedIds){await addOrderLog(id,'order_postponed',{released_on_trip_complete:true});}
   }
 
   // المُوصّلة → completed
@@ -1346,7 +1440,7 @@ async function completeTrip(tripId){
 
   if(tripId!=='direct')
     await db.from('trips').update({status:'completed',updated_at:now}).eq('id',tripId);
-  try{await db.from('trip_logs').insert({trip_id:tripId,event:'trip_completed',details:{by:'driver',failed_released:failedOrders.length},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addTripLog(tripId,'trip_completed',{by:'driver',failed_released:failedOrders.length});
 await loadAll();load(false);
 }
 
@@ -1355,7 +1449,7 @@ async function cancelCompleteRequest(tripId){
   load(true);
   const now=new Date().toISOString();
   await db.from('trips').update({status:'active',updated_at:now}).eq('id',tripId);
-  try{await db.from('trip_logs').insert({trip_id:tripId,event:'complete_cancelled',details:{by:'driver'},user_id:currentUser.legacyId,user_name:currentUser.full_name});}catch(e){}
+  await addTripLog(tripId,'complete_cancelled',{by:'driver'});
   await loadAll();load(false);
 }
 
@@ -1375,11 +1469,12 @@ async function submitChangePassword(){
   const confirmP=document.getElementById('pwd-confirm').value.trim();
   if(!oldP||!newP||!confirmP){alert('املأ كل الخانات');return;}
   if(newP!==confirmP){alert('كلمة المرور الجديدة وتأكيدها غير متطابقين');return;}
-  if(newP.length<4){alert('كلمة المرور الجديدة قصيرة جداً (4 أحرف على الأقل)');return;}
+  if(newP.length<6){alert('كلمة المرور الجديدة قصيرة جداً (6 أحرف على الأقل)');return;}
+  if(newP===oldP){alert('كلمة المرور الجديدة مطابقة للحالية');return;}
   load(true);
   try{
-    const {data,error}=await db.rpc('change_user_password',{
-      p_user_id:currentUser.legacyId,
+    const {data,error}=await db.rpc('change_branch_user_password',{
+      p_username:currentUser.username,
       p_old_password:oldP,
       p_new_password:newP
     });
@@ -1388,11 +1483,11 @@ async function submitChangePassword(){
       closeModal('pwdModal');
       alert('✓ تم تغيير كلمة المرور بنجاح');
     } else {
-      alert(data?.error||'حدث خطأ');
+      alert('❌ '+(data?.error||'حدث خطأ'));
     }
   }catch(e){
-    console.error(e);
-    alert('حدث خطأ في تغيير كلمة المرور');
+    console.error('changePassword:',e);
+    alert('❌ حدث خطأ: '+(e.message||'فشل تغيير كلمة المرور'));
   }
   load(false);
 }
