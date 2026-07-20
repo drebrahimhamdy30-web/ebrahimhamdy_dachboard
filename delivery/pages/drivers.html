@@ -412,13 +412,23 @@ async function saveDriver(){
     if(id){
       await db.from('drivers').update(payload).eq('id',id);
     }else{
-      const {data:newUser,error:userError}=await db.from('users').insert({
-        full_name:name,username,password_hash:password,
-        role:'driver',is_active:true,branch_id:branchId,
-      }).select().single();
-      if(userError)throw new Error('خطأ في إنشاء الحساب: '+userError.message);
-      payload.user_id=newUser.id;
-      await db.from('drivers').insert(payload);
+      // إنشاء الطيار عبر نقطة سيرفر آمنة (تشفّر الباسورد وتكتب في branch_users + drivers)
+      const {data:res,error:fnError}=await db.functions.invoke('create-driver',{
+        body:{
+          full_name:name, username, password, branch_id:branchId,
+          phone:document.getElementById('d-phone').value.trim()||null,
+          national_id:document.getElementById('d-national').value.trim()||null,
+          vehicle_type:document.getElementById('d-vtype').value||null,
+          vehicle_plate:document.getElementById('d-vplate').value.trim()||null,
+          is_active:document.getElementById('d-active').checked,
+          is_online:document.getElementById('d-online').checked,
+          has_vehicle_license:document.getElementById('d-lic-vehicle').checked,
+          has_drive_license:document.getElementById('d-lic-drive').checked,
+          covered_types:coveredTypes,
+        }
+      });
+      if(fnError)throw new Error(fnError.message||'تعذّر الاتصال بالخادم');
+      if(!res||!res.ok)throw new Error((res&&res.error)||'تعذّر إنشاء الطيار');
     }
     closeModal('driverModal');
     await init();
@@ -446,7 +456,8 @@ async function toggleActive(id,isActive){
   showLoading(true);
   await db.from('drivers').update({is_active:!isActive,is_online:isActive?false:undefined}).eq('id',id);
   const driver=allDrivers.find(d=>d.id===id);
-  if(driver?.user_id) await db.from('users').update({is_active:!isActive}).eq('id',driver.user_id);
+  // مزامنة حالة تسجيل الدخول (branch_users مقفول، فعبر نقطة سيرفر آمنة)
+  if(driver?.branch_user_id) await db.functions.invoke('set-driver-active',{body:{branch_user_id:driver.branch_user_id,is_active:!isActive}});
   closeModal('confirmModal');
   await init();
   showToast(isActive?'تم تعطيل الطيار':'✓ تم تفعيل الطيار');
