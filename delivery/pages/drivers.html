@@ -232,12 +232,16 @@ async function init(){
   try{
     // الأدمن يشوف كل الفروع؛ أي دور تاني يشوف فرعه بس
     const isAdmin = user.role==='admin';
-    const userBranch = user.branch_id;
+    let userBranchId = null;
+    if(!isAdmin && user.branch){
+      const {data:b} = await db.from('branches').select('id').eq('name', user.branch).maybeSingle();
+      userBranchId = b?.id || null;
+    }
 
     let driversQuery = db.from('drivers').select('*,branches(name)').order('full_name');
-    if(!isAdmin && userBranch) driversQuery = driversQuery.eq('branch_id', userBranch);
+    if(!isAdmin && userBranchId) driversQuery = driversQuery.eq('branch_id', userBranchId);
 
-const [dR,bR,rR]=await Promise.all([
+    const [dR,bR,rR]=await Promise.all([
       driversQuery,
       db.from('branches').select('*').order('name'),
       db.from('regions').select('*').eq('is_active',true).order('name')
@@ -335,8 +339,6 @@ function renderDrivers(){
   }).join('');
 }
 
-
-
 // ===== ADD/EDIT =====
 function openAddModal(){
   document.getElementById('modalTitle').textContent='إضافة طيار جديد';
@@ -370,8 +372,13 @@ async function openEdit(id){
   document.getElementById('d-lic-drive').checked=d.has_drive_license||false;
   document.getElementById('d-username').value='';
   document.getElementById('d-password').value='';
-  document.getElementById('usernameGroup').style.display='none';
-  document.getElementById('passwordGroup').style.display='none';
+  // الطيار اللي مالوش حساب (branch_user_id فاضي) → أظهر الحقول عشان ننشئ له حساب
+  const hasAccount = d.branch_user_id != null;
+  document.getElementById('usernameGroup').style.display = hasAccount ? 'none' : '';
+  document.getElementById('passwordGroup').style.display = hasAccount ? 'none' : '';
+  // تلميح للمستخدم
+  const uLabel = document.querySelector('#usernameGroup label');
+  if(uLabel) uLabel.textContent = hasAccount ? 'اسم المستخدم *' : '⚠️ اسم المستخدم * (هذا الطيار لا يملك حساب دخول)';
   // تصنيفات المغطاة
   const cov=d.covered_types||[];
   document.getElementById('cov-inside').checked=cov.includes('inside');
@@ -389,14 +396,14 @@ async function saveDriver(){
   const id=document.getElementById('d-id').value;
   if(!name){alert('الاسم مطلوب');return;}
   if(!branchId){alert('الفرع مطلوب');return;}
-  if(!id&&(!username||!password)){alert('اسم المستخدم وكلمة المرور مطلوبان');return;}
+  // لطيار جديد أو طيار قديم مالوش حساب → لازم بيانات دخول
+    const editingNoAccount = id && document.getElementById('usernameGroup').style.display !== 'none';
+    if((!id || editingNoAccount) && (!username||!password)){alert('اسم المستخدم وكلمة المرور مطلوبان');return;}
 
-  // التصنيفات المغطاة
   const coveredTypes=['inside','outside','permit','hard'].filter(t=>document.getElementById(`cov-${t}`).checked);
 
   showLoading(true);
   try{
-    // دالة قاعدة بيانات آمنة (SECURITY DEFINER) تشفّر الباسورد bcrypt وتكتب في branch_users + drivers
     const { data, error } = await db.rpc('manager_upsert_driver', {
       p_driver_id: id || null,
       p_full_name: name,
@@ -413,9 +420,11 @@ async function saveDriver(){
       p_has_drive_license: document.getElementById('d-lic-drive').checked,
       p_covered_types: coveredTypes
     });
+
     if (error || (data && data.success === false)) {
       throw new Error(error?.message || data?.error);
     }
+
     closeModal('driverModal');
     await init();
     showToast(id?'✓ تم تحديث بيانات الطيار':'✓ تم إضافة الطيار');
@@ -440,7 +449,6 @@ function confirmToggleActive(id,isActive,name){
 
 async function toggleActive(id,isActive){
   showLoading(true);
-  // دالة آمنة تعطّل/تفعّل الطيار وحساب دخوله معًا
   await db.rpc('manager_toggle_driver', { p_driver_id: id, p_is_active: !isActive });
   closeModal('confirmModal');
   await init();
