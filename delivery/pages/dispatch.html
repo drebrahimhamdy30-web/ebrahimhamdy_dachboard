@@ -18,7 +18,7 @@
   --orange:#ea580c;--orange-light:#fff7ed;
   --text:#111827;--text-muted:#6b7280;--text-light:#9ca3af;
   --border:#e5e7eb;--bg:#f0f4f8;--white:#fff;
-  --header-h:52px;--drivers-h:96px;--trips-h:26vh;
+  --header-h:52px;--drivers-h:96px;--trips-h:34vh;
 }
 body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
@@ -112,7 +112,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .tc-nm{font-size:.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-mt{font-size:.62rem;color:var(--text-muted)}
 .tc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.tc-orders{padding:.4rem .5rem;display:flex;flex-direction:column;gap:.3rem;max-height:145px;overflow-y:auto;flex:1}
+.tc-orders{padding:.4rem .5rem;display:flex;flex-direction:column;gap:.3rem;max-height:205px;overflow-y:auto;flex:1}
 .tc-orders::-webkit-scrollbar{width:3px}
 .tc-orders::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 .tc-row{display:flex;align-items:center;gap:.35rem;padding:.35rem .45rem;border-radius:7px;background:var(--bg);font-size:.75rem;cursor:pointer;transition:background .1s}
@@ -1195,6 +1195,8 @@ function renderTrips(){
     const tot=tO.reduce((s,o)=>s+Number(o.total_bill_net||0),0);
     const done=tO.filter(o=>['delivered','completed'].includes(o.status)).length;
     const waitingPickup=tO.filter(o=>o.status==='assigned').length;
+    // مناطق الرحلة (مميّزة) عشان نعرف الطيار في أنهي منطقة
+    const tripRegions=[...new Set(tO.map(o=>o.cust_region).filter(Boolean))];
     return `<div class="trip-card ${filterDriver===trip.driver_id?'hl':''}" data-did="${trip.driver_id||''}">
       <div class="tc-hd">
         <div class="tc-av" style="background:${c}">${dn.charAt(0)}</div>
@@ -1204,6 +1206,7 @@ function renderTrips(){
         </div>
         <div class="tc-dot" style="background:${done===tO.length&&tO.length>0?'#4ade80':'#a78bfa'}"></div>
       </div>
+      ${tripRegions.length?`<div style="display:flex;flex-wrap:wrap;gap:.25rem;padding:0 .5rem .35rem">${tripRegions.map(r=>`<span style="font-size:.6rem;font-weight:700;color:#0e7490;background:#e0f2fe;border:1px solid #bae6fd;border-radius:20px;padding:.08rem .5rem">📍 ${r}</span>`).join('')}</div>`:''}
       <div class="tc-orders">
         ${tO.length?tO.map(o=>{
           const base=getTimerBase(o);
@@ -1239,7 +1242,10 @@ function renderTrips(){
                 <span class="tc-rnm">${o.customer_name||o.cust_name||'—'}</span>
                 <div class="tc-rdt" style="background:${over?'#fff':(SC[o.status]||'#9ca3af')};flex-shrink:0"></div>
               </div>
-              <div class="tc-timer" style="color:${over?'#fff':'#000'}">${timerLabel}: ${fm(timerVal)}</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:.35rem">
+                <span class="tc-timer" style="color:${over?'#fff':'#000'}">${timerLabel}: ${fm(timerVal)}</span>
+                ${o.cust_region?`<span class="tc-timer" style="color:${over?'#fff':'#0e7490'};white-space:nowrap;font-weight:700">📍 ${o.cust_region}</span>`:''}
+              </div>
             </div>
           </div>`;
         }).join(''):'<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.4rem">لا توجد طلبات</div>'}
@@ -1334,7 +1340,9 @@ function renderOrders(){
     actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
     actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
 
-    return `<div class="order-card ${late?'late':''} ${o.status==='postponed'?'sp':''} ${['assigned','picked'].includes(o.status)?'sk':''} ${sel?'sel':''} ${(o.notes||'').includes('🚨')?'urgent':''}" id="oc-${o.id}" onclick="toggleSel('${o.id}',event)">
+    const _bal=Number(o.current_customer_balance||0);
+    const owesBal=_bal>=3, creditBal=_bal<=-3;
+    return `<div class="order-card ${late?'late':''} ${o.status==='postponed'?'sp':''} ${['assigned','picked'].includes(o.status)?'sk':''} ${sel?'sel':''} ${(o.notes||'').includes('🚨')?'urgent':''}" id="oc-${o.id}" onclick="toggleSel('${o.id}',event)" ${owesBal?'style="background:#fee2e2;border:2px solid #dc2626"':''}>
       <div class="oc-check">${sel?'✓':''}</div>
       <div class="oc-timers">${buildTimers(o)}</div>
       ${postponeInfo(o)}
@@ -1346,6 +1354,8 @@ function renderOrders(){
         <span class="oc-pay ${pmC}" style="cursor:pointer;user-select:none" onclick="cyclePayment('${o.id}',event)" title="تغيير طريقة الدفع">${pmL} ▾</span>
         <span class="oc-st ${stC}">${SL[o.status]||o.status}</span>
       </div>
+      ${owesBal?`<div style="font-size:.66rem;color:#fff;background:#dc2626;padding:.16rem .45rem;border-radius:5px;margin-bottom:.28rem;font-weight:800">💰 رصيد مستحق: ${_bal.toLocaleString()} ج</div>`
+        :creditBal?`<div style="font-size:.66rem;color:#0e7490;background:#e0f2fe;border:1px solid #bae6fd;padding:.14rem .45rem;border-radius:5px;margin-bottom:.28rem;font-weight:700">💳 رصيد للعميل: ${Math.abs(_bal).toLocaleString()} ج</div>`:''}
       ${o.deliveryman?`<div style="font-size:.62rem;color:var(--text-muted);margin-bottom:.28rem">🚗 ${o.deliveryman}</div>`:''}
       ${o.staff_notes?`<div style="font-size:.62rem;background:var(--blue-light);color:#0e7490;padding:.12rem .4rem;border-radius:5px;margin-bottom:.28rem">💼 ${o.staff_notes}</div>`:''}
       <div class="oc-actions" onclick="event.stopPropagation()">${actions}</div>
@@ -2542,6 +2552,18 @@ async function openCompleteApproval(tripId){
   // المطلوب من الطيار: لو الكاشير أقرّ مبلغ الطيار = المحصّل، وإلا = قيمة الفاتورة
   const settle=o=>(o.collected_approved && o.collected_amount!=null)?Number(o.collected_amount):Number(o.total_bill_net||0);
   const cashDue=tO.filter(o=>o.payment_method==='cash').reduce((s,o)=>s+settle(o),0);
+  // الرصيد السابق للعملاء — مجمّع مرة واحدة لكل عميل عشان ما نعدّهوش مرتين.
+  // نعرض فقط لو |الرصيد| ≥ 3ج. المستحق (موجب) يتحصّل مع الطلب؛ رصيد العميل (سالب) للعلم فقط.
+  const balByCust={};
+  tO.forEach(o=>{
+    const k=o.cust_code||o.customer_name||o.cust_name||o.id;
+    const b=Number(o.current_customer_balance||0);
+    if(Math.abs(b)>=3 && !(k in balByCust)) balByCust[k]=b;
+  });
+  const balVals=Object.values(balByCust);
+  const prevBalTotal=balVals.filter(v=>v>0).reduce((s,v)=>s+v,0); // مستحق للتحصيل
+  const creditCount=balVals.filter(v=>v<0).length;               // عملاء لهم رصيد
+  const grandDue=cashDue+prevBalTotal;
 
   const rows=tO.map(o=>{
     const pm=o.payment_method||'cash';
@@ -2563,6 +2585,10 @@ async function openCompleteApproval(tripId){
       </div>
       <span class="oc-pay p-${pm}">${PL[pm]||pm}</span>
       <strong style="white-space:nowrap">${bill.toLocaleString()} ج</strong>
+      ${(()=>{const b=Number(o.current_customer_balance||0);
+        if(b>=3)return `<div style="width:100%;font-size:.7rem;color:#dc2626;font-weight:800">💰 رصيد مستحق: ${b.toLocaleString()} ج</div>`;
+        if(b<=-3)return `<div style="width:100%;font-size:.7rem;color:#0e7490;font-weight:700">💳 رصيد للعميل: ${Math.abs(b).toLocaleString()} ج</div>`;
+        return '';})()}
       ${approveHtml}
     </div>`;
   }).join('');
@@ -2577,10 +2603,20 @@ async function openCompleteApproval(tripId){
       <span style="font-weight:600;color:#0e7490">إجمالي قيمة الرحلة</span>
       <strong style="color:#0e7490">${total.toLocaleString()} ج.م</strong>
     </div>
-    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--green-light);border-radius:8px">
+    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--green-light);border-radius:8px;${prevBalTotal>0?'margin-bottom:.4rem':''}">
       <span style="font-weight:600;color:#15803d">المطلوب من الطيار (كاش)</span>
       <strong style="color:#15803d">${cashDue.toLocaleString()} ج.م</strong>
-    </div>`;
+    </div>
+    ${prevBalTotal>0?`
+    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:#fee2e2;border-radius:8px;margin-bottom:.4rem">
+      <span style="font-weight:700;color:#b91c1c">رصيد سابق مستحق (تحصيل)</span>
+      <strong style="color:#b91c1c">${prevBalTotal.toLocaleString()} ج.م</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:.6rem .75rem;background:#0e7490;border-radius:8px">
+      <span style="font-weight:700;color:#fff">الإجمالي المطلوب (طلبات + رصيد مستحق)</span>
+      <strong style="color:#fff">${grandDue.toLocaleString()} ج.م</strong>
+    </div>`:''}
+    ${creditCount>0?`<div style="margin-top:.4rem;font-size:.7rem;color:#0e7490;text-align:center">💳 ${creditCount} عميل لهم رصيد (للعلم — لا يُخصم من التحصيل)</div>`:''}`;
     document.getElementById('completeApprovalModal').classList.add('open');
 
   // فحص طلبات الرحلة السابقة غير المغلقة على الصيدلية (B Connect)
