@@ -5,6 +5,217 @@ const VERIFY_URL    = "https://agent.ebrahimhamdy.com/webhook/verify_token";
 const DASHBOARD_URL = "https://agent.ebrahimhamdy.com/webhook/dashboard";
 const PAYMOB_URL    = "https://agent.ebrahimhamdy.com/webhook/paymobtransaction";
 
+// بحث الصنف من مخزون Supabase مباشرة (بدل نداء ERP) — يرجّع {found,itm_name_ar,itm_name_en,balance,item_type}
+const SB_URL_API  = "https://rxtjoqulmgkkcohmgzgi.supabase.co";
+const SB_ANON_API = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4dGpvcXVsbWdra2NvaG1nemdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDQ2OTUsImV4cCI6MjA5NDI4MDY5NX0.QVoJPtlRlRIz9tdhmdTZxHtKxrwAxJq0Je4QHkFKxj0";
+async function sbItemLookup(code, branch) {
+  try {
+    const r = await fetch(`${SB_URL_API}/rest/v1/rpc/item_lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON_API, 'Authorization': 'Bearer ' + SB_ANON_API },
+      body: JSON.stringify({ p_code: String(code || ''), p_branch: branch || localStorage.getItem('userBranch') || '' })
+    });
+    if (!r.ok) return { found: false };
+    return await r.json();
+  } catch (e) { return { found: false }; }
+}
+
+// ===================== جدول task على Supabase (بدل n8n) =====================
+// نكتب/نقرأ/نحدّث الطلبات والتحويلات مباشرة على جدول task في Supabase عبر PostgREST
+// بمفتاح anon (نفس أسلوب صفحات الصيدلية). السكوب على الفرع بيتعمل في الصفحة زي ما هو دلوقتي.
+const SB_TASK_URL     = `${SB_URL_API}/rest/v1/task`;
+const SB_TASK_HEADERS = {
+  'Content-Type':  'application/json',
+  'apikey':        SB_ANON_API,
+  'Authorization': 'Bearer ' + SB_ANON_API
+};
+
+// إدراج طلب/تحويل جديد — بيرجّع { ok, data } (نفس شكل updateDataWithResponse)
+// بيحوّل حقول الفورم لأعمدة الجدول (نفس ماب n8n القديم، مع تصحيح الفرع:
+// للتحويل = الفرع المستهدف، وللشراء = فرع صاحب الطلب نفسه بدل ما يفضل فاضي)
+async function sbTaskInsert(payload) {
+  try {
+    const isTransfer = (payload.type === 'تحويل');
+    const isNotif    = (payload.type === 'إشعار');
+    // الفرع: للتحويل = المستهدف، وللشراء/الإشعار = فرع صاحب الطلب (المُرسِل)
+    const branchVal  = isTransfer
+      ? (payload.target_branch || '')
+      : (payload.branch || payload.user || '');
+    const row = {
+      "user":        payload.user || null,
+      type:          payload.type || null,
+      branch:        branchVal || null,
+      qty:           (payload.qty != null ? String(payload.qty) : null),
+      cust_code:     payload.customer_code || null,
+      cust_name:     payload.customer_name || null,
+      item_name:     payload.item || payload.item_name_ar || payload.item_name || null,
+      item_code:     payload.item_code || null,
+      order_type:    payload.order_type || null,
+      note:          payload.note || null,
+      state:         payload.state || 'pending',
+      // حقول الإشعارات (بتفضل فاضية في الشراء/التحويل)
+      target_branch: isNotif ? (payload.target_branch || null) : null,
+      target_type:   payload.target_type || null,
+      assigned_to:   payload.assigned_to || null,
+      done:          null,
+      comment:       null
+    };
+    const r = await fetch(SB_TASK_URL, {
+      method:  'POST',
+      headers: { ...SB_TASK_HEADERS, 'Prefer': 'return=representation' },
+      body:    JSON.stringify(row)
+    });
+    if (!r.ok) return { ok: false, data: null };
+    let data = null;
+    try { const raw = await r.json(); data = Array.isArray(raw) ? (raw[0] || null) : raw; } catch (e) {}
+    return { ok: true, data };
+  } catch (e) {
+    console.error('sbTaskInsert error:', e);
+    return { ok: false, data: null };
+  }
+}
+
+// جلب صفوف task — بيرجّع Array من objects (نفس شكل fetchOrders)
+// opts.type لفلترة النوع (شراء/تحويل...). بنرجّع createdAt (camelCase) عشان الصفحات القديمة.
+async function sbTaskList(opts = {}) {
+  try {
+    const params = new URLSearchParams();
+    params.set('select', '*');
+    params.set('order', 'created_at.desc');
+    if (opts.type)  params.set('type',  `eq.${opts.type}`);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const r = await fetch(`${SB_TASK_URL}?${params.toString()}`, { headers: SB_TASK_HEADERS });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return [];
+    return rows.map(x => ({ ...x, createdAt: x.created_at }));
+  } catch (e) {
+    console.error('sbTaskList error:', e);
+    return [];
+  }
+}
+
+// تحديث صف task عبر id — patch عبارة عن أعمدة الجدول (state/company/item_name/...) — بيرجّع true/false
+async function sbTaskUpdate(id, patch) {
+  try {
+    const clean = {};
+    Object.keys(patch || {}).forEach(k => { if (patch[k] !== undefined) clean[k] = patch[k]; });
+    const r = await fetch(`${SB_TASK_URL}?id=eq.${encodeURIComponent(id)}`, {
+      method:  'PATCH',
+      headers: SB_TASK_HEADERS,
+      body:    JSON.stringify(clean)
+    });
+    return r.ok;
+  } catch (e) {
+    console.error('sbTaskUpdate error:', e);
+    return false;
+  }
+}
+
+// ===================== التعاقدات + عدم الوصول على Supabase (بدل n8n) =====================
+const SB_CONTRACT_URL = `${SB_URL_API}/rest/v1/contracts`;
+const SB_MISSING_URL  = `${SB_URL_API}/rest/v1/missing_items`;
+
+// إدراج فاتورة تعاقد — بيفحص الحظر الأول (لو العميل عنده أي صف status='block')
+// بيرجّع { ok, blocked }
+async function sbContractInsert({ branch, cust_code, total_amount, notes }) {
+  try {
+    const chk = await fetch(
+      `${SB_CONTRACT_URL}?select=id&cust_code=eq.${encodeURIComponent(cust_code || '')}&status=eq.block&limit=1`,
+      { headers: SB_TASK_HEADERS }
+    );
+    if (chk.ok) {
+      const rows = await chk.json();
+      if (Array.isArray(rows) && rows.length) return { ok: false, blocked: true };
+    }
+    const r = await fetch(SB_CONTRACT_URL, {
+      method: 'POST',
+      headers: { ...SB_TASK_HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        branch:       branch || null,
+        cust_code:    cust_code || null,
+        total_amount: (total_amount != null ? String(total_amount) : null),
+        notes:        notes || null,
+        status:       'unpaid'
+      })
+    });
+    return { ok: r.ok, blocked: false };
+  } catch (e) { console.error('sbContractInsert error:', e); return { ok: false, blocked: false }; }
+}
+
+async function sbContractUpdate(id, patch) {
+  try {
+    const r = await fetch(`${SB_CONTRACT_URL}?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: SB_TASK_HEADERS, body: JSON.stringify(patch || {})
+    });
+    return r.ok;
+  } catch (e) { console.error('sbContractUpdate error:', e); return false; }
+}
+
+async function sbContractList() {
+  try {
+    const r = await fetch(`${SB_CONTRACT_URL}?select=*&order=created_at.desc`, { headers: SB_TASK_HEADERS });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows.map(x => ({ ...x, createdAt: x.created_at })) : [];
+  } catch (e) { console.error('sbContractList error:', e); return []; }
+}
+
+// إدراج بلاغ عدم وصول
+async function sbMissingInsert({ branch, invoice_no, item_name, qty, supplier_code }) {
+  try {
+    const r = await fetch(SB_MISSING_URL, {
+      method: 'POST',
+      headers: { ...SB_TASK_HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        branch:        branch || null,
+        invoice_no:    invoice_no || null,
+        item_name:     item_name || null,
+        qty:           (qty != null ? String(qty) : null),
+        supplier_code: supplier_code || null,
+        state:         false,
+        call:          false
+      })
+    });
+    return r.ok;
+  } catch (e) { console.error('sbMissingInsert error:', e); return false; }
+}
+
+async function sbMissingUpdate(id, patch) {
+  try {
+    const r = await fetch(`${SB_MISSING_URL}?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: SB_TASK_HEADERS, body: JSON.stringify(patch || {})
+    });
+    return r.ok;
+  } catch (e) { console.error('sbMissingUpdate error:', e); return false; }
+}
+
+async function sbMissingList() {
+  try {
+    const r = await fetch(`${SB_MISSING_URL}?select=*&order=created_at.desc`, { headers: SB_TASK_HEADERS });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows.map(x => ({ ...x, createdAt: x.created_at })) : [];
+  } catch (e) { console.error('sbMissingList error:', e); return []; }
+}
+
+// ---- متابعة النواقص: طلبات "غير متوفر يحتاج متابعة" + رصيد المخزون الحالي (stq) لحظيًا ----
+// بيرجّع Array فيه {id,item_name,item_code,user,branch,cust_name,cust_code,cust_state,createdAt,stq}
+async function sbShortages(branch) {
+  try {
+    const r = await fetch(`${SB_URL_API}/rest/v1/rpc/get_shortages`, {
+      method: 'POST',
+      headers: SB_TASK_HEADERS,
+      body: JSON.stringify({ p_branch: branch || 'عام' })
+    });
+    if (!r.ok) return [];
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) { console.error('sbShortages error:', e); return []; }
+}
+
+
+
 async function fetchFromN8N(category) {
   try {
     const response = await fetch(`${FETCH_URL}?type=${category}`);
@@ -70,8 +281,8 @@ async function fetchVisaTransactions() { return await fetchFromN8N('visa_transac
 async function fetchMachines()         { return await fetchFromN8N('visa_machines'); }
 async function fetchOrders()           { return await fetchFromN8N('orders'); }
 async function fetchData()             { return await fetchFromN8N('orders'); }
-async function fetchContracts()        { return await fetchFromN8N('contracts'); }
-async function fetchMissing()          { return await fetchFromN8N('missing'); }
+async function fetchContracts()        { return await sbContractList(); }   // Supabase
+async function fetchMissing()          { return await sbMissingList(); }    // Supabase
 async function fetchInventory()        { return await fetchFromN8N('inventory'); }
 async function fetchOffers()           { return await fetchFromN8N('offers'); }
 
@@ -205,6 +416,23 @@ async function verifyToken() {
   }
 }
 
+// خروج إجباري لكل الجلسات: بيقارن وقت دخول المستخدم بقيمة force_logout_before على Supabase
+async function sbForcedLogoutCheck() {
+  try {
+    const r = await fetch(`${SB_URL_API}/rest/v1/app_control?id=eq.1&select=force_logout_before`, { headers: SB_TASK_HEADERS });
+    if (!r.ok) return false;
+    const rows = await r.json();
+    const cutoff = (rows && rows[0] && rows[0].force_logout_before) ? new Date(rows[0].force_logout_before).getTime() : 0;
+    const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
+    if (cutoff && loginTime && loginTime < cutoff) {
+      localStorage.clear();
+      window.location.replace('index.html');
+      return true;
+    }
+    return false;
+  } catch (e) { return false; }
+}
+
 async function checkAuth() {
   const user      = localStorage.getItem('activeUser');
   const token     = localStorage.getItem('authToken');
@@ -214,6 +442,8 @@ async function checkAuth() {
     window.location.replace('index.html');
     return null;
   }
+  if (await sbForcedLogoutCheck()) return null;
+  if (!window.__flTimer) { window.__flTimer = setInterval(sbForcedLogoutCheck, 120000); }
   const thirtyMinutes = 30 * 60 * 1000;
   if (lastCheck && (now - parseInt(lastCheck)) < thirtyMinutes) {
     return user;
