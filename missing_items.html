@@ -69,7 +69,7 @@
       if (user) {
         userBranch = (localStorage.getItem('userBranch') || '').trim();
         document.getElementById('branch-display').textContent = userBranch;
-        window.onload = loadMissing;
+        loadMissing();
       }
     });
 
