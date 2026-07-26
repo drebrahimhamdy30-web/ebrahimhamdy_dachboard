@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>سجل الرحلات</title>
@@ -453,7 +455,110 @@ async function renderTripOrders(tripId){
           </tr>`;
         }).join('')}
       </tbody>
-    </table>`;
+    </table>
+    <div style="margin-top:.5rem">
+      <div style="font-size:.68rem;font-weight:700;color:var(--text-muted);margin-bottom:.3rem">🗺️ مواقع تسليم الطلبات</div>
+      <div id="tripMap-${tripId}" style="height:300px;border:1px solid var(--border);border-radius:10px;overflow:hidden"></div>
+    </div>`;
+  initTripMap(tripId, orders, trip.branch_id);
+}
+
+let _pharmCache={};
+// فكّ ترميز Google encoded polyline → مصفوفة [lat,lng]
+function _decodePoly(str){
+  let index=0,lat=0,lng=0;const coords=[];
+  while(index<str.length){
+    let b,shift=0,result=0;
+    do{b=str.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lat+=(result&1)?~(result>>1):(result>>1);
+    shift=0;result=0;
+    do{b=str.charCodeAt(index++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lng+=(result&1)?~(result>>1):(result>>1);
+    coords.push([lat/1e5,lng/1e5]);
+  }
+  return coords;
+}
+function _numIcon(n,color){
+  return L.divIcon({className:'',iconSize:[26,26],iconAnchor:[13,13],
+    html:`<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45)">${n}</div>`});
+}
+async function initTripMap(tripId, orders, branchId){
+  const el=document.getElementById('tripMap-'+tripId);
+  if(!el || !window.L) return;
+  const pts=(orders||[]).filter(o=>o.delivery_lat&&o.delivery_lng)
+    .sort((a,b)=>new Date(a.delivered_at||a.picked_at||0)-new Date(b.delivered_at||b.picked_at||0));
+  if(!pts.length){
+    el.style.height='auto';
+    el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.72rem">لا توجد إحداثيات تسليم مسجّلة (الطيار على نسخة قديمة أو الـGPS كان مقفول)</div>';
+    return;
+  }
+  let ph=null;
+  if(branchId){
+    if(_pharmCache[branchId]===undefined){
+      const {data}=await db.from('dispatch_settings').select('pharmacy_lat,pharmacy_lng').eq('branch_id',branchId).maybeSingle();
+      _pharmCache[branchId]=data||null;
+    }
+    ph=_pharmCache[branchId];
+  }
+  let retPoly=null;
+  try{ const {data:trow}=await db.from('trips').select('return_polyline').eq('id',tripId).maybeSingle(); retPoly=trow?trow.return_polyline:null; }catch(e){}
+  const map=L.map(el,{scrollWheelZoom:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  const bounds=[];
+  if(ph&&ph.pharmacy_lat){
+    L.marker([+ph.pharmacy_lat,+ph.pharmacy_lng],{icon:L.divIcon({className:'',iconSize:[26,26],iconAnchor:[13,13],html:'<div style="font-size:20px;line-height:1">🏥</div>'})})
+      .addTo(map).bindPopup('الصيدلية (نقطة الانطلاق)');
+    bounds.push([+ph.pharmacy_lat,+ph.pharmacy_lng]);
+  }
+  pts.forEach((o,i)=>{
+    const c=o.perf_rating==='ممتاز'?'#16a34a':o.perf_rating==='متأخر'?'#dc2626':o.perf_rating==='جيد'?'#ca8a04':'#2563eb';
+    const km=((Number(o.distance_meters)||0)/1000).toFixed(2);
+    L.marker([+o.delivery_lat,+o.delivery_lng],{icon:_numIcon(i+1,c)}).addTo(map)
+      .bindPopup(`<b>${o.bill_no||''}</b> · ${o.customer_name||o.cust_name||'—'}<br>${o.cust_region||''} · مسافة ${km} كم<br>الأداء: ${o.perf_rating||'—'}`);
+    bounds.push([+o.delivery_lat,+o.delivery_lng]);
+  });
+  // خط المسار: لكل مرحلة، ارسم المسار الحقيقي (اللي حسب عليه Google الزمن) لو متوفّر، وإلا خط مستقيم متقطّع
+  let prevPt=(ph&&ph.pharmacy_lat)?[+ph.pharmacy_lat,+ph.pharmacy_lng]:null;
+  pts.forEach(o=>{
+    const cur=[+o.delivery_lat,+o.delivery_lng];
+    let drewReal=false;
+    if(o.route_polyline){
+      try{
+        const path=_decodePoly(o.route_polyline);
+        if(path.length>1){
+          L.polyline(path,{color:'#2563eb',weight:4,opacity:.85}).addTo(map);
+          path.forEach(p=>bounds.push(p));
+          drewReal=true;
+        }
+      }catch(e){}
+    }
+    if(!drewReal && prevPt){
+      L.polyline([prevPt,cur],{color:'#2563eb',weight:3,opacity:.6,dashArray:'6,8'}).addTo(map);
+    }
+    prevPt=cur;
+  });
+  // مسار العودة: آخر طلب → الصيدلية — المسار الحقيقي لو متوفّر، وإلا خط مستقيم (بلون مختلف)
+  let retDrew=false;
+  if(retPoly){
+    try{
+      const rp=_decodePoly(retPoly);
+      if(rp.length>1){ L.polyline(rp,{color:'#f59e0b',weight:4,opacity:.9}).addTo(map); rp.forEach(p=>bounds.push(p)); retDrew=true; }
+    }catch(e){}
+  }
+  if(!retDrew && prevPt && ph && ph.pharmacy_lat){
+    L.polyline([prevPt,[+ph.pharmacy_lat,+ph.pharmacy_lng]],{color:'#f59e0b',weight:3,opacity:.9,dashArray:'3,7'}).addTo(map);
+  }
+  // مفتاح الألوان
+  const lg=L.control({position:'bottomleft'});
+  lg.onAdd=function(){
+    const d=L.DomUtil.create('div');
+    d.style.cssText='background:#fff;padding:4px 8px;border-radius:6px;font-size:11px;line-height:1.7;box-shadow:0 1px 5px rgba(0,0,0,.35)';
+    d.innerHTML='<span style="color:#2563eb;font-weight:900">▬</span> مسار التوصيل &nbsp; <span style="color:#f59e0b;font-weight:900">▬</span> العودة';
+    return d;
+  };
+  lg.addTo(map);
+  if(bounds.length) map.fitBounds(bounds,{padding:[30,30],maxZoom:16});
+  setTimeout(()=>map.invalidateSize(),150);
 }
 
 function renderPagination(){
