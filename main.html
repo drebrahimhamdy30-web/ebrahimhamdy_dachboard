@@ -471,11 +471,10 @@
       loadEl.classList.add('show');
       foundEl.classList.remove('show');
       try {
-        const resp = await fetch(FETCH_URL + '?type=item_lookup&code=' + encodeURIComponent(code));
-        const raw  = await resp.json();
-        const item = Array.isArray(raw) ? raw[0] : raw;
-        const nameAr = item?.itm_name_ar || item?.data?.[0]?.itm_name_ar || '';
-        const nameEn = item?.itm_name_en || item?.data?.[0]?.itm_name_en || '';
+        // جلب اسم الصنف من مخزون Supabase (stock_mamora) مباشرة بدل نداء n8n
+        const item = await sbItemLookup(code);
+        const nameAr = item?.itm_name_ar || '';
+        const nameEn = item?.itm_name_en || '';
         if (nameAr) {
           nameEl.value    = nameAr;
           nameEl.readOnly = true;
