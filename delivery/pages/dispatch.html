@@ -575,7 +575,10 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title">🏁 طلب إنهاء رحلة</span>
-      <button class="modal-close" onclick="closeModal('completeApprovalModal')">✕</button>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <button class="modal-close" onclick="pinCompleteCard()" title="تثبيت الكارت بالأعلى فوق البرامج" style="font-size:1rem">📌</button>
+        <button class="modal-close" onclick="closeModal('completeApprovalModal')">✕</button>
+      </div>
     </div>
     <div class="modal-body">
       <div id="ca-review-flags"></div>
@@ -2563,9 +2566,12 @@ async function completeTrip(tripId){
   showToast('✓ تم إنهاء الرحلة');await loadAll();showLoading(false);
 }
 // ===== موافقة إنهاء الرحلة (طلب من الطيار) =====
+// يلاقي عناصر كارت الإنهاء سواء في الداشبورد أو في النافذة العائمة (لو الكارت متثبّت)
+function caEl(id){ const p=window._tripPipDoc; try{ if(p){ const el=p.getElementById(id); if(el) return el; } }catch(e){} return document.getElementById(id); }
+
 async function openCompleteApproval(tripId){
   const trip=activeTrips.find(t=>t.id===tripId);if(!trip)return;
-  document.getElementById('ca-trip-id').value=tripId;
+  caEl('ca-trip-id').value=tripId;
   const oIds=tripOrdersMap[tripId]||[];
   const tO=oIds.map(id=>allOrders.find(o=>o.id===id)).filter(Boolean);
   const total=tO.reduce((s,o)=>s+Number(o.total_bill_net||0),0);
@@ -2613,7 +2619,7 @@ async function openCompleteApproval(tripId){
     </div>`;
   }).join('');
 
-  document.getElementById('completeApprovalBody').innerHTML=`
+  caEl('completeApprovalBody').innerHTML=`
     <div style="background:var(--bg);border-radius:10px;padding:.75rem;margin-bottom:1rem">
       <div style="font-weight:700;font-size:.9rem">🚗 ${trip.driver_name||'—'}</div>
       <div style="font-size:.72rem;color:var(--text-muted)">${tO.length} طلب في الرحلة</div>
@@ -2654,7 +2660,7 @@ async function approveCollected(orderId, tripId, approve){
 
 // تجيب الطلبات غير المغلقة على الصيدلية وتعرضها في مودال الموافقة
 async function loadReviewFlagsIntoApproval(tripId){
-  const box = document.getElementById('ca-review-flags');
+  const box = caEl('ca-review-flags');
   if(box) box.innerHTML = '';
   const {data, error} = await db.rpc('get_trip_review_flags', {p_trip_id: tripId});
   if(error || !data || !data.length) return;
@@ -2672,12 +2678,12 @@ async function loadReviewFlagsIntoApproval(tripId){
   </div>`;
 
   // نحطها فوق جسم المودال
-  const target = document.getElementById('ca-review-flags');
+  const target = caEl('ca-review-flags');
   if(target) target.innerHTML = warn;
 }
 
 async function approveComplete(){
-  const tripId=document.getElementById('ca-trip-id').value;
+  const tripId=caEl('ca-trip-id').value;
   showLoading(true);
   const now=new Date().toISOString();
   const trip=activeTrips.find(t=>t.id===tripId);
@@ -2704,13 +2710,63 @@ async function approveComplete(){
 }
 
 async function rejectComplete(){
-  const tripId=document.getElementById('ca-trip-id').value;
+  const tripId=caEl('ca-trip-id').value;
   if(!confirm('رفض الطلب وإرجاع الرحلة للطيار؟'))return;
   showLoading(true);
   const now=new Date().toISOString();
   await db.from('trips').update({status:'active',updated_at:now}).eq('id',tripId);
   await addTripLog(tripId,'complete_rejected',{by:'admin'});
   closeModal('completeApprovalModal');showToast('تم رفض الطلب — رجعت الرحلة للطيار');await loadAll();showLoading(false);
+}
+
+// ===== تثبيت كارت إنهاء الرحلة بالأعلى (نافذة عائمة فوق كل البرامج) =====
+let _pipWin = null;
+
+// نسخ كل ستايلات مستند الكارت لمستند النافذة العائمة (نفس الشكل بالظبط)
+function copyStylesTo(srcDoc, dstDoc){
+  try{
+    [...srcDoc.styleSheets].forEach(ss=>{
+      try{
+        const css=[...ss.cssRules].map(r=>r.cssText).join('\n');
+        const st=dstDoc.createElement('style'); st.textContent=css; dstDoc.head.appendChild(st);
+      }catch(e){
+        if(ss.href){ const l=dstDoc.createElement('link'); l.rel='stylesheet'; l.href=ss.href; dstDoc.head.appendChild(l); }
+      }
+    });
+  }catch(e){ console.warn('copyStyles', e); }
+}
+
+// نلاقي نافذة فيها صلاحية Document PiP — نجرّب الإطار، ثم الصفحة الأب/الأساسية
+// (الطلب من الصفحة الأساسية بيتخطى حظر الـiframe فبيشتغل التثبيت الحقيقي)
+function pipHostWindow(){
+  const cands=[];
+  try{ cands.push(window); }catch(e){}
+  try{ if(window.parent && window.parent!==window) cands.push(window.parent); }catch(e){}
+  try{ if(window.top && window.top!==window && window.top!==window.parent) cands.push(window.top); }catch(e){}
+  for(const w of cands){
+    try{ if(w && 'documentPictureInPicture' in w && w.documentPictureInPicture) return w; }catch(e){}
+  }
+  return null;
+}
+
+async function pinCompleteCard(){
+  const card=document.querySelector('#completeApprovalModal .modal');
+  if(!card){ showToast('افتح كارت إنهاء الرحلة أولاً'); return; }
+
+  // نافذة PiP لازم تتفتح من الصفحة الأساسية (app.html) — الإطار محظور
+  const opener = (window.parent && window.parent!==window) ? window.parent.pinFloatingCard : null;
+  if(typeof opener === 'function'){
+    let res;
+    try{ res = await window.parent.pinFloatingCard(); }
+    catch(e){ console.error('pin call failed', e); res='error'; }
+    if(res===true){ showToast('📌 النافذة عائمة فوق كل البرامج — اسحبها لأي مكان'); return; }
+    if(res==='unsupported'){ showToast('التثبيت العائم متاح على Chrome/Edge حديث فقط'); return; }
+    if(res==='no-card'){ showToast('افتح كارت إنهاء الرحلة أولاً'); return; }
+    showToast('تعذّر التثبيت — جرّب Chrome/Edge حديث (وحدّث الصفحة)'); return;
+  }
+
+  // لو الصفحة اتفتحت مباشرة من غير الشل (نادر) — التثبيت الحقيقي مش متاح من هنا
+  showToast('افتح الشاشة من داخل التطبيق لتفعيل التثبيت العائم');
 }
 // ===== CALL & MESSAGE =====
   // ===== انصراف يدوي للطيار من الإدارة =====

@@ -172,7 +172,7 @@ html, body { max-width:100%; overflow-x:hidden; }
       <div class="load-spinner"></div>
       <div class="load-text">جاري التحميل...</div>
     </div>
-    <iframe class="page-frame active" id="mainFrame" src="about:blank" onload="if(typeof frameLoaded==='function')frameLoaded()"></iframe>
+    <iframe class="page-frame active" id="mainFrame" src="about:blank" allow="clipboard-write" onload="if(typeof frameLoaded==='function')frameLoaded()"></iframe>
   </div>
 </main>
 
@@ -617,6 +617,63 @@ window.addEventListener('message', (e) => {
     }
   }
 });
+
+// ===== تثبيت كارت إنهاء الرحلة كنافذة عائمة (يُنفَّذ من المستوى الأساسي — مسموح به) =====
+// تُستدعى من داخل الإطار عبر window.parent.pinFloatingCard()
+window.pinFloatingCard = async function(){
+  const iframe = document.getElementById('mainFrame');
+  const idoc = iframe && iframe.contentDocument;
+  const iwin = iframe && iframe.contentWindow;
+  if(!idoc || !iwin) return 'no-frame';
+  const card = idoc.querySelector('#completeApprovalModal .modal');
+  if(!card) return 'no-card';
+  if(!('documentPictureInPicture' in window)) return 'unsupported';
+  try{
+    if(window._tripPip && !window._tripPip.closed){ window._tripPip.focus(); return true; }
+    // نقيس حجم الكارت الطبيعي ونفتح النافذة بنفس المقاس بالظبط
+    let cw=440, ch=620;
+    try{ cw = Math.max(300, Math.min((card.offsetWidth||440), 560)); ch = Math.max(260, Math.min((card.offsetHeight||620), 760)); }catch(e){}
+    const pip = await window.documentPictureInPicture.requestWindow({width: Math.round(cw+22), height: Math.round(ch+22)});
+    window._tripPip = pip;
+    const pdoc = pip.document;
+    pdoc.documentElement.setAttribute('dir','rtl');
+    pdoc.documentElement.setAttribute('lang','ar');
+    // انسخ ستايلات مستند الإطار (فيه ستايل الكارت)
+    [...idoc.styleSheets].forEach(ss=>{
+      try{ const css=[...ss.cssRules].map(r=>r.cssText).join('\n'); const st=pdoc.createElement('style'); st.textContent=css; pdoc.head.appendChild(st); }
+      catch(e){ if(ss.href){ const l=pdoc.createElement('link'); l.rel='stylesheet'; l.href=ss.href; pdoc.head.appendChild(l); } }
+    });
+    let bg='#f1f5f9'; try{ bg=iwin.getComputedStyle(idoc.body).backgroundColor||bg; }catch(e){}
+    pdoc.body.style.cssText='margin:0;padding:10px;background:'+bg;
+
+    // ننقل الكارت الأصلي نفسه (مش نسخة) للنافذة العائمة، ونحفظ مكانه الأصلي لإرجاعه
+    const overlay = idoc.getElementById('completeApprovalModal');   // الغلاف يفضل في الداشبورد
+    const prevCardCss = card.style.cssText;
+    pdoc.body.appendChild(pdoc.adoptNode(card));
+    card.style.margin='0 auto';   // نخليه بحجمه الطبيعي مش ممدود
+    if(overlay) overlay.style.display='none';                       // الغلاف بقى فاضي — نخفيه
+    // نخلي دوال الإطار تلاقي عناصر الكارت في النافذة العائمة
+    iwin._tripPipDoc = pdoc;
+
+    // أزرار الكارت (الحقيقي) تنفّذ دوال الإطار مباشرة — تنهي الرحلة من هنا بدون الرجوع للداشبورد
+    pip.closeModal      = ()=>{ try{ iwin.closeModal('completeApprovalModal'); }catch(e){} try{ if(!pip.closed) pip.close(); }catch(e){} };
+    pip.pinCompleteCard = ()=>{ try{ pip.focus(); }catch(e){} };
+    pip.approveComplete = async()=>{ try{ await iwin.approveComplete(); }finally{ if(!pip.closed) pip.close(); } };
+    pip.rejectComplete  = async()=>{ try{ await iwin.rejectComplete(); }finally{ if(!pip.closed) pip.close(); } };
+    pip.approveCollected= (a,b,c)=> iwin.approveCollected(a,b,c);   // بيعيد رسم الكارت الحقيقي في النافذة مباشرة
+
+    // عند غلق النافذة: نرجّع الكارت الحقيقي لمكانه في الداشبورد (نحافظ عليه للمرات الجاية)
+    pip.addEventListener('pagehide',()=>{
+      try{
+        card.style.cssText = prevCardCss;
+        if(overlay){ overlay.appendChild(idoc.adoptNode(card)); overlay.style.display=''; }
+      }catch(e){ console.error('restore card', e); }
+      try{ iwin._tripPipDoc = null; }catch(e){}
+      window._tripPip=null;
+    });
+    return true;
+  }catch(e){ console.error('pinFloatingCard', e); window._tripPip=null; return 'error:'+(e&&e.name||''); }
+};
 </script>
 </body>
 </html>
