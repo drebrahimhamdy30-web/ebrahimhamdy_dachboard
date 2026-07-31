@@ -900,12 +900,26 @@ document.getElementById('headerStats').innerHTML=`
 
 // ===== DRIVERS =====
 let attendanceToday=[];
+let attNames={}; // خريطة أسماء الطيارين لطلبات الحضور (قد يكونوا خارج allDrivers بسبب فلتر الفرع/النشاط)
+
+// اسم الطيار من allDrivers أولاً، ثم من خريطة طلبات الحضور، وإلا "طيار"
+function driverNameOf(id){
+  const d=allDrivers.find(x=>x.id===id);
+  return (d&&d.full_name)||attNames[id]||'طيار';
+}
 
 async function loadAttendanceData(){
   try{
     // جيب آخر 500 سجل حضور (كل الأيام) عشان نعرف آخر حالة لكل طيار — مش بس النهاردة
     const {data}=await db.from('driver_attendance').select('*').order('created_at',{ascending:false}).limit(500);
     attendanceToday=data||[];
+    // هات أسماء طيارين الطلبات المعلّقة اللي مش موجودين في allDrivers (فرع تاني/غير نشط)
+    const reqIds=[...new Set(attendanceToday.filter(r=>r.status.endsWith('_request')).map(r=>r.driver_id))]
+      .filter(id=>id && !allDrivers.some(d=>d.id===id));
+    if(reqIds.length){
+      const {data:drs}=await db.from('drivers').select('id,full_name').in('id',reqIds);
+      (drs||[]).forEach(d=>{attNames[d.id]=d.full_name;});
+    }
     renderAttNotif();
   }catch(e){}
 }
@@ -996,11 +1010,11 @@ const bar=document.getElementById('attRequestsBar');
   const typeColors={'online_request':'#4ade80','offline_request':'#f87171','break_request':'#fbbf24'};
   bar.innerHTML='<div style="font-size:.55rem;color:#64748b;white-space:nowrap;writing-mode:vertical-rl;text-orientation:mixed;padding:.2rem 0">طلبات</div>'+
   pending.map(r=>{
-    const driver=allDrivers.find(d=>d.id===r.driver_id)||{full_name:'؟'};
-    const ini=(driver.full_name||'؟').split(' ').slice(0,2).map(w=>w[0]).join('');
+    const dname=driverNameOf(r.driver_id);
+    const ini=(dname||'؟').split(' ').slice(0,2).map(w=>w[0]).join('');
     const color=typeColors[r.status]||'#94a3b8';
     const label=typeLabels[r.status]||'';
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;flex-shrink:0" onclick="showAttRequest('${r.id}','${r.status}','${r.driver_id}','${driver.full_name}')">
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:.2rem;cursor:pointer;flex-shrink:0" onclick="showAttRequest('${r.id}','${r.status}','${r.driver_id}')">
       <div style="width:40px;height:40px;border-radius:50%;background:#334155;border:2.5px solid ${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:white;position:relative">
         ${ini}
         <div style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:.45rem;color:#0f172a;font-weight:800">!</div>
@@ -1020,9 +1034,16 @@ const bar=document.getElementById('attRequestsBar');
   }).join('');
 }
 
-function showAttRequest(id, status, driverId, driverName){
+async function showAttRequest(id, status, driverId){
   const typeLabels={'online_request':'طلب حضور','offline_request':'طلب انصراف','break_request':'طلب استراحة'};
-  if(confirm(`${driverName}\n${typeLabels[status]||status}\n\nموافقة؟`)){
+  let name=driverNameOf(driverId);
+  // احتياطي: لو لسه مش لاقيين الاسم، هاته من قاعدة البيانات مباشرة
+  if(!name||name==='طيار'){
+    try{ const {data}=await db.from('drivers').select('full_name,branches(name)').eq('id',driverId).single();
+      if(data?.full_name){ name=data.full_name; attNames[driverId]=data.full_name;
+        if(data.branches?.name) name+=` — ${data.branches.name}`; } }catch(e){}
+  }
+  if(confirm(`${name}\n${typeLabels[status]||status}\n\nموافقة؟`)){
     approveAtt(id,status,driverId);
   } else if(confirm('رفض الطلب؟')){
     rejectAtt(id,driverId);
@@ -1033,10 +1054,10 @@ function renderAttPopupContent(pending){
   const typeLabels={'online_request':'حضور','offline_request':'انصراف','break_request':'استراحة'};
   const typeClass={'online_request':'att-type-online','offline_request':'att-type-offline','break_request':'att-type-break'};
   document.getElementById('attPopup').innerHTML=pending.map(r=>{
-    const driver=allDrivers.find(d=>d.id===r.driver_id)||{full_name:'—'};
+    const dname=driverNameOf(r.driver_id);
     return `<div class="att-popup-item">
       <div>
-        <div class="att-item-name">${driver.full_name}</div>
+        <div class="att-item-name">${dname}</div>
         <span class="att-item-type ${typeClass[r.status]||''}">${typeLabels[r.status]||r.status}</span>
       </div>
       <div class="att-item-btns">
