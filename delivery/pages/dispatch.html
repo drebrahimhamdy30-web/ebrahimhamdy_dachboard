@@ -571,6 +571,13 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   </div>
 </div>
 
+<div class="modal-overlay" id="itemsModal">
+  <div class="modal modal-sm">
+    <div class="modal-header"><span class="modal-title" id="itemsTitle">🧾 أصناف الطلب</span><button class="modal-close" onclick="closeModal('itemsModal')">✕</button></div>
+    <div class="modal-body" id="itemsBody" style="max-height:60vh;overflow:auto"></div>
+  </div>
+</div>
+
 <!-- Trip Order Actions Modal -->
 <div class="modal-overlay" id="tripOrderActionsModal">
   <div class="modal modal-sm">
@@ -1598,6 +1605,7 @@ function renderOrders(){
         :creditBal?`<div style="font-size:.66rem;color:#0e7490;background:#e0f2fe;border:1px solid #bae6fd;padding:.14rem .45rem;border-radius:5px;margin-bottom:.28rem;font-weight:700">💳 رصيد للعميل: ${Math.abs(_bal).toLocaleString()} ج</div>`:''}
       ${o.deliveryman?`<div style="font-size:.62rem;color:var(--text-muted);margin-bottom:.28rem">🚗 ${o.deliveryman}</div>`:''}
       ${o.staff_notes?`<div style="font-size:.62rem;background:var(--blue-light);color:#0e7490;padding:.12rem .4rem;border-radius:5px;margin-bottom:.28rem">💼 ${o.staff_notes}</div>`:''}
+      ${billItemsCard(o)}
       <div class="oc-actions" onclick="event.stopPropagation()">${actions}</div>
     </div>`;
   }).join('');
@@ -2554,20 +2562,68 @@ function custPhones(raw){
   return nums.map(n=>`<a href="tel:${n}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.25rem;margin:0 0 .15rem .3rem;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:.15rem .45rem;font-weight:800;font-size:.78rem;text-decoration:none">📞 <bdi>${n}</bdi></a>`).join('');
 }
 
-// قائمة أصناف الطلب (عمود items: مصفوفة {name, qty})
-function fmtItemsHtml(o){
-  const its=Array.isArray(o&&o.items)?o.items:null;
-  if(!its||!its.length) return '';
+// أصناف الطلب — تُعرض في نافذة منبثقة عند الضغط، وتُجلب من ويبهوك n8n حسب رقم الفاتورة + الفرع
+const SALES_ITEMS_WEBHOOK='https://agent.ebrahimhamdy.com/webhook/sales_item';
+const billItemsCache={}; // كاش الأصناف حسب معرّف الطلب
+
+function renderBillItems(items){
   const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  const li=its.map(it=>{
-    const nm=(it&&typeof it==='object')?(it.name||it.item_name||it.product||it['صنف']||'').toString().trim():String(it).trim();
-    let q=(it&&typeof it==='object')?(it.qty??it.quantity??it.count??it['كمية']):null;
-    const qs=(q!=null&&String(q).trim()!==''&&String(q)!=='1')?` <span style="color:#0A3D62;font-weight:800">×${esc(q)}</span>`:'';
-    return `<div style="padding:.12rem 0">• ${esc(nm||'—')}${qs}</div>`;
+  if(!items||!items.length) return '<div style="color:#64748b;font-size:.85rem;padding:.6rem 0;text-align:center">لا توجد أصناف في هذه الفاتورة</div>';
+  const rows=items.map(it=>{
+    const nm=esc(it.name||'—');
+    const q=it.qty;
+    const qs=(q!=null&&String(q).trim()!=='')?`<span style="background:#0A3D62;color:#fff;font-weight:800;font-size:.75rem;padding:.12rem .5rem;border-radius:6px;white-space:nowrap">×${esc(q)}</span>`:'';
+    const unit=it.unit?`<span style="color:#94a3b8;font-size:.72rem"> · ${esc(it.unit)}</span>`:'';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem .2rem;border-bottom:1px solid #eef2f7"><span style="font-weight:600;font-size:.9rem;color:#1e293b">${nm}${unit}</span>${qs}</div>`;
   }).join('');
-  return `<div class="d-row" style="align-items:flex-start"><span class="d-lbl">🧾 قائمة الأصناف (${its.length})</span><span class="d-val" style="text-align:right">${li}</span></div>`;
+  return `<div style="font-weight:800;color:#0A3D62;font-size:.85rem;margin-bottom:.35rem;display:flex;justify-content:space-between"><span>🧾 قائمة الأصناف</span><span style="color:#64748b">${items.length} صنف</span></div>${rows}`;
 }
 
+// يفتح النافذة المنبثقة ويجلب الأصناف (مع كاش)
+async function openItemsModal(billNo,branchId,oid,cc){
+  const body=document.getElementById('itemsBody');
+  document.getElementById('itemsTitle').innerHTML='🧾 أصناف الفاتورة '+(billNo?('#'+billNo):'')+(cc?` <span style="color:#64748b;font-weight:600;font-size:.8rem">· كود ${cc}</span>`:'');
+  document.getElementById('itemsModal').classList.add('open');
+  if(billItemsCache[oid]){ body.innerHTML=renderBillItems(billItemsCache[oid]); return; }
+  if(!billNo||billNo==='null'){ body.innerHTML='<div style="color:#b91c1c;font-size:.85rem;text-align:center;padding:.6rem">لا يوجد رقم فاتورة لهذا الطلب</div>'; return; }
+  body.innerHTML='<div style="color:#64748b;font-size:.85rem;text-align:center;padding:1rem">⏳ جاري جلب الأصناف...</div>';
+  try{
+    const r=await fetch(SALES_ITEMS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({branch_id:branchId||'',bill_no:String(billNo)})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const root=Array.isArray(data)?(data[0]||{}):(data||{});
+    const bills=(root&&root.Data)||[];
+    const bill=bills.find(b=>String(b.bill_no)===String(billNo))||bills[0]||{};
+    const raw=(bill&&bill.Items)||[];
+    const items=raw.map(it=>({
+      name:(it.itm_name_ar||it.itm_name_en||'').toString().trim(),
+      qty:it.itm_qty,
+      unit:it.unit_name||'',
+      price:it.unit_price
+    }));
+    billItemsCache[oid]=items;
+    body.innerHTML=renderBillItems(items);
+  }catch(e){
+    body.innerHTML='<div style="color:#b91c1c;font-size:.85rem;text-align:center;padding:.6rem">❌ تعذّر جلب الأصناف<br><span style="font-size:.75rem">'+(e&&e.message||e)+'</span></div>';
+  }
+}
+
+function billItemsBtnHtml(o){
+  const bn=(o.bill_no!=null?String(o.bill_no):'').replace(/['"\\]/g,'');
+  const bid=(o.branch_id!=null?String(o.branch_id):'').replace(/['"\\]/g,'');
+  const cc=(o.cust_code!=null?String(o.cust_code):'').replace(/['"\\]/g,'');
+  return `<button onclick="event.stopPropagation();openItemsModal('${bn}','${bid}','${o.id}','${cc}')" style="background:#0A3D62;color:#fff;border:none;border-radius:8px;padding:.3rem .7rem;font-weight:700;font-size:.74rem;cursor:pointer;display:inline-flex;align-items:center;gap:.25rem">🧾 عرض الأصناف</button>`;
+}
+
+// سطر الأصناف داخل نافذة التفاصيل
+function billItemsRow(o){
+  return `<div class="d-row"><span class="d-lbl">🧾 الأصناف</span><span class="d-val" style="text-align:left">${billItemsBtnHtml(o)}</span></div>`;
+}
+
+// زر الأصناف داخل كارت الطلب (يظهر لأي طلب حتى غير موزّع)
+function billItemsCard(o){
+  return `<div class="oc-items" onclick="event.stopPropagation()" style="margin-bottom:.28rem">${billItemsBtnHtml(o)}</div>`;
+}
 // Detail
 function openDetail(id){
   const o=allOrders.find(x=>x.id===id);if(!o)return;
@@ -2600,7 +2656,7 @@ function openDetail(id){
     <div class="d-row"><span class="d-lbl">الحالة</span><span class="d-val">${SL[o.status]||o.status}</span></div>${o.perf_rating?`<div class="d-row"><span class="d-lbl">أداء التوصيل</span><span class="d-val">فعلي ${o.actual_minutes} / متوقع ${o.expected_minutes} د · <strong style="color:${o.perf_rating==='ممتاز'?'#16a34a':o.perf_rating==='متأخر'?'#dc2626':'#ca8a04'}">${o.perf_rating}</strong></span></div>`:''}
     <div class="d-row"><span class="d-lbl">الطيار</span><span class="d-val">${o.deliveryman||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${o.count_of_items||0}</span></div>
-    ${fmtItemsHtml(o)}
+    ${billItemsRow(o)}
     ${o.driver_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الطيار</span><span class="d-val">${o.driver_notes}</span></div>`:''}
     ${o.staff_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الموظف</span><span class="d-val">${o.staff_notes}</span></div>`:''}
     ${o.postpone_reason?`<div class="d-row"><span class="d-lbl">سبب التأجيل</span><span class="d-val">${o.postpone_reason}</span></div>`:''}
@@ -2729,7 +2785,7 @@ if(o.delivered_at){
     <div class="d-row"><span class="d-lbl">الحالة</span><span class="d-val">${SL[o.status]||o.status}</span></div>${o.perf_rating?`<div class="d-row"><span class="d-lbl">أداء التوصيل</span><span class="d-val">فعلي ${o.actual_minutes} / متوقع ${o.expected_minutes} د · <strong style="color:${o.perf_rating==='ممتاز'?'#16a34a':o.perf_rating==='متأخر'?'#dc2626':'#ca8a04'}">${o.perf_rating}</strong></span></div>`:''}
     <div class="d-row"><span class="d-lbl">الطيار</span><span class="d-val">${o.deliveryman||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${o.count_of_items||0}</span></div>
-    ${fmtItemsHtml(o)}
+    ${billItemsRow(o)}
     ${o.staff_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الموظف</span><span class="d-val">${o.staff_notes}</span></div>`:''}
     ${o.driver_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الطيار</span><span class="d-val">${o.driver_notes}</span></div>`:''}`;
 
