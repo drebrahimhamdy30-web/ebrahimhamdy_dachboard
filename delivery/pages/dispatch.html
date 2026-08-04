@@ -11,15 +11,17 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --primary:#1a56db;--primary-dark:#1344b0;--primary-light:#e8f0fe;
+  --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#e8f1ff;
   --green:#16a34a;--green-light:#dcfce7;
   --yellow:#ca8a04;--yellow-light:#fef9c3;
   --purple:#7c3aed;--purple-light:#ede9fe;
   --red:#dc2626;--red-light:#fee2e2;
   --blue:#0891b2;--blue-light:#ecfeff;
   --orange:#ea580c;--orange-light:#fff7ed;
-  --text:#111827;--text-muted:#6b7280;--text-light:#9ca3af;
-  --border:#e5e7eb;--bg:#f0f4f8;--white:#fff;
+  --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
+  --border:#e9eef5;--bg:#f1f5f9;--white:#fff;
+  --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 8px 24px rgba(15,23,42,.10);
   --header-h:52px;--drivers-h:96px;--trips-h:34vh;
 }
 body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
@@ -110,7 +112,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .trips-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px;border:3px solid #eef2f7}
 .trips-scroll::-webkit-scrollbar-thumb:hover{background:#64748b}
 .trips-scroll{scrollbar-width:auto;scrollbar-color:#94a3b8 #eef2f7}
-.trip-card{width:225px;flex-shrink:0;background:white;border-radius:12px;border:1.5px solid var(--border);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:all .15s;display:flex;flex-direction:column}
+.trip-card{width:290px;flex-shrink:0;background:white;border-radius:14px;border:1px solid #eef2f7;overflow:hidden;box-shadow:var(--shadow-sm);transition:all .18s;display:flex;flex-direction:column}
 .trip-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);transform:translateY(-1px)}
 .trip-card.hl{border-color:var(--primary);box-shadow:0 0 0 2px rgba(26,86,219,.2)}
 .tc-hd{padding:.55rem .75rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border)}
@@ -122,17 +124,15 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .tc-orders{padding:.4rem .5rem;display:flex;flex-direction:column;gap:.3rem;max-height:205px;overflow-y:auto;flex:1}
 .tc-orders::-webkit-scrollbar{width:3px}
 .tc-orders::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.tc-row{display:flex;align-items:center;gap:.35rem;padding:.35rem .45rem;border-radius:7px;background:var(--bg);font-size:.75rem;cursor:pointer;transition:background .1s}
-.tc-row:hover{background:var(--primary-light)}
-.tc-row.late{background:var(--red-light)}
-.tc-row.st-assigned{background:#fef3c7;color:#000}
-.tc-row.st-picked{background:#dbeafe;color:#000}
-.tc-row.st-delivered{background:#86efac;color:#000;box-shadow:inset 3px 0 0 #16a34a}
-.tc-row.st-assigned .tc-rno,.tc-row.st-picked .tc-rno,.tc-row.st-delivered .tc-rno{color:#000}
-.tc-row.st-assigned .tc-rnm,.tc-row.st-picked .tc-rnm,.tc-row.st-delivered .tc-rnm{color:#000}
-/* تجاوز الحد الزمني — خلفية حمراء صريحة تغلب أي لون تاني */
-.tc-row.st-over{background:#dc2626!important;color:#fff!important}
-.tc-row.st-over .tc-rno,.tc-row.st-over .tc-rnm,.tc-row.st-over .tc-timer{color:#fff!important;font-weight:800}
+/* صفوف طلبات الرحلة: خلفية بيضا وحافة بلون الحالة (زي كارت الطلب) */
+.tc-row{display:flex;align-items:center;gap:.35rem;padding:.35rem .45rem;border-radius:8px;background:#fff;border:2.5px solid #e5e9f0;color:var(--text);font-size:.75rem;cursor:pointer;transition:all .1s}
+.tc-row:hover{box-shadow:0 2px 8px rgba(15,23,42,.12)}
+.tc-row.late{border-color:#dc2626;background:#fef2f2}
+.tc-row.st-assigned{border-color:#f59e0b;background:#fffbeb}
+.tc-row.st-picked{border-color:#94a3b8;background:#f1f5f9}
+.tc-row.st-delivered{border-color:#16a34a;background:#f0fdf4}
+/* تجاوز الحد الزمني — حافة حمراء صريحة مع خلفية حمرا خفيفة */
+.tc-row.st-over{border-color:#dc2626!important;background:#fef2f2!important}
 /* عداد صف الرحلة — أكبر وأوضح */
 .tc-timer{font-size:.72rem;font-weight:700;margin-top:.15rem}
 .tc-rno{font-weight:800;color:var(--primary);flex-shrink:0;min-width:52px;font-size:.78rem}
@@ -157,6 +157,29 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .batch-btn{padding:.3rem .875rem;background:var(--primary);color:white;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer;display:none;align-items:center;gap:.35rem}
 .batch-btn.show{display:flex}
 .batch-btn:hover{background:var(--primary-dark)}
+/* أدوات التولبار: خط + وضع ليلي */
+.tb-ic{background:var(--bg);border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:.25rem .55rem;font-family:'Cairo',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer;line-height:1;min-width:30px}
+.tb-ic:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+/* ===== الوضع الليلي ===== */
+body.dark{--bg:#0f172a;--white:#1e293b;--text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;--border:#334155;--gray-light:#1e293b;--primary-light:#1e3a5f;background:#0b1220}
+body.dark .orders-toolbar{background:#1e293b;border-color:#334155}
+body.dark .order-card{background:#1e293b}
+body.dark .oc-amount,body.dark .oc-customer{color:#e2e8f0}
+body.dark .modal{background:#1e293b;color:#e2e8f0}
+body.dark .modal-header,body.dark .modal-footer{border-color:#334155}
+body.dark .d-row{border-color:#334155}
+body.dark .ftab{background:#0f172a;color:#94a3b8;border-color:#334155}
+body.dark .toolbar-search{background:#0f172a;color:#e2e8f0;border-color:#334155}
+body.dark .cnl-preset{background:#0f172a;color:#e2e8f0;border-color:#334155}
+body.dark .tb-ic{background:#0f172a;color:#e2e8f0;border-color:#334155}
+body.dark .empty-msg{color:#94a3b8}
+body.dark .trip-card{background:#1e293b;border-color:#334155}
+body.dark .tc-row{background:#0f172a;color:#e2e8f0}
+body.dark .tc-row.st-assigned{background:#2a2410}
+body.dark .tc-row.st-picked{background:#1b2433;border-color:#94a3b8}
+body.dark .tc-row.st-delivered{background:#0e2a19}
+body.dark .tc-row.late,body.dark .tc-row.st-over{background:#2e1414!important}
+body.dark .tc-hd{border-color:#334155}
 
 /* ORDERS GRID */
 .orders-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:.5rem;padding:.625rem 1rem;overflow-y:auto;align-content:start}
@@ -164,12 +187,9 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .orders-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
 
 /* ORDER CARD */
-.order-card{background:white;border-radius:9px;border:1.5px solid var(--border);padding:.32rem .4rem;cursor:pointer;transition:all .15s;position:relative}
-  .order-card:hover{border-color:var(--primary);box-shadow:0 2px 10px rgba(26,86,219,.08)}
-.order-card.sel{border-color:var(--primary);background:var(--primary-light);box-shadow:0 0 0 2px rgba(26,86,219,.2)}
-.order-card.late{border-right:3px solid var(--red)}
-.order-card.sp{border-right:3px solid var(--purple)}
-.order-card.sk{border-right:3px solid var(--blue)}
+.order-card{background:#fff;border-radius:12px;border:3px solid #e5e9f0;padding:.4rem .5rem;cursor:pointer;transition:all .18s;position:relative;box-shadow:var(--shadow-sm)}
+  .order-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.order-card.sel{border-color:var(--primary)!important;background:var(--primary-light);box-shadow:0 0 0 2px rgba(37,99,235,.25),var(--shadow-sm)}
 @keyframes urg{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.3)}50%{box-shadow:0 0 0 5px rgba(220,38,38,0)}}
 .order-card.urgent{animation:urg 1.5s ease-in-out infinite}
 .oc-check{position:absolute;top:.4rem;left:.4rem;width:16px;height:16px;border-radius:4px;border:2px solid var(--border);background:white;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:white;transition:all .12s}
@@ -212,11 +232,12 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .ab-cancel  {background:var(--bg);color:#374151;border-color:#d1d5db}
 .ab-edit    {background:var(--blue-light);color:#0e7490;border-color:#a5f3fc}
 .ab-log     {background:var(--bg);color:var(--text-muted);border-color:#e5e7eb}
+.ab-detail  {background:var(--primary-light);color:var(--primary);border-color:#bfd4fb}
 
 /* MODALS */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem}
 .modal-overlay.open{display:flex}
-.modal{background:white;border-radius:14px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal{background:white;border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;box-shadow:0 24px 70px rgba(15,23,42,.22)}
 .modal-sm{max-width:390px}
 .cnl-preset{font-family:'Cairo',sans-serif;font-size:.72rem;font-weight:600;padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:20px;background:#f8fafc;color:var(--text);cursor:pointer;transition:all .12s}
 .cnl-preset:hover{border-color:var(--red);color:var(--red)}
@@ -341,6 +362,11 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <button class="ftab" id="errBadge" onclick="showErrors()" title="سجل الأخطاء" style="display:none;background:#fee2e2;color:#b91c1c;border-color:#fecaca;font-weight:800"></button>
     <span class="sel-info" id="selInfo"></span>
     <button class="batch-btn" id="batchBtn" onclick="openAssignModal()">🚗 تعيين طيار</button>
+    <div style="display:flex;align-items:center;gap:.3rem;margin-inline-start:auto">
+      <button class="tb-ic" onclick="fontStep(-1)" title="تصغير الخط">A−</button>
+      <button class="tb-ic" onclick="fontStep(1)" title="تكبير الخط">A+</button>
+      <button class="tb-ic" id="darkToggle" onclick="toggleDark()" title="الوضع الليلي">🌙</button>
+    </div>
   </div>
   <div class="orders-grid" id="ordersGrid"></div>
 </div>
@@ -694,6 +720,32 @@ const DC=['#1a56db','#7c3aed','#16a34a','#ea580c','#0891b2','#ca8a04','#dc2626',
 const SC={pending:'#16a34a',assigned:'#ea580c',picked:'#0891b2',delivered:'#ca8a04',completed:'#6b7280',postponed:'#7c3aed',cancelled:'#dc2626',failed:'#dc2626'};
 const SL={pending:'جاهز',assigned:'على رحلة',picked:'استلم',delivered:'تم التوصيل',completed:'مكتمل',postponed:'مؤجل',cancelled:'ملغي',failed:'متعذر'};
 const PL={cash:'كاش',visa:'فيزا',transfer:'تحويل',deferred:'آجل',paid:'خالص'};
+// لون حافة الكارت حسب الحالة (خلفية بيضا دايمًا) — أحمر للحالات اللي محتاجة انتباه
+function ocBorder(o, late, owesBal){
+  if((o.notes||'').includes('🚨') || late || owesBal) return '#dc2626';
+  return SC[o.status] || '#e5e9f0';
+}
+
+// ===== الوضع الليلي + حجم الخط (محفوظين في المتصفح) =====
+function applyTheme(){
+  const dark = localStorage.getItem('phalix_dark')==='1';
+  document.body.classList.toggle('dark', dark);
+  const btn=document.getElementById('darkToggle'); if(btn) btn.textContent = dark ? '☀️' : '🌙';
+  const px = parseInt(localStorage.getItem('phalix_font_px')||'16',10);
+  document.documentElement.style.fontSize = (isNaN(px)?16:px) + 'px';
+}
+function toggleDark(){
+  localStorage.setItem('phalix_dark', localStorage.getItem('phalix_dark')==='1' ? '0' : '1');
+  applyTheme();
+}
+function fontStep(d){
+  let px = parseInt(localStorage.getItem('phalix_font_px')||'16',10);
+  if(isNaN(px)) px=16;
+  px = Math.min(22, Math.max(12, px + d));
+  localStorage.setItem('phalix_font_px', String(px));
+  applyTheme();
+}
+try{ applyTheme(); }catch(e){}
 const LOG_C={order_created:'#16a34a',driver_assigned:'#1a56db',order_picked:'#0891b2',order_delivered:'#ca8a04',order_completed:'#6b7280',order_postponed:'#7c3aed',order_cancelled:'#dc2626',order_edited:'#0891b2',order_urgent:'#dc2626',trip_created:'#1a56db',trip_completed:'#6b7280'};
 const LOG_I={order_created:'📦',driver_assigned:'🚗',order_picked:'▶️',order_delivered:'✅',order_completed:'✔️',order_postponed:'⏰',order_cancelled:'❌',order_edited:'✏️',order_urgent:'🚨',trip_created:'🗺️',trip_completed:'🏁'};
 const LOG_A={order_created:'تم إنشاء الطلب',driver_assigned:'تم تعيين طيار',order_picked:'الطيار استلم',order_delivered:'تم التسليم',order_completed:'مكتمل',order_postponed:'تم التأجيل',order_cancelled:'تم الإلغاء',order_edited:'تم التعديل',order_urgent:'تحديد كعاجل',trip_created:'إنشاء رحلة',trip_completed:'إنهاء الرحلة'};
@@ -1448,7 +1500,6 @@ function renderTrips(){
         </div>
         <div class="tc-dot" style="background:${done===tO.length&&tO.length>0?'#4ade80':'#a78bfa'}"></div>
       </div>
-      ${tripRegions.length?`<div style="display:flex;flex-wrap:wrap;gap:.25rem;padding:0 .5rem .35rem">${tripRegions.map(r=>`<span style="font-size:.6rem;font-weight:700;color:#0e7490;background:#e0f2fe;border:1px solid #bae6fd;border-radius:20px;padding:.08rem .5rem">📍 ${r}</span>`).join('')}</div>`:''}
       <div class="tc-orders">
         ${tO.length?tO.map(o=>{
           const base=getTimerBase(o);
@@ -1477,17 +1528,22 @@ function renderTrips(){
             timerVal=dm(base);
             over=timerVal>(dispatchSettings?.max_pending_minutes||10);
           }
+          const _code=(o.cust_code&&String(o.cust_code).trim()&&String(o.cust_code)!=='null')?o.cust_code:(o.bill_no||o.id?.slice(0,6));
           return `<div class="tc-row ${rowCls} ${over?'st-over':''}" onclick="openTripOrderDetail('${o.id}','${trip.id}')">
             <div style="flex:1;min-width:0">
+              <!-- السطر 1: الاسم + العداد -->
               <div style="display:flex;align-items:center;gap:.35rem">
-                <span class="tc-rno" title="كود العميل">${(o.cust_code&&String(o.cust_code).trim()&&String(o.cust_code)!=='null')?o.cust_code:(o.bill_no||o.id?.slice(0,6))}</span>
-                <span class="tc-rnm">${o.customer_name||o.cust_name||'—'}</span>
-                <div class="tc-rdt" style="background:${over?'#fff':(SC[o.status]||'#9ca3af')};flex-shrink:0"></div>
+                <span class="tc-rnm" style="font-weight:800;font-size:.78rem">${o.customer_name||o.cust_name||'—'}</span>
+                <span style="color:#94a3b8;font-size:.6rem;font-weight:700;white-space:nowrap">${timerLabel}: ${fm(timerVal)}</span>
+                <div class="tc-rdt" style="background:${SC[o.status]||'#9ca3af'}"></div>
               </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:.35rem">
-                <span class="tc-timer" style="color:${over?'#fff':'#000'}">${timerLabel}: ${fm(timerVal)}</span>
-                ${o.cust_region?`<span class="tc-timer" style="color:${over?'#fff':'#0e7490'};white-space:nowrap;font-weight:700">📍 ${o.cust_region}</span>`:''}
+              <!-- السطر 2: المنطقة + كود العميل -->
+              <div style="display:flex;align-items:center;gap:.6rem;font-size:.64rem;margin-top:.14rem;overflow:hidden">
+                ${o.cust_region?`<span style="color:#0891b2;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 ${o.cust_region}</span>`:''}
+                <span style="color:var(--primary);font-weight:800;white-space:nowrap">🆔 ${_code}</span>
               </div>
+              <!-- السطر 3: العنوان -->
+              <div style="font-size:.62rem;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.12rem">🏠 ${o.customer_address||o.cust_address||'—'}</div>
             </div>
           </div>`;
         }).join(''):'<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.4rem">لا توجد طلبات</div>'}
@@ -1585,12 +1641,14 @@ function renderOrders(){
       actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
       actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
     }
+    actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
     actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
     actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
 
     const _bal=Number(o.current_customer_balance||0);
     const owesBal=_bal>=3, creditBal=_bal<=-3;
-    return `<div class="order-card ${late?'late':''} ${o.status==='postponed'?'sp':''} ${['assigned','picked'].includes(o.status)?'sk':''} ${sel?'sel':''} ${(o.notes||'').includes('🚨')?'urgent':''}" id="oc-${o.id}" onclick="toggleSel('${o.id}',event)" ${owesBal?'style="background:#fee2e2;border:2px solid #dc2626"':''}>
+    const bColor = sel ? '' : `border-color:${ocBorder(o, late, owesBal)}`;
+    return `<div class="order-card ${sel?'sel':''} ${(o.notes||'').includes('🚨')?'urgent':''}" id="oc-${o.id}" onclick="toggleSel('${o.id}',event)" style="${bColor}">
       <div class="oc-check">${sel?'✓':''}</div>
       <div class="oc-timers">${buildTimers(o)}</div>
       ${postponeInfo(o)}
@@ -2659,6 +2717,7 @@ function openDetail(id){
     <div class="d-row"><span class="d-lbl">طريقة الدفع</span><span class="d-val">${pmL}</span></div>
     <div class="d-row"><span class="d-lbl">الحالة</span><span class="d-val">${SL[o.status]||o.status}</span></div>${o.perf_rating?`<div class="d-row"><span class="d-lbl">أداء التوصيل</span><span class="d-val">فعلي ${o.actual_minutes} / متوقع ${o.expected_minutes} د · <strong style="color:${o.perf_rating==='ممتاز'?'#16a34a':o.perf_rating==='متأخر'?'#dc2626':'#ca8a04'}">${o.perf_rating}</strong></span></div>`:''}
     <div class="d-row"><span class="d-lbl">الطيار</span><span class="d-val">${o.deliveryman||'—'}</span></div>
+    <div class="d-row"><span class="d-lbl">الموظف</span><span class="d-val">${o.employee_name||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${o.count_of_items||0}</span></div>
     ${billItemsRow(o)}
     ${o.driver_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الطيار</span><span class="d-val">${o.driver_notes}</span></div>`:''}
@@ -2788,6 +2847,7 @@ if(o.delivered_at){
     <div class="d-row"><span class="d-lbl">طريقة الدفع</span><span class="d-val">${pmL}</span></div>
     <div class="d-row"><span class="d-lbl">الحالة</span><span class="d-val">${SL[o.status]||o.status}</span></div>${o.perf_rating?`<div class="d-row"><span class="d-lbl">أداء التوصيل</span><span class="d-val">فعلي ${o.actual_minutes} / متوقع ${o.expected_minutes} د · <strong style="color:${o.perf_rating==='ممتاز'?'#16a34a':o.perf_rating==='متأخر'?'#dc2626':'#ca8a04'}">${o.perf_rating}</strong></span></div>`:''}
     <div class="d-row"><span class="d-lbl">الطيار</span><span class="d-val">${o.deliveryman||'—'}</span></div>
+    <div class="d-row"><span class="d-lbl">الموظف</span><span class="d-val">${o.employee_name||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${o.count_of_items||0}</span></div>
     ${billItemsRow(o)}
     ${o.staff_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الموظف</span><span class="d-val">${o.staff_notes}</span></div>`:''}

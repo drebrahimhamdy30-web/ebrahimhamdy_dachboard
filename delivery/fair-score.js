@@ -25,46 +25,34 @@ async function _fsFetchAll(buildQuery) {
  * offline بدون online قبله => يعني كان شغّال من بداية اليوم (شيفت ليلي).
  */
 function buildAttendanceSessions(records) {
-  // جمّع حسب (الطيار + اليوم) عشان الشيفتات ما تتداخلش بين الأيام
-  const groups = {};
+  // نجمّع حسب الطيار فقط (مش اليوم) عشان الشيفت الليلي اللي بيعدّي منتصف الليل
+  // ما يتقطعش. كل سجل online = فترة حضور من approved_at لحد ended_at.
+  const byDriver = {};
   records.forEach(r => {
-    if (!r.approved_at || !r.date) return;
-    const key = r.driver_id + '|' + r.date;
-    (groups[key] = groups[key] || []).push(r);
+    if (!r.approved_at) return;               // لازم حضور معتمد
+    (byDriver[r.driver_id] = byDriver[r.driver_id] || []).push(r);
   });
 
+  const now = Date.now();
   const sessions = [];
-  Object.entries(groups).forEach(([key, recs]) => {
-    const [driver_id, date] = key.split('|');
-    // مهم: نثبّت الإزاحة على توقيت مصر (+03) عشان بداية/نهاية اليوم
-    // ما تتفسّرش بتوقيت جهاز المستخدم فتزحزح الشيفت الليلي.
-    const dayStart = new Date(date + 'T00:00:00+03:00').getTime();
-    const dayEndRaw = new Date(date + 'T23:59:59+03:00').getTime();
-    // لو اليوم هو النهاردة، الفترة المفتوحة تنتهي دلوقتي مش آخر اليوم
-    const dayEnd = Math.min(dayEndRaw, Date.now());
 
+  Object.values(byDriver).forEach(recs => {
     recs.sort((a, b) => new Date(a.approved_at) - new Date(b.approved_at));
-    let openStart = null;
-
-    recs.forEach(r => {
-      const t = new Date(r.approved_at).getTime();
-      if (r.status === 'online') {
-        if (openStart === null) openStart = t;   // تجاهل online مكرر
-      } else { // offline أو break => تقفل الفترة
-        if (openStart !== null) {
-          if (t > openStart) sessions.push({ driver_id, start: openStart, end: t });
-          openStart = null;
-        } else if (t > dayStart) {
-          // انصراف من غير حضور مسجّل => شيفت بدأ قبل بداية اليوم
-          sessions.push({ driver_id, start: dayStart, end: t, inferred: true });
-        }
+    recs.forEach((r, i) => {
+      if (r.status !== 'online') return;       // نبني الفترات من سجلات online بس
+      const driver_id = r.driver_id;
+      const start = new Date(r.approved_at).getTime();
+      let end;
+      if (r.ended_at) {
+        // ended_at بيمتد عبر منتصف الليل صح (الشيفت الليلي فترة واحدة متصلة)
+        end = new Date(r.ended_at).getTime();
+      } else {
+        // مفيش ended_at: نقفل عند أول حدث بعده، وإلا الفترة لسه مفتوحة => دلوقتي
+        const next = recs[i + 1];
+        end = next ? new Date(next.approved_at).getTime() : now;
       }
+      if (end > start) sessions.push({ driver_id, start, end });
     });
-
-    // فترة فضلت مفتوحة لآخر اليوم (أو لحد دلوقتي)
-    if (openStart !== null && dayEnd > openStart) {
-      sessions.push({ driver_id, start: openStart, end: dayEnd, open: true });
-    }
   });
 
   return sessions;
@@ -79,7 +67,7 @@ function buildAttendanceSessions(records) {
 async function computeFairScores(from, to, branchId) {
   // 1) الطلبات المسلّمة فعلاً في الفترة (نفلتر على delivered_at مش created_at)
   // كل الطلبات وأحداث الحضور مع pagination (يتجاوز حد 1000 صف)
-  const [orders, attendanceRows] = await Promise.all([
+  const [orders, attendanceRows, driversRows] = await Promise.all([
     _fsFetchAll(() => {
       let oq = db.from('orders')
         .select('id,driver_id,deliveryman,delivered_at,total_bill_net,status,branch_id')
@@ -97,13 +85,16 @@ async function computeFairScores(from, to, branchId) {
       .not('approved_at', 'is', null)
       .gte('date', from).lte('date', to)
       .order('date', { ascending: true })),
+    _fsFetchAll(() => db.from('drivers').select('id,branch_id')),
   ]);
 
-  // ابنِ فترات الحضور من تسلسل الأحداث لكل يوم على حدة.
-  // السبب: ended_at غالباً فاضي، والاعتماد عليه بيضيّع الشيفتات.
-  // القاعدة: online تفتح فترة، وأول offline/break بعدها تقفلها.
-  //          offline من غير online قبله => الطيار كان شغّال من بداية اليوم (شيفت ليلي).
+  // خريطة الطيار -> الفرع (عشان نعدّ الحاضرين من نفس فرع الطلب فقط)
+  const driverBranch = {};
+  (driversRows || []).forEach(d => { driverBranch[d.id] = d.branch_id || null; });
+
+  // فترات الحضور متصلة عبر منتصف الليل (شيفت ليلي) عبر ended_at، وكل فترة معاها فرع الطيار.
   const sessions = buildAttendanceSessions(attendanceRows || []);
+  sessions.forEach(s => { s.branch_id = driverBranch[s.driver_id] || null; });
 
   // 3) لكل طلب: مين كان أونلاين لحظة التسليم؟
   const stats = {};   // driver_id -> { expected, actual, revenue }
@@ -114,7 +105,8 @@ async function computeFairScores(from, to, branchId) {
 
   orders.forEach(o => {
     const t = new Date(o.delivered_at).getTime();
-    const online = sessions.filter(s => t >= s.start && t < s.end);
+    // الحاضرين = طيارين نفس فرع الطلب اللي كانوا أونلاين وقت التسليم
+    const online = sessions.filter(s => s.branch_id === o.branch_id && t >= s.start && t < s.end);
 
     if (online.length === 0) {
       orphanOrders++;
