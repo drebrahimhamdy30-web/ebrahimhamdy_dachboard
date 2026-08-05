@@ -1028,90 +1028,13 @@ async function loadHistory(){
 async function renderDriverRank(){
   const badge=document.getElementById('driverRankBadge');
   if(!badge||!driverRecord)return;
-try{
-    const priority=settings?.driver_priority||'least_orders';
-
-    // طيارين نفس الفرع بس
-    const {data:branchDrivers}=await db.from('drivers')
-      .select('id').eq('branch_id',driverRecord.branch_id).eq('is_active',true);
-    const branchDriverIds=(branchDrivers||[]).map(d=>d.id);
-
-    // آخر 500 سجل حضور لطيارين الفرع (كل الأيام) — آخر حالة لكل طيار
-    const {data:attData}=await db.from('driver_attendance')
-      .select('driver_id,status,approved_at,created_at')
-      .in('driver_id',branchDriverIds)
-      .order('created_at',{ascending:false})
-      .limit(500);
-
-    // آخر حالة لكل طيار (الأحدث أولاً)
-    const attStatus={};
-    (attData||[]).forEach(r=>{if(!attStatus[r.driver_id])attStatus[r.driver_id]=r;});
-
-    // فقط الحاضرين (آخر حالتهم online)
-    const onlineDriverIds=Object.entries(attStatus)
-      .filter(([,r])=>r.status==='online')
-      .map(([id])=>id);
-
-    if(!onlineDriverIds.includes(driverRecord.id)){
-      badge.style.display='none';
-      return;
-    }
-
-    const total=onlineDriverIds.length;
-    let rank=1;
-
-    if(priority==='least_orders'){
-      // الأقل طلبات أولاً — لو تساوى → الأقدم حضوراً
-      const {data:orders}=await db.from('orders')
-        .select('driver_id')
-        .in('status',['assigned','picked'])
-        .in('driver_id',onlineDriverIds);
-
-      const orderCount={};
-      onlineDriverIds.forEach(id=>orderCount[id]=0);
-      (orders||[]).forEach(o=>{if(o.driver_id)orderCount[o.driver_id]=(orderCount[o.driver_id]||0)+1;});
-
-      const myCount=orderCount[driverRecord.id]||0;
-      const myArrival=new Date(attStatus[driverRecord.id]?.approved_at||0);
-
-      rank=onlineDriverIds.filter(id=>{
-        const theirCount=orderCount[id]||0;
-        if(theirCount<myCount) return true; // عنده أقل → هو قبلي
-        if(theirCount===myCount){
-          // تساوى → الأقدم حضوراً أولاً
-          const theirArrival=new Date(attStatus[id]?.approved_at||0);
-          return theirArrival < myArrival;
-        }
-        return false;
-      }).length + 1;
-
-    } else {
-      // longest_idle — الأطول فراغاً أولاً
-      const {data:lastOrders}=await db.from('orders')
-        .select('driver_id,assigned_at')
-        .in('driver_id',onlineDriverIds)
-        .not('assigned_at','is',null)
-        .order('assigned_at',{ascending:false});
-
-      // آخر تعيين لكل طيار
-      const lastAssigned={};
-      (lastOrders||[]).forEach(o=>{
-        if(!lastAssigned[o.driver_id]) lastAssigned[o.driver_id]=new Date(o.assigned_at);
-      });
-
-      // لو ما اتوزعلوش أي طلب → وقت الحضور
-      onlineDriverIds.forEach(id=>{
-        if(!lastAssigned[id]) lastAssigned[id]=new Date(attStatus[id]?.approved_at||0);
-      });
-
-      const myLastAssigned=lastAssigned[driverRecord.id]||new Date(0);
-
-      rank=onlineDriverIds.filter(id=>{
-        const theirLast=lastAssigned[id]||new Date(0);
-        return theirLast < myLastAssigned;
-      }).length + 1;
-    }
-
+  try{
+    // نفس منطق التطبيق: RPC واحد يرجّع دور الطيار المتاح فقط (المشغول على رحلة أو المنصرف → لا يوجد دور)
+    const {data,error}=await db.rpc('get_driver_rank',{p_driver:driverRecord.id,p_branch:driverRecord.branch_id});
+    const row=Array.isArray(data)?data[0]:data;
+    const rank=(row&&row.rank!=null)?Number(row.rank):null;
+    const total=(row&&row.total!=null)?Number(row.total):0;
+    if(error||rank==null){ badge.style.display='none'; return; }
     badge.style.display='inline';
     if(rank===1){
       badge.textContent='دورك #1 — التالي في التوزيع';
