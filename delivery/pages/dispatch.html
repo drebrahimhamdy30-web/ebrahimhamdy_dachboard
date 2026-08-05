@@ -1873,8 +1873,11 @@ async function openLog(orderId,e){
   document.getElementById('logBody').innerHTML=`<div class="log-list">${logs.map((l,i)=>{
     const color=LOG_C[l.event]||'#6b7280';
     const icon=LOG_I[l.event]||'•';
-    const label=LOG_A[l.event]||l.event;
-    const dets=renderLogDetails(l.details);
+    let label=LOG_A[l.event]||l.event;
+    const d=l.details||{};
+    // النقل بين الطيارين: نحط الأسماء في العنوان نفسه عشان يفضل مفهوم
+    if(l.event==='order_transferred'&&(d.from||d.to)) label=`نقل من ${d.from||'—'} إلى ${d.to||'—'}`;
+    const who=l.user_name||'—';
     const time=new Date(l.created_at).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div class="log-item">
       <div class="log-dot-col">
@@ -1883,11 +1886,7 @@ async function openLog(orderId,e){
       </div>
       <div class="log-content">
         <div class="log-ev">${label}</div>
-        ${dets?`<div class="log-dt">${dets}</div>`:''}
-        <div style="display:flex;gap:.4rem;margin-top:.1rem">
-          <span class="log-tm">${time}</span>
-          ${l.user_name?`<span style="font-size:.62rem;color:var(--primary)">· ${l.user_name}</span>`:''}
-        </div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">بواسطة <strong style="color:var(--primary)">${who}</strong> · ${time}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
