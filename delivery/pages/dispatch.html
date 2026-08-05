@@ -750,9 +750,9 @@ function fontStep(d){
   applyTheme();
 }
 try{ applyTheme(); }catch(e){}
-const LOG_C={order_created:'#16a34a',driver_assigned:'#1a56db',order_picked:'#0891b2',order_delivered:'#ca8a04',order_completed:'#6b7280',order_postponed:'#7c3aed',order_cancelled:'#dc2626',order_edited:'#0891b2',order_urgent:'#dc2626',trip_created:'#1a56db',trip_completed:'#6b7280'};
-const LOG_I={order_created:'📦',driver_assigned:'🚗',order_picked:'▶️',order_delivered:'✅',order_completed:'✔️',order_postponed:'⏰',order_cancelled:'❌',order_edited:'✏️',order_urgent:'🚨',trip_created:'🗺️',trip_completed:'🏁'};
-const LOG_A={order_created:'تم إنشاء الطلب',driver_assigned:'تم تعيين طيار',order_picked:'الطيار استلم',order_delivered:'تم التسليم',order_completed:'مكتمل',order_postponed:'تم التأجيل',order_cancelled:'تم الإلغاء',order_edited:'تم التعديل',order_urgent:'تحديد كعاجل',trip_created:'إنشاء رحلة',trip_completed:'إنهاء الرحلة'};
+const LOG_C={order_created:'#16a34a',driver_assigned:'#1a56db',order_picked:'#0891b2',order_delivered:'#ca8a04',order_completed:'#6b7280',order_postponed:'#7c3aed',order_cancelled:'#dc2626',order_edited:'#0891b2',order_urgent:'#dc2626',trip_created:'#1a56db',trip_completed:'#6b7280',order_transferred:'#d97706',order_recovered:'#7c3aed',order_failed:'#dc2626',unclosed_on_erp:'#b91c1c'};
+const LOG_I={order_created:'📦',driver_assigned:'🚗',order_picked:'▶️',order_delivered:'✅',order_completed:'✔️',order_postponed:'⏰',order_cancelled:'❌',order_edited:'✏️',order_urgent:'🚨',trip_created:'🗺️',trip_completed:'🏁',order_transferred:'🔄',order_recovered:'♻️',order_failed:'⚠️',unclosed_on_erp:'🔴'};
+const LOG_A={order_created:'تم إنشاء الطلب',driver_assigned:'تم تعيين طيار',order_picked:'الطيار استلم الطلب',order_delivered:'تم التسليم للعميل',order_completed:'تم إنهاء الطلب',order_postponed:'تم التأجيل',order_cancelled:'تم الإلغاء',order_edited:'تم تعديل الطلب',order_urgent:'تحديد كعاجل',trip_created:'إنشاء رحلة',trip_completed:'إنهاء الرحلة',order_transferred:'نقل بين الطيارين',order_recovered:'استرداد تلقائي',order_failed:'تعذّر التسليم',unclosed_on_erp:'لم تُغلق على B Connect'};
 
 let allOrders=[],allDrivers=[],activeTrips=[],tripOrdersMap={};
 let unclosedFlags=[]; // طلبات مكتملة على Phalix لكن لم تُغلق على B Connect (trip_review_flags غير المحلولة)
@@ -1833,13 +1833,16 @@ function showErrors(){
 }
 
 // عرض تفاصيل السجل بشكل مقروء للموظف (يترجم المفاتيح ويخفي الحقول التقنية)
-const DET_LABELS={amount:'المبلغ',region:'المنطقة',source:'المصدر',bill_no:'رقم الفاتورة',driver:'الطيار',distance_m:'المسافة من الصيدلية',payment:'طريقة الدفع',collected:'المبلغ المحصّل',collected_amount:'المبلغ المحصّل',reason:'السبب',note:'ملاحظة',orders:'عدد الطلبات',attempt:'المحاولة'};
-const DET_HIDE=new Set(['trip_id','order_id','driver_id','pickup_lat','pickup_lng','delivery_lat','delivery_lng','gps_accuracy_m','bulk','by']);
+const DET_LABELS={amount:'المبلغ',region:'المنطقة',source:'المصدر',bill_no:'رقم الفاتورة',driver:'الطيار',distance_m:'المسافة من الصيدلية',payment:'طريقة الدفع',collected:'المبلغ المحصّل',collected_amount:'المبلغ المحصّل',reason:'السبب',note:'ملاحظة',orders:'عدد الطلبات',attempt:'المحاولة',until:'حتى',erp_status:'حالة B Connect'};
+const DET_HIDE=new Set(['trip_id','order_id','driver_id','pickup_lat','pickup_lng','delivery_lat','delivery_lng','gps_accuracy_m','bulk','by','manual','action','from_status','from','to','retry']);
 const DET_PAY={cash:'كاش',visa:'فيزا',transfer:'تحويل',deferred:'آجل',wallet:'محفظة',paid:'خالص'};
+// ترجمة أكواد الأسباب الإنجليزية لنص مفهوم
+const REASON_MAP={stuck_no_active_trip:'الطلب كان عالق بدون رحلة نشطة',removed_from_trip:'أُزيل من الرحلة',vehicle_issue:'عطل في المركبة',Pending:'مفتوحة (لم تُغلق)'};
 function _detVal(k,v){
   if(k==='payment')return DET_PAY[v]||v;
   if(k==='amount'||k==='collected'||k==='collected_amount')return Number(v).toLocaleString()+' ج';
   if(k==='distance_m')return v+' م';
+  if(k==='reason'||k==='erp_status')return REASON_MAP[v]||v;
   return v;
 }
 function renderLogDetails(d){
@@ -1847,6 +1850,8 @@ function renderLogDetails(d){
   const parts=[];
   if(d.pickup_violation)parts.push('<span style="color:#dc2626;font-weight:700">⚠️ استلام خارج نطاق الفرع</span>');
   if(d.no_location)parts.push('<span style="color:#dc2626;font-weight:700">⚠️ استلام بدون تحديد الموقع</span>');
+  // نقل بين الطيارين: من مين → لمين بشكل واضح
+  if(d.from||d.to)parts.push(`<span style="font-weight:700">من <span style="color:#b45309">${d.from||'—'}</span> ← إلى <span style="color:#15803d">${d.to||'—'}</span></span>`);
   for(const [k,v] of Object.entries(d)){
     if(v===null||v===undefined||v===''||v===true||v===false)continue;
     if(DET_HIDE.has(k)||k==='pickup_violation'||k==='no_location')continue;
