@@ -1877,7 +1877,9 @@ async function openLog(orderId,e){
     const d=l.details||{};
     // النقل بين الطيارين: نحط الأسماء في العنوان نفسه عشان يفضل مفهوم
     if(l.event==='order_transferred'&&(d.from||d.to)) label=`نقل من ${d.from||'—'} إلى ${d.to||'—'}`;
-    const who=l.user_name||'—';
+    let who=l.user_name||'—';
+    // الإنشاء من المزامنة → نعرض اسم الموظف اللي عمل الفاتورة بدل "المزامنة"
+    if(l.event==='order_created'&&o.employee_name) who=o.employee_name;
     const time=new Date(l.created_at).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<div class="log-item">
       <div class="log-dot-col">
@@ -1886,7 +1888,7 @@ async function openLog(orderId,e){
       </div>
       <div class="log-content">
         <div class="log-ev">${label}</div>
-        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">بواسطة <strong style="color:var(--primary)">${who}</strong> · ${time}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">بواسطة <strong style="color:var(--primary)">${who}</strong> · <span style="color:#111827;font-weight:800">${time}</span></div>
       </div>
     </div>`;
   }).join('')}</div>`;
