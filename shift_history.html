@@ -19,6 +19,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .header h1{font-size:1rem;font-weight:900;color:var(--accent);display:flex;align-items:center;gap:8px;}
 .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .container{max-width:1150px;margin:0 auto;padding:20px;}
+
 /* Tabs */
 .tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:5px;margin-bottom:16px;}
 .tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-weight:800;font-size:0.84rem;cursor:pointer;color:var(--muted);border:none;background:transparent;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px;}
@@ -26,6 +27,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .tab .cnt{background:rgba(255,255,255,.25);padding:1px 7px;border-radius:20px;font-size:0.7rem;}
 .tab:not(.active) .cnt{background:#fee2e2;color:#b91c1c;}
 .pane{display:none;} .pane.active{display:block;}
+
 .btn{border:none;border-radius:8px;padding:8px 16px;font-family:var(--font);font-weight:800;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
 .btn:hover{filter:brightness(.93);} .btn:disabled{opacity:.5;cursor:not-allowed;}
 .btn-primary{background:var(--accent);color:#fff;}
@@ -93,6 +95,7 @@ tr:last-child td{border-bottom:none;}
     <button class="btn btn-primary" onclick="reloadAll()"><i class="fas fa-search"></i> بحث</button>
   </div>
 </div>
+
 <div class="container">
   <div class="tabs">
     <button class="tab active" id="tab-shifts" onclick="switchTab('shifts')">
@@ -102,63 +105,86 @@ tr:last-child td{border-bottom:none;}
       <i class="fas fa-right-left"></i> تحويلات المحافظ <span class="cnt" id="pending-cnt">0</span>
     </button>
     <button class="tab" id="tab-recon" onclick="switchTab('recon')">
-      <i class="fas fa-scale-balanced"></i> مطابقة ماكينات باي موب
+      <i class="fas fa-scale-balanced"></i> مطابقة ماكينات ومحافظ
+    </button>
+    <button class="tab" id="tab-balance" onclick="switchTab('balance')">
+      <i class="fas fa-wallet"></i> الرصيد الحالي
     </button>
   </div>
+
   <div class="pane active" id="pane-shifts">
     <div id="unreviewed-area"></div>
     <div id="shifts-area"><div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div></div>
   </div>
+
   <div class="pane" id="pane-transfers">
     <div id="transfers-area"><div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div></div>
   </div>
+
   <div class="pane" id="pane-recon">
     <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;">
-      <i class="fas fa-circle-info"></i> كل إغلاق فيه ماكينات باي موب — اضغط عليه تشوف كل ماكينة بقيمة إغلاقها ومجموع معاملاتها (بين الإغلاق السابق وده)، والفرق لو موجود. اضغط على الماكينة تشوف معاملاتها.
+      <i class="fas fa-circle-info"></i> كل إغلاق فيه ماكينات باي موب ومحافظ إلكترونية — اضغط عليه تشوف كل وسيلة بقيمة إغلاقها ومجموع معاملاتها (بين الإغلاق السابق وده)، والفرق لو موجود. اضغط على الوسيلة تشوف معاملاتها، وتقدر تنقل أي معاملة لشيفت أعلى (أحدث) أو أسفل (أقدم)، أو تضيف معاملة على نفس الشيفت.
     </div>
     <div id="recon-area"><div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div></div>
   </div>
+
+  <div class="pane" id="pane-balance">
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;">
+      <i class="fas fa-circle-info"></i> كشف حساب لكل فرع: <b>توريد</b> = إجمالي الإغلاقات · <b>صرف</b> = التحويلات (محافظ + باي موب/انستاباي) · <b>الرصيد الحالي</b> = توريد − صرف. اختار فرع من فوق للتفصيل وإضافة تحويلات.
+    </div>
+    <div id="balance-area"><div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div></div>
+  </div>
 </div>
+
 <div class="toast" id="toast"></div>
+
 <script>
 const SB_URL='https://rxtjoqulmgkkcohmgzgi.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4dGpvcXVsbWdra2NvaG1nemdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDQ2OTUsImV4cCI6MjA5NDI4MDY5NX0.QVoJPtlRlRIz9tdhmdTZxHtKxrwAxJq0Je4QHkFKxj0';
 const H_BASE={'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
 const H={...H_BASE,'Prefer':'return=representation'};
 const H_WRITE={...H_BASE,'Prefer':'return=minimal'};
+
 async function api(path,opts={}){
   const isWrite=['PATCH','DELETE','PUT'].includes(opts.method);
   const r=await fetch(SB_URL+'/rest/v1/'+path,{headers:isWrite?H_WRITE:H,...opts});
   if(!r.ok){throw new Error(await r.text());}
   return isWrite?null:r.json();
 }
+
 function fmt(n){return(+n||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function dt(s){return s?new Date(s).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'—';}
+
 let toastT;
 function toast(msg,type='ok'){
   const t=document.getElementById('toast');t.textContent=msg;
   t.style.background=type==='ok'?'#15803d':'#dc2626';
   t.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',2800);
 }
+
 const role=(localStorage.getItem('userRole')||'').trim();
 // admin + accountant => كل الفروع | manager => فرعه فقط
 const isAdminView = role==='admin' || role==='accountant' || role==='reviewer';
 const isManager   = role==='manager';
 const canConfirm  = isAdminView || isManager;   // صلاحية الاعتماد والتوريد
+const isAdmin     = role==='admin';               // بعض إجراءات كشف الحساب للأدمن فقط
 const MY_BRANCH   = (localStorage.getItem('userBranch')||'').trim();
 const settler=localStorage.getItem('activeUser')||localStorage.getItem('fullName')||'محاسب';
 const REASON_LABEL={supplier:'تحويل لمورد', customer_refund:'مرتجع لعميل'};
+
 const today=new Date().toISOString().slice(0,10);
 const weekAgo=new Date(Date.now()-6*86400000).toISOString().slice(0,10);
 document.getElementById('f-from').value=weekAgo;
 document.getElementById('f-to').value=today;
+
 function switchTab(t){
-  ['shifts','transfers','recon'].forEach(x=>{
+  ['shifts','transfers','recon','balance'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
     document.getElementById('pane-'+x).classList.toggle('active',x===t);
   });
 }
+
 async function init(){
   try{
     const branches=await api('branches?select=name&order=name');
@@ -173,18 +199,22 @@ async function init(){
   }catch(e){}
   await reloadAll();
 }
+
 async function reloadAll(){
-  await Promise.all([loadShifts(), loadTransfers(), loadUnreviewed(), loadRecon()]);
+  await Promise.all([loadShifts(), loadTransfers(), loadUnreviewed(), loadRecon(), loadBalance()]);
 }
+
 /* ===== إجمالي غير المراجَع (يتبع فلتر الفرع فوق، لكن مستقل عن التاريخ) ===== */
 async function loadUnreviewed(){
   const area=document.getElementById('unreviewed-area');
   const topBranch=document.getElementById('f-branch').value;
   // الأدمن/المحاسب: يتبع فلتر الفرع فوق. غيرهم: فرعه فقط.
   const effBranch = isAdminView ? topBranch : MY_BRANCH;
+
   // 1) الشيفتات غير المراجَعة (بدون تاريخ)
   let q='pos_shifts?select=id,branch,grand_total,total_machines,total_wallets&is_settled=eq.false&limit=3000';
   if(effBranch) q+=`&branch=eq.${encodeURIComponent(effBranch)}`;
+
   try{
     const shifts=await api(q);
     if(!shifts.length){
@@ -193,10 +223,12 @@ async function loadUnreviewed(){
       </div>`;
       return;
     }
+
     const byBranch={};
     shifts.forEach(s=>{ byBranch[s.branch]=(byBranch[s.branch]||0)+(+s.grand_total||0); });
     const branches=Object.keys(byBranch).sort();
     const grandAll=shifts.reduce((s,r)=>s+(+r.grand_total||0),0);
+
     // 2) تفصيل كل ماكينة/محفظة من سطور هذه الشيفتات
     const ids = shifts.map(s=>s.id);
     let byMethod={};
@@ -212,9 +244,11 @@ async function loadUnreviewed(){
         });
       }
     }catch(e){ byMethod={}; }
+
     const methods=Object.values(byMethod);
     const machines=methods.filter(m=>m.type==='machine').sort((a,b)=>b.total-a.total);
     const wallets =methods.filter(m=>m.type==='wallet').sort((a,b)=>b.total-a.total);
+
     const methodBlock = (title,icon,arr)=> arr.length ? `
       <div style="margin-top:4px;">
         <div style="font-size:0.74rem;font-weight:800;opacity:.9;margin-bottom:6px;"><i class="fas ${icon}"></i> ${title}</div>
@@ -222,6 +256,7 @@ async function loadUnreviewed(){
           ${arr.map(m=>`<div class="unrev-item"><span>${esc(m.name)}</span><b>${fmt(m.total)} ج</b></div>`).join('')}
         </div>
       </div>` : '';
+
     area.innerHTML=`
       <div class="unrev-card">
         <div class="unrev-top">
@@ -231,6 +266,7 @@ async function loadUnreviewed(){
           </div>
           <div class="unrev-big">${fmt(grandAll)} ج</div>
         </div>
+
         ${(isAdminView && !effBranch && branches.length>1) ? `
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);">
           <div style="font-size:0.74rem;font-weight:800;opacity:.9;margin-bottom:6px;"><i class="fas fa-store"></i> حسب الفرع</div>
@@ -238,6 +274,7 @@ async function loadUnreviewed(){
             ${branches.map(b=>`<div class="unrev-item"><span>${esc(b)}</span><b>${fmt(byBranch[b])} ج</b></div>`).join('')}
           </div>
         </div>`:''}
+
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);">
           ${methodBlock('ماكينات POS','fa-credit-card',machines)}
           ${machines.length&&wallets.length?'<div style="height:10px;"></div>':''}
@@ -249,6 +286,7 @@ async function loadUnreviewed(){
     area.innerHTML='';
   }
 }
+
 function filters(){
   return{
     branch:document.getElementById('f-branch').value,
@@ -257,21 +295,25 @@ function filters(){
     status:document.getElementById('f-status').value
   };
 }
+
 /* ================= سجل الإغلاقات ================= */
 async function loadShifts(){
   const{branch,from,to,status}=filters();
   // مدير الفرع مقيّد بفرعه دائماً
   const effBranch = isAdminView ? branch : (MY_BRANCH||branch);
+
   let q='pos_shifts?order=id.desc&limit=200';
   if(effBranch) q+=`&branch=eq.${encodeURIComponent(effBranch)}`;
   if(from) q+=`&shift_date=gte.${from}`;
   if(to) q+=`&shift_date=lte.${to}`;
   if(status!=='') q+=`&is_settled=eq.${status}`;
+
   const area=document.getElementById('shifts-area');
   area.innerHTML='<div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
   try{
     const shifts=await api(q);
     if(!shifts.length){area.innerHTML='<div class="empty">لا توجد إغلاقات في هذه الفترة</div>';return;}
+
     area.innerHTML=shifts.map(s=>`
       <div class="card">
         <div class="shift-head" onclick="toggleDetail(${s.id})">
@@ -312,6 +354,7 @@ async function loadShifts(){
     area.innerHTML='<div class="empty" style="color:var(--danger)">فشل التحميل</div>';
   }
 }
+
 async function toggleDetail(id){
   const d=document.getElementById('detail-'+id);
   const chev=document.getElementById('chev-'+id);
@@ -319,12 +362,14 @@ async function toggleDetail(id){
   d.classList.toggle('open');
   chev.style.transform=isOpen?'':'rotate(180deg)';
   if(isOpen)return;
+
   const linesEl=document.getElementById('lines-'+id);
   try{
     const [lines,trs]=await Promise.all([
       api(`pos_shift_lines?shift_id=eq.${id}&order=method_type,display_name`),
       api(`pos_wallet_transfers?shift_id=eq.${id}&order=created_at`)
     ]);
+
     let h='';
     if(lines.length){
       h+=`<div class="tbl-wrap"><table>
@@ -340,6 +385,7 @@ async function toggleDetail(id){
     }else{
       h+='<div style="color:var(--muted);font-size:0.8rem;text-align:center;">لا توجد تفاصيل</div>';
     }
+
     if(trs.length){
       h+=`<div style="margin-top:14px;font-size:0.78rem;font-weight:800;color:var(--wal-c);margin-bottom:6px;">
         <i class="fas fa-right-left"></i> تحويلات هذه الفترة (${trs.length})
@@ -362,6 +408,7 @@ async function toggleDetail(id){
     linesEl.innerHTML='<div style="color:var(--danger);font-size:0.8rem;text-align:center;">فشل تحميل التفاصيل</div>';
   }
 }
+
 async function confirmShift(id){
   if(!confirm('تأكيد اعتماد هذا الإغلاق؟'))return;
   try{
@@ -372,26 +419,32 @@ async function confirmShift(id){
     await Promise.all([loadShifts(), loadUnreviewed()]);
   }catch(e){toast('فشل الاعتماد','err');}
 }
+
 /* ================= تحويلات المحافظ ================= */
 async function loadTransfers(){
   const{branch,from,to}=filters();
   const effBranch = isAdminView ? branch : (MY_BRANCH||branch);
   const area=document.getElementById('transfers-area');
   area.innerHTML='<div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+
   // المعلّق: كل المعلّق بغض النظر عن التاريخ (لأنه دَين قائم)
   let qPend='pos_wallet_transfers?is_disbursed=eq.false&order=created_at.desc&limit=300';
   if(effBranch) qPend+=`&branch=eq.${encodeURIComponent(effBranch)}`;
+
   // التقرير: بفلترة التاريخ
   let qAll='pos_wallet_transfers?order=created_at.desc&limit=300';
   if(effBranch) qAll+=`&branch=eq.${encodeURIComponent(effBranch)}`;
   if(from) qAll+=`&created_at=gte.${from}T00:00:00`;
   if(to) qAll+=`&created_at=lte.${to}T23:59:59`;
+
   try{
     const [pending,all]=await Promise.all([api(qPend),api(qAll)]);
     document.getElementById('pending-cnt').textContent=pending.length;
+
     const totPend=pending.reduce((s,t)=>s+(+t.amount||0),0);
     const totDisb=all.filter(t=>t.is_disbursed).reduce((s,t)=>s+(+t.amount||0),0);
     const totAll=all.reduce((s,t)=>s+(+t.amount||0),0);
+
     area.innerHTML=`
       <div class="stat-row">
         <div class="stat hl">
@@ -408,6 +461,7 @@ async function loadTransfers(){
           <div class="stat-val">${fmt(totAll)} ج</div>
         </div>
       </div>
+
       <div class="card">
         <div style="font-weight:900;font-size:0.9rem;color:var(--warn);margin-bottom:12px;display:flex;align-items:center;gap:7px;">
           <i class="fas fa-hourglass-half"></i> بانتظار التوريد
@@ -430,6 +484,7 @@ async function loadTransfers(){
           </tr>`).join('')}</tbody>
         </table></div>`:'<div class="empty" style="padding:24px;">لا توجد تحويلات معلّقة ✓</div>'}
       </div>
+
       <div class="card">
         <div style="font-weight:900;font-size:0.9rem;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:7px;">
           <i class="fas fa-file-lines"></i> تقرير كل التحويلات (حسب فلتر التاريخ)
@@ -453,6 +508,7 @@ async function loadTransfers(){
     area.innerHTML='<div class="empty" style="color:var(--danger)">فشل التحميل</div>';
   }
 }
+
 async function disburse(id,name,amount){
   if(!canConfirm){toast('لا تملك صلاحية التوريد','err');return;}
   if(!confirm(`تأكيد توريد ${fmt(amount)} ج من ${name}؟\n\nلن يمكن التراجع.`))return;
@@ -466,11 +522,12 @@ async function disburse(id,name,amount){
     await loadTransfers();
   }catch(e){toast('فشل التوريد','err');}
 }
+
 /* ================= مطابقة ماكينات باي موب ================= */
 async function loadRecon(){
   const{branch,from,to,status}=filters();
   const effBranch = isAdminView ? branch : (MY_BRANCH||branch);
-  let q='pos_shifts?select=id,branch,shift_date,employee_name,closed_at,total_machines&order=id.desc&limit=200';
+  let q='pos_shifts?select=id,branch,shift_date,employee_name,closed_at,total_machines,total_wallets&order=id.desc&limit=200';
   if(effBranch) q+=`&branch=eq.${encodeURIComponent(effBranch)}`;
   if(from) q+=`&shift_date=gte.${from}`;
   if(to) q+=`&shift_date=lte.${to}`;
@@ -492,6 +549,7 @@ async function loadRecon(){
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
             <span style="font-weight:800;color:#1d4ed8;">ماكينات: ${fmt(s.total_machines)} ج</span>
+            <span style="font-weight:800;color:var(--wal-c);">محافظ: ${fmt(s.total_wallets)} ج</span>
             <i class="fas fa-chevron-down" style="color:var(--muted);font-size:0.8rem;transition:.2s;" id="rchev-${s.id}"></i>
           </div>
         </div>
@@ -499,6 +557,11 @@ async function loadRecon(){
       </div>`).join('');
   }catch(e){ area.innerHTML='<div class="empty" style="color:var(--danger)">فشل التحميل</div>'; }
 }
+
+const CAN_EDIT_TXN = (typeof canConfirm!=='undefined') ? canConfirm : false;
+
+function dtsec(s){return s?new Date(s).toLocaleString('ar-EG',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
+
 async function toggleRecon(id){
   const d=document.getElementById('rdetail-'+id);
   const chev=document.getElementById('rchev-'+id);
@@ -508,54 +571,377 @@ async function toggleRecon(id){
   if(isOpen)return;
   const el=document.getElementById('rlines-'+id);
   if(el.dataset.loaded)return;
+  await loadReconLines(id);
+}
+
+async function loadReconLines(id){
+  const el=document.getElementById('rlines-'+id);
   try{
     const rows=await api('rpc/get_closure_machine_recon',{method:'POST',body:JSON.stringify({p_shift:id})});
     el.dataset.loaded='1';
     const st=document.getElementById('rst-'+id);
     const bad=rows.filter(r=>!r.matched).length;
-    if(st) st.innerHTML = !rows.length?'<span class="badge" style="background:#f1f5f9;color:#64748b;">لا يوجد ماكينات</span>'
+    if(st) st.innerHTML = !rows.length?'<span class="badge" style="background:#f1f5f9;color:#64748b;">لا يوجد بيانات</span>'
       :(bad?`<span class="badge" style="background:#fee2e2;color:#b91c1c;">⚠️ ${bad} فرق</span>`:'<span class="badge badge-settled">✓ الكل مطابق</span>');
-    if(!rows.length){ el.innerHTML='<div style="color:var(--muted);font-size:0.8rem;text-align:center;">لا توجد ماكينات باي موب في هذا الإغلاق</div>'; return; }
+    if(!rows.length){ el.innerHTML='<div style="color:var(--muted);font-size:0.8rem;text-align:center;">لا توجد ماكينات أو محافظ في هذا الإغلاق</div>'; return; }
     el.innerHTML=`<div class="tbl-wrap"><table>
-      <thead><tr><th>الماكينة</th><th class="num">قيمة الإغلاق</th><th class="num">مجموع المعاملات</th><th class="num">العدد</th><th class="num">الفرق</th><th class="num">الحالة</th></tr></thead>
-      <tbody>${rows.map(r=>`
-        <tr style="cursor:pointer;background:${r.matched?'':'#fef2f2'}" onclick="toggleReconTxns(${id},'${esc(r.method_key)}')">
-          <td><b>${esc(r.display_name)}</b> <i class="fas fa-chevron-down" style="font-size:.62rem;color:#94a3b8"></i></td>
-          <td class="num" style="font-weight:800;color:#1d4ed8">${fmt(r.closure_val)}</td>
+      <thead><tr><th>الوسيلة</th><th class="num">قيمة الإغلاق</th><th class="num">مجموع المعاملات</th><th class="num">العدد</th><th class="num">الفرق</th><th class="num">الحالة</th></tr></thead>
+      <tbody>${rows.map(r=>{const wal=r.method_type==='wallet';const icon=wal?'fa-wallet':'fa-credit-card';const c=wal?'var(--wal-c)':'#1d4ed8';return `
+        <tr style="cursor:pointer;background:${r.matched?'':'#fef2f2'}" onclick="toggleReconTxns(${id},'${esc(r.method_key)}','${r.method_type}')">
+          <td><i class="fas ${icon}" style="color:${c};font-size:.72rem;margin-inline-end:5px"></i><b>${esc(r.display_name)}</b> <i class="fas fa-chevron-down" style="font-size:.62rem;color:#94a3b8"></i></td>
+          <td class="num" style="font-weight:800;color:${c}">${fmt(r.closure_val)}</td>
           <td class="num" style="font-weight:800">${fmt(r.txn_sum)}</td>
           <td class="num" style="color:var(--muted)">${r.txn_count}</td>
           <td class="num" style="font-weight:800;color:${r.matched?'var(--success)':'var(--danger)'}">${(+r.diff)>0?'+':''}${fmt(r.diff)}</td>
           <td class="num">${r.matched?'<span class="badge badge-settled">✓ مطابق</span>':'<span class="badge" style="background:#fee2e2;color:#b91c1c;">⚠️ فرق</span>'}</td>
         </tr>
         <tr id="rtx-${id}-${esc(r.method_key)}" style="display:none"><td colspan="6" style="background:var(--light);padding:0"></td></tr>
-      `).join('')}</tbody></table></div>`;
+      `}).join('')}</tbody></table></div>`;
   }catch(e){ el.innerHTML='<div style="color:var(--danger);font-size:0.8rem;text-align:center;">فشل التحميل</div>'; }
 }
-async function toggleReconTxns(shiftId, machine){
+
+async function toggleReconTxns(shiftId, machine, mtype){
   const tr=document.getElementById('rtx-'+shiftId+'-'+machine);
   if(!tr)return;
   const cell=tr.firstElementChild;
   if(tr.style.display!=='none'){ tr.style.display='none'; return; }
   tr.style.display='table-row';
   if(cell.dataset.loaded)return;
+  await loadReconTxns(shiftId, machine, mtype);
+}
+
+async function loadReconTxns(shiftId, machine, mtype){
+  const tr=document.getElementById('rtx-'+shiftId+'-'+machine);
+  if(!tr)return;
+  const cell=tr.firstElementChild;
   cell.innerHTML='<div style="padding:10px;color:var(--muted);font-size:0.78rem;text-align:center;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المعاملات...</div>';
   try{
     const txns=await api('rpc/get_closure_machine_txns',{method:'POST',body:JSON.stringify({p_shift:shiftId,p_machine:machine})});
     cell.dataset.loaded='1';
-    if(!txns.length){ cell.innerHTML='<div style="padding:10px;color:var(--muted);font-size:0.78rem;text-align:center;">لا توجد معاملات في هذه الفترة</div>'; return; }
+    const isWal = mtype ? (mtype==='wallet') : (txns[0]&&txns[0].source==='wallet');
+    const source = isWal?'wallet':'machine';
+    const addBtn = CAN_EDIT_TXN ? `<div style="padding:6px 10px 2px"><button onclick="addTxnModal(${shiftId},'${esc(machine)}','${source}')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:700;font-size:.75rem"><i class="fas fa-plus"></i> إضافة معاملة</button></div>` : '';
+    if(!txns.length){ cell.innerHTML='<div style="padding:10px;color:var(--muted);font-size:0.78rem;text-align:center;">لا توجد معاملات في هذه الفترة</div>'+addBtn; return; }
     const tot=txns.reduce((s,t)=>s+(+t.ammount||0),0);
     cell.innerHTML=`<div style="padding:6px 10px 10px"><table style="font-size:0.78rem">
-      <thead><tr><th>#</th><th>الوقت</th><th>رقم الطلب</th><th class="num">القيمة</th></tr></thead>
+      <thead><tr><th>#</th><th>الوقت</th><th>${isWal?'المُرسِل':'رقم الطلب'}</th><th class="num">القيمة</th>${CAN_EDIT_TXN?'<th class="num">نقل</th>':''}</tr></thead>
       <tbody>${txns.map((t,i)=>`<tr>
         <td style="color:#94a3b8">${i+1}</td>
-        <td style="color:var(--muted);white-space:nowrap">${dt(t.txn_time)}</td>
-        <td style="color:var(--muted)">${esc(t.order_id||'—')}</td>
-        <td class="num" style="font-weight:700">${fmt(t.ammount)}</td>
+        <td style="color:var(--muted);white-space:nowrap">${dtsec(t.txn_time)}</td>
+        <td style="color:var(--muted)">${t.source==='wallet'?`<span style="display:inline-block;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:6px;margin-inline-end:5px;${t.type==='ارسال'?'background:#fee2e2;color:#b91c1c':'background:#dcfce7;color:#15803d'}">${esc(t.type)}</span>`:''}${esc((t.source==='wallet'?t.counterparty:t.order_id)||'—')}</td>
+        <td class="num" style="font-weight:700;color:${(+t.ammount)<0?'#b91c1c':'inherit'}">${fmt(t.ammount)}</td>
+        ${CAN_EDIT_TXN?`<td class="num" style="white-space:nowrap">
+          <button title="نقل للشيفت الأحدث (فوق)" onclick="moveTxn('${t.source}',${t.id},${shiftId},'up','${esc(machine)}','${source}')" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:.82rem"><i class="fas fa-arrow-up"></i></button>
+          <button title="نقل للشيفت الأقدم (تحت)" onclick="moveTxn('${t.source}',${t.id},${shiftId},'down','${esc(machine)}','${source}')" style="background:none;border:none;cursor:pointer;color:#2563eb;font-size:.82rem"><i class="fas fa-arrow-down"></i></button>
+        </td>`:''}
       </tr>`).join('')}
-      <tr style="border-top:2px solid var(--border)"><td colspan="3" style="text-align:left;font-weight:800">إجمالي المعاملات</td><td class="num" style="font-weight:900">${fmt(tot)}</td></tr>
-      </tbody></table></div>`;
+      <tr style="border-top:2px solid var(--border)"><td colspan="3" style="text-align:left;font-weight:800">إجمالي المعاملات</td><td class="num" style="font-weight:900">${fmt(tot)}</td>${CAN_EDIT_TXN?'<td></td>':''}</tr>
+      </tbody></table></div>`+addBtn;
   }catch(e){ cell.innerHTML='<div style="padding:10px;color:var(--danger);font-size:0.78rem;text-align:center;">فشل تحميل المعاملات</div>'; }
 }
+
+// نقل معاملة للشيفت المجاور (up=أحدث/فوق ، down=أقدم/تحت) — بيغيّر ربط المعاملة بالشيفت
+async function moveTxn(source,id,shiftId,dir,machine,mtype){
+  try{
+    await api('rpc/move_recon_txn',{method:'POST',body:JSON.stringify({p_source:source,p_id:id,p_current_shift:shiftId,p_dir:dir})});
+    toast(dir==='up'?'اتنقلت للشيفت الأحدث':'اتنقلت للشيفت الأقدم');
+    const el=document.getElementById('rlines-'+shiftId);
+    if(el){ el.dataset.loaded=''; await loadReconLines(shiftId); }
+    const tr2=document.getElementById('rtx-'+shiftId+'-'+machine);
+    if(tr2){ tr2.style.display='table-row'; tr2.firstElementChild.dataset.loaded=''; await loadReconTxns(shiftId, machine, mtype); }
+  }catch(err){
+    const raw=''+((err&&err.message)||err);
+    toast(raw.includes('no_adjacent_shift')?'مفيش شيفت في الاتجاه ده فيه نفس الوسيلة':'فشل النقل','err');
+  }
+}
+
+// إضافة معاملة على نفس الشيفت (مربوطة بيه صراحةً)
+function addTxnModal(shiftId, machine, source){
+  const old=document.getElementById('txnAddModal'); if(old) old.remove();
+  const isWal=source==='wallet';
+  const ov=document.createElement('div');
+  ov.id='txnAddModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px 20px;width:320px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    <div style="font-weight:800;margin-bottom:2px">إضافة معاملة — ${esc(machine)}</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">هتتسجّل على نفس الشيفت ده</div>
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">القيمة</label>
+    <input type="number" id="atAmount" step="0.01" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">
+    ${isWal?`<label style="font-size:.75rem;font-weight:700;color:var(--muted)">النوع</label>
+    <select id="atType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">
+      <option value="استلام">استلام (+)</option><option value="ارسال">ارسال (−)</option></select>`:''}
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">${isWal?'المُرسِل (اختياري)':'رقم الطلب (اختياري)'}</label>
+    <input type="text" id="atRef" placeholder="${isWal?'رقم المحفظة':'رقم الطلب'}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 14px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('txnAddModal').remove()" style="padding:7px 14px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer">إلغاء</button>
+      <button id="atSave" style="padding:7px 14px;border:none;background:#16a34a;color:#fff;border-radius:8px;cursor:pointer;font-weight:700">إضافة</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.getElementById('atSave').onclick=async()=>{
+    const amt=parseFloat(document.getElementById('atAmount').value);
+    if(isNaN(amt)||amt===0){toast('اكتب قيمة صحيحة','err');return;}
+    const ref=document.getElementById('atRef').value.trim();
+    const type=isWal?document.getElementById('atType').value:null;
+    const btn=document.getElementById('atSave'); btn.disabled=true; btn.textContent='جاري الإضافة...';
+    try{
+      await api('rpc/add_recon_txn',{method:'POST',body:JSON.stringify({p_shift:shiftId,p_method_key:machine,p_source:source,p_amount:amt,p_ref:ref||null,p_type:type})});
+      ov.remove(); toast('اتضافت المعاملة');
+      const el=document.getElementById('rlines-'+shiftId);
+      if(el){ el.dataset.loaded=''; await loadReconLines(shiftId); }
+      const tr2=document.getElementById('rtx-'+shiftId+'-'+machine);
+      if(tr2){ tr2.style.display='table-row'; tr2.firstElementChild.dataset.loaded=''; await loadReconTxns(shiftId, machine, source); }
+    }catch(err){ toast('فشل الإضافة','err'); btn.disabled=false; btn.textContent='إضافة'; }
+  };
+}
+
+/* ================= الرصيد الحالي (كشف حساب) ================= */
+async function loadBalance(){
+  const {branch,from,to}=filters();
+  const effBranch = isAdminView ? branch : (MY_BRANCH||branch);
+  const area=document.getElementById('balance-area');
+  area.innerHTML='<div class="empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+  const periodTxt=(from||to)?`${from||'البداية'} → ${to||'الآن'}`:'كل الفترات';
+  try{
+    // كل الفروع (بدون اختيار فرع): ملخص رصيد لكل فرع — قابل للفتح لكشف الحساب بالتفصيل
+    if(!effBranch){
+      const branches=await api('branches?select=name&order=name');
+      const list=branches.map(b=>b.name).filter(n=>n && n!=='كل الفروع');
+      BAL_SUMMARY = await Promise.all(list.map(async name=>{
+        const L=await computeBranchLedger(name, from, to);
+        return {branch:name, open:L.openPeriod, totIn:L.totIn, totOut:L.totOut, balance:L.endBalance};
+      }));
+      area.innerHTML=`<div style="font-size:.75rem;color:var(--muted);margin-bottom:8px"><i class="fas fa-hand-pointer"></i> اضغط على أي فرع تشوف كشف الحساب بالتفصيل. المدة: <b>${periodTxt}</b> · توريد=الإغلاقات · صرف=التحويلات.</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th></th><th>الفرع</th><th class="num">رصيد البداية</th><th class="num">توريد</th><th class="num">صرف</th><th class="num">الرصيد الحالي</th></tr></thead>
+        <tbody>${BAL_SUMMARY.map((r,i)=>`
+          <tr style="cursor:pointer" onclick="toggleBalRow(${i})">
+            <td style="width:22px"><i class="fas fa-chevron-down" id="balchev-${i}" style="color:#94a3b8;font-size:.72rem;transition:.2s"></i></td>
+            <td><b>${esc(r.branch)}</b></td>
+            <td class="num" style="color:var(--muted)">${fmt(r.open)}</td>
+            <td class="num" style="color:var(--success);font-weight:800">${fmt(r.totIn)}</td>
+            <td class="num" style="color:var(--wal-c);font-weight:800">${fmt(r.totOut)}</td>
+            <td class="num" style="font-weight:900;color:${r.balance<0?'var(--danger)':'var(--accent)'}">${fmt(r.balance)} ج</td>
+          </tr>
+          <tr id="baldet-${i}" style="display:none"><td colspan="6" style="background:var(--light);padding:0"><div id="baldetc-${i}" style="padding:8px 10px"></div></td></tr>
+        `).join('')}</tbody>
+      </table></div>`;
+      return;
+    }
+
+    const L=await computeBranchLedger(effBranch, from, to);
+    area.innerHTML=`
+      <div class="stat-row">
+        <div class="stat"><div class="stat-label" style="color:var(--muted)"><i class="fas fa-flag"></i> رصيد بداية المدة</div><div class="stat-val">${fmt(L.openPeriod)} ج</div></div>
+        <div class="stat"><div class="stat-label" style="color:var(--muted)"><i class="fas fa-arrow-down"></i> توريد (المدة)</div><div class="stat-val" style="color:var(--success)">${fmt(L.totIn)} ج</div></div>
+        <div class="stat"><div class="stat-label" style="color:var(--muted)"><i class="fas fa-arrow-up"></i> صرف (المدة)</div><div class="stat-val" style="color:var(--wal-c)">${fmt(L.totOut)} ج</div></div>
+        <div class="stat hl"><div class="stat-label"><i class="fas fa-wallet"></i> الرصيد الحالي — ${esc(effBranch)}</div><div class="stat-val">${fmt(L.endBalance)} ج</div></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <div style="font-weight:900;font-size:0.9rem;color:var(--accent);display:flex;align-items:center;gap:7px;"><i class="fas fa-file-lines"></i> كشف حساب — ${esc(effBranch)} <span style="font-weight:500;color:var(--muted);font-size:.72rem">(${periodTxt})</span></div>
+          ${isAdmin?`<div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn" style="padding:6px 12px;font-size:0.76rem;background:#fff;color:var(--text);border:1px solid var(--border)" onclick="openingModal('${esc(effBranch)}',${L.opening.opening_balance},'${L.opening.as_of}')"><i class="fas fa-flag"></i> رصيد البداية</button>
+            <button class="btn btn-primary" style="padding:6px 12px;font-size:0.76rem" onclick="addManualTransfer('${esc(effBranch)}')"><i class="fas fa-plus"></i> إضافة صرف</button>
+          </div>`:''}
+        </div>
+        ${balLedgerTable(L.period,{canDelete:isAdmin,branch:effBranch})}
+      </div>`;
+  }catch(e){ area.innerHTML='<div class="empty" style="color:var(--danger)">فشل التحميل</div>'; }
+}
+
+// رصيد بداية المدة لفرع
+async function getOpening(branch){
+  try{
+    const r=await api(`pos_branch_opening?branch=eq.${encodeURIComponent(branch)}&select=opening_balance,as_of&limit=1`);
+    if(r&&r[0]) return {opening_balance:+r[0].opening_balance||0, as_of:(r[0].as_of||'2000-01-01')};
+  }catch(e){}
+  return {opening_balance:0, as_of:'2000-01-01'};
+}
+
+// حركات خام مرتّبة بالتاريخ (توريد=إغلاق، صرف=تحويلات محافظ/يدوية) — بدون رصيد
+function balRawEntries(closures,wtrans,mtrans){
+  const e=[];
+  (closures||[]).forEach(c=>e.push({date:c.closed_at||c.shift_date, dir:'in', kind:'closure', label:'إغلاق شيفت '+(c.shift_date||'')+(c.employee_name?(' — '+esc(c.employee_name)):''), amount:+c.grand_total||0}));
+  (wtrans||[]).forEach(t=>e.push({date:t.created_at, dir:'out', kind:'wallet', label:'تحويل محفظة — '+esc(t.display_name||'')+(t.reason?(' ('+(REASON_LABEL[t.reason]||esc(t.reason))+')'):''), amount:+t.amount||0}));
+  (mtrans||[]).forEach(t=>e.push({date:t.txn_date, dir:'out', kind:'manual', mid:t.id, label:'صرف — '+esc(t.display_name||t.channel||'')+(t.reason?(' ('+esc(t.reason)+')'):'')+(t.note?(' · '+esc(t.note)):''), amount:+t.amount||0}));
+  e.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return e;
+}
+
+// يحسب كشف فرع لمدة: رصيد بداية المدة + حركات المدة برصيد جارٍ (الحركات قبل تاريخ رصيد البداية متضمّنة فيه)
+function computeLedger(raw, opening, from, to){
+  const asOf=new Date((opening.as_of||'2000-01-01')+'T00:00:00');
+  const fromD=from?new Date(from+'T00:00:00'):null;
+  const toD=to?new Date(to+'T23:59:59'):null;
+  let openPeriod=+opening.opening_balance||0;
+  const period=[];
+  raw.forEach(e=>{
+    const d=new Date(e.date);
+    if(d<asOf) return;                                  // قبل تاريخ رصيد البداية → متضمّن فيه
+    const net=e.dir==='in'?e.amount:-e.amount;
+    if(fromD && d<fromD){ openPeriod+=net; return; }    // قبل المدة → يدخل رصيد بداية المدة
+    if(toD && d>toD) return;                            // بعد المدة → يتجاهل
+    period.push(e);
+  });
+  let run=openPeriod; period.forEach(e=>{ run += (e.dir==='in'?e.amount:-e.amount); e.balance=run; });
+  const totIn=period.filter(e=>e.dir==='in').reduce((s,e)=>s+e.amount,0);
+  const totOut=period.filter(e=>e.dir==='out').reduce((s,e)=>s+e.amount,0);
+  return {openPeriod, period, totIn, totOut, endBalance:openPeriod+totIn-totOut};
+}
+
+// يجمع بيانات فرع ويحسب كشفه لمدة
+async function computeBranchLedger(branch, from, to){
+  const [closures,wtrans,mtrans,opening]=await Promise.all([
+    api(`pos_shifts?select=shift_date,closed_at,employee_name,grand_total&branch=eq.${encodeURIComponent(branch)}&limit=5000`),
+    api(`pos_wallet_transfers?select=id,amount,reason,note,display_name,created_at&branch=eq.${encodeURIComponent(branch)}&limit=5000`),
+    api(`pos_manual_transfers?select=*&branch=eq.${encodeURIComponent(branch)}&limit=5000`),
+    getOpening(branch)
+  ]);
+  const L=computeLedger(balRawEntries(closures,wtrans,mtrans), opening, from, to);
+  L.opening=opening;
+  return L;
+}
+
+// تعديل رصيد بداية المدة لفرع — أدمن فقط
+function openingModal(branch, cur, asOf){
+  if(!isAdmin){toast('للأدمن فقط','err');return;}
+  const old=document.getElementById('opnModal'); if(old) old.remove();
+  const ov=document.createElement('div'); ov.id='opnModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px 20px;width:320px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    <div style="font-weight:800;margin-bottom:2px">رصيد بداية المدة — ${esc(branch)}</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">الحركات قبل التاريخ ده بتتحسب ضمن رصيد البداية (مش هتظهر كسطور).</div>
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">الرصيد الافتتاحي</label>
+    <input type="number" id="opnAmount" step="0.01" value="${cur||0}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">اعتبارًا من تاريخ</label>
+    <input type="date" id="opnDate" value="${(asOf&&asOf!=='2000-01-01')?asOf:today}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 14px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('opnModal').remove()" style="padding:7px 14px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer">إلغاء</button>
+      <button id="opnSave" style="padding:7px 14px;border:none;background:#16a34a;color:#fff;border-radius:8px;cursor:pointer;font-weight:700">حفظ</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.getElementById('opnSave').onclick=async()=>{
+    const v=parseFloat(document.getElementById('opnAmount').value)||0;
+    const d=document.getElementById('opnDate').value||today;
+    const btn=document.getElementById('opnSave'); btn.disabled=true; btn.textContent='جاري الحفظ...';
+    try{
+      const r=await fetch(SB_URL+'/rest/v1/pos_branch_opening',{method:'POST',
+        headers:{...H_BASE,'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify({branch, opening_balance:v, as_of:d, set_by:settler, set_at:new Date().toISOString()})});
+      if(!r.ok) throw new Error(await r.text());
+      ov.remove(); toast('اتحفظ رصيد البداية ✓'); await loadBalance();
+    }catch(err){ toast('فشل الحفظ','err'); btn.disabled=false; btn.textContent='حفظ'; }
+  };
+}
+// كشف حساب موحّد: التاريخ | النوع | البيان | القيمة | الرصيد (الأحدث فوق)
+function balLedgerTable(entries, opts){
+  opts=opts||{}; const del=opts.canDelete; const view=entries.slice().reverse();
+  const ic=k=>k==='closure'?'<i class="fas fa-cash-register" style="color:var(--success);font-size:.7rem;margin-inline-end:5px"></i>':k==='wallet'?'<i class="fas fa-wallet" style="color:var(--wal-c);font-size:.7rem;margin-inline-end:5px"></i>':'<i class="fas fa-right-left" style="color:#1d4ed8;font-size:.7rem;margin-inline-end:5px"></i>';
+  return `<div class="tbl-wrap"><table>
+    <thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th class="num">القيمة</th><th class="num">الرصيد</th>${del?'<th></th>':''}</tr></thead>
+    <tbody>${view.length?view.map(e=>`<tr>
+      <td style="color:var(--muted);font-size:0.75rem;white-space:nowrap">${dt(e.date)}</td>
+      <td>${e.dir==='in'?'<span class="badge" style="background:#dcfce7;color:#15803d">توريد</span>':'<span class="badge" style="background:#fee2e2;color:#b91c1c">صرف</span>'}</td>
+      <td>${ic(e.kind)}${e.label}</td>
+      <td class="num" style="font-weight:800;color:${e.dir==='in'?'var(--success)':'var(--wal-c)'}">${e.dir==='in'?'+':'−'}${fmt(e.amount)}</td>
+      <td class="num" style="font-weight:800;color:${e.balance<0?'var(--danger)':'inherit'}">${fmt(e.balance)}</td>
+      ${del?`<td class="num">${e.kind==='manual'?`<button title="حذف التحويل" onclick="deleteManualTransfer(${e.mid},'${esc(opts.branch)}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:.8rem"><i class="fas fa-trash"></i></button>`:''}</td>`:''}
+    </tr>`).join(''):`<tr><td colspan="${del?6:5}" class="empty" style="padding:24px">لا توجد حركات</td></tr>`}</tbody>
+  </table></div>`;
+}
+
+let BAL_SUMMARY=[];
+// فتح/غلق تفاصيل فرع في ملخص «كل الفروع»
+async function toggleBalRow(i){
+  const det=document.getElementById('baldet-'+i), chev=document.getElementById('balchev-'+i);
+  if(!det) return;
+  const open=det.style.display!=='none';
+  det.style.display=open?'none':'table-row';
+  if(chev) chev.style.transform=open?'':'rotate(180deg)';
+  if(open) return;
+  const cell=document.getElementById('baldetc-'+i);
+  if(cell.dataset.loaded) return;
+  const branch=(BAL_SUMMARY[i]||{}).branch; if(!branch) return;
+  cell.innerHTML='<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:8px"><i class="fas fa-spinner fa-spin"></i></div>';
+  try{ cell.innerHTML=await renderBranchDetail(branch); cell.dataset.loaded='1'; }
+  catch(e){ cell.innerHTML='<div style="color:var(--danger);font-size:.8rem;padding:8px;text-align:center">فشل تحميل التفاصيل</div>'; }
+}
+
+// تفاصيل فرع: كشف حساب موحّد (يحترم فلتر التاريخ ورصيد البداية)
+async function renderBranchDetail(branch){
+  const {from,to}=filters();
+  const L=await computeBranchLedger(branch, from, to);
+  const head=`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">رصيد بداية المدة: <b>${fmt(L.openPeriod)}</b> · الرصيد الحالي: <b>${fmt(L.endBalance)}</b> ج</div>`;
+  return head+balLedgerTable(L.period,{canDelete:isAdmin,branch});
+}
+
+// إضافة معاملة صرف لماكينة باي موب / انستاباي معيّنة — أدمن فقط
+async function addManualTransfer(branch){
+  if(!isAdmin){toast('للأدمن فقط','err');return;}
+  const old=document.getElementById('mtAddModal'); if(old) old.remove();
+  // وسائل الفرع كلها (ماكينات باي موب/انستاباي + محافظ) من pos_methods
+  let methods=[];
+  try{ methods=await api(`pos_methods?branch=eq.${encodeURIComponent(branch)}&is_active=eq.true&select=method_key,display_name,method_type&order=method_type,sort_order`); }catch(e){ methods=[]; }
+  if(!methods.some(m=>m.method_key==='instapay')) methods.push({method_key:'instapay',display_name:'إنستاباي',method_type:'machine'});
+  const optRow=m=>`<option value="${esc(m.method_key)}" data-name="${esc(m.display_name||m.method_key)}" data-type="${esc(m.method_type||'')}">${esc(m.display_name||m.method_key)}</option>`;
+  const mMach=methods.filter(m=>m.method_type!=='wallet'), mWal=methods.filter(m=>m.method_type==='wallet');
+  const opts=(mMach.length?`<optgroup label="ماكينات / باي موب / انستاباي">${mMach.map(optRow).join('')}</optgroup>`:'')
+           +(mWal.length?`<optgroup label="محافظ">${mWal.map(optRow).join('')}</optgroup>`:'');
+  const ov=document.createElement('div'); ov.id='mtAddModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999';
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px 20px;width:340px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.25)">
+    <div style="font-weight:800;margin-bottom:2px">إضافة صرف — ${esc(branch)}</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">هيتحسب «صرف» في كشف الحساب</div>
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">الوسيلة (ماكينة / محفظة)</label>
+    <select id="mtMethod" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">${opts}</select>
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">القيمة</label>
+    <input type="number" id="mtAmount" step="0.01" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">السبب (اختياري)</label>
+    <input type="text" id="mtReason" placeholder="سبب الصرف" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 10px">
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">التاريخ</label>
+    <input type="date" id="mtDate" value="${today}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin:4px 0 14px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('mtAddModal').remove()" style="padding:7px 14px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer">إلغاء</button>
+      <button id="mtSave" style="padding:7px 14px;border:none;background:#16a34a;color:#fff;border-radius:8px;cursor:pointer;font-weight:700">إضافة</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.getElementById('mtSave').onclick=async()=>{
+    const amt=parseFloat(document.getElementById('mtAmount').value);
+    if(isNaN(amt)||amt<=0){toast('اكتب قيمة صحيحة','err');return;}
+    const sel=document.getElementById('mtMethod');
+    const method_key=sel.value;
+    const selOpt=sel.options[sel.selectedIndex]||{};
+    const display_name=selOpt.dataset?.name||method_key;
+    const mtype=selOpt.dataset?.type||'';
+    const channel=mtype==='wallet'?'wallet':(/^paymob/i.test(method_key)?'paymob':(method_key==='instapay'?'instapay':'other'));
+    const reason=document.getElementById('mtReason').value.trim();
+    const d=document.getElementById('mtDate').value;
+    const btn=document.getElementById('mtSave'); btn.disabled=true; btn.textContent='جاري الإضافة...';
+    try{
+      await api('pos_manual_transfers',{method:'POST',body:JSON.stringify({
+        branch, channel, method_key, display_name, amount:amt, reason:reason||null,
+        txn_date: d?new Date(d+'T12:00:00').toISOString():new Date().toISOString(),
+        created_by:settler
+      })});
+      ov.remove(); toast('اتضاف الصرف ✓');
+      await loadBalance();
+    }catch(err){ toast('فشل الإضافة','err'); btn.disabled=false; btn.textContent='إضافة'; }
+  };
+}
+
+async function deleteManualTransfer(id,branch){
+  if(!isAdmin){toast('للأدمن فقط','err');return;}
+  if(!confirm('تأكيد حذف الصرف ده؟'))return;
+  try{
+    await api(`pos_manual_transfers?id=eq.${id}`,{method:'DELETE'});
+    toast('اتحذف ✓');
+    await loadBalance();
+  }catch(e){toast('فشل الحذف','err');}
+}
+
 init();
 </script>
 </body>
