@@ -211,6 +211,21 @@
       } catch(e){ userBranchMap = {}; }
     }
 
+    // خريطة (اسم مستخدم/موبايل → اسم الشخص) عشان نعرض مين عمل الإجراء
+    let userNameMap = {};
+    function nameOf(u){ if (!u) return u; return userNameMap[u] || u; }
+    async function loadUserNameMap(){
+      try {
+        const res = await fetch(SB_URL_API + '/rest/v1/rpc/get_user_name_map', {
+          method:'POST',
+          headers:{ apikey:SB_ANON_API, Authorization:'Bearer '+SB_ANON_API, 'Content-Type':'application/json' },
+          body:'{}'
+        });
+        const d = await res.json();
+        userNameMap = (d && typeof d === 'object' && !Array.isArray(d)) ? d : {};
+      } catch(e){ userNameMap = {}; }
+    }
+
     checkAuth().then(user => {
       activeUser = user;
       if (user) {
@@ -224,7 +239,7 @@
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '<tr class="loading-row"><td colspan="9">⏳ جاري جلب البيانات...</td></tr>';
       try {
-        await loadUserBranchMap();
+        await Promise.all([loadUserBranchMap(), loadUserNameMap()]);
         const response = await sbTaskList({ type: 'تحويل' });
         let items = (response && response[0]?.data)
           ? response[0].data
@@ -308,7 +323,8 @@
             <span style="color:var(--text-muted);font-size:0.7rem;">${timeStr}</span>
           </td>
           <td>
-            <div style="font-size:0.75rem;">${branchOf(item.user)} ⬅️ ${item.branch}</div>
+            <div style="font-size:0.78rem;font-weight:600;">${nameOf(item.user)} ⬅️ ${item.branch}</div>
+            ${(branchOf(item.user) && branchOf(item.user) !== nameOf(item.user)) ? `<div style="font-size:0.68rem;color:var(--text-muted);"><i class="fas fa-store" style="font-size:0.62rem;"></i> ${branchOf(item.user)}</div>` : ''}
             <span class="badge ${canReply ? 'badge-blue' : 'badge-orange'}" style="margin-top:4px;">
               ${canReply ? 'وارد 📥' : 'صادر 📤'}
             </span>
