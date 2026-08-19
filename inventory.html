@@ -356,6 +356,15 @@
           <span class="highlight" id="branch-tag"></span>
         </div>
         <div class="header-actions">
+          <div class="field-icon-wrap" id="branch-select-wrap" style="min-width:150px;display:none;">
+            <i class="fas fa-code-branch field-icon"></i>
+            <select id="branch-select" class="form-select" onchange="onBranchChange(this.value)" style="padding-right:34px;">
+              <option value="">🏬 كل الفروع</option>
+              <option value="المعمورة">المعمورة</option>
+              <option value="سان ستيفانو">سان ستيفانو</option>
+              <option value="سيدى بشر">سيدى بشر</option>
+            </select>
+          </div>
           <div class="field-icon-wrap m-items" style="min-width:170px;">
             <i class="fas fa-list field-icon"></i>
             <select id="category-select" class="form-select" onchange="onCategoryChange(this.value)" style="padding-right:34px;">
@@ -377,6 +386,8 @@
         <button class="top-tab" id="tt-items" onclick="showScreen('items')">📋 الأصناف</button>
         <button class="top-tab" id="tt-reports" onclick="showScreen('reports')">📊 التقارير</button>
       </div>
+
+      <!-- تبويب التقارير: يظهر تحت التبويبات -->
 
       <div class="m-reports reports-panel">
         <!-- تبويبات فرعية للتقارير -->
@@ -441,6 +452,10 @@
         <div class="rep-content" data-rep="rate">
           <div class="reports-rate">
             <span id="my-daily-count" style="font-weight:700;color:var(--primary);">📊 معدلك اليومي: <b>0</b></span>
+            <span style="color:var(--text-muted);font-size:0.78rem;">من</span>
+            <input type="date" id="my-rate-from" class="form-input" title="من تاريخ" onchange="loadMyDailyCount()" style="width:140px;">
+            <span style="color:var(--text-muted);font-size:0.78rem;">إلى</span>
+            <input type="date" id="my-rate-to" class="form-input" title="إلى تاريخ" onchange="loadMyDailyCount()" style="width:140px;">
           </div>
           <div class="rep-toolbar">
             <div>
@@ -588,7 +603,6 @@
 
 
 
-
   <!-- القائمة الجانبية ☰ (تظهر على الموبايل فقط) -->
   <div class="drawer-overlay" id="drawer-overlay" onclick="if(event.target===this)closeDrawer()">
     <aside class="drawer">
@@ -702,6 +716,9 @@
       });
     }
 
+    // فروع النظام (زي ما هي متعرفة في جدول branches على Supabase)
+    const BRANCHES = ['المعمورة', 'سان ستيفانو', 'سيدى بشر'];
+
     let activeUser       = null;
     let employeeName     = '';
     let rawData          = [];
@@ -709,6 +726,7 @@
     let currentTab       = 'erp';
     let userBranch       = '';
     let userRole         = '';
+    let isAdmin          = false;
     let currentPage      = 1;
     let showPending      = true;
     let mismatchTargetId = null;
@@ -742,12 +760,11 @@
     function goScreen(name){ showScreen(name); closeDrawer(); }
     function pickCategory(cat){ onCategoryChange(cat); showScreen('items'); closeDrawer(); }
     function fromDrawer(fn) { closeDrawer(); setTimeout(() => fn(), 130); }
-    function pickBranch(v)  { if (typeof onBranchChange === 'function') onBranchChange(v); closeDrawer(); }
+    function pickBranch(v)  { onBranchChange(v); closeDrawer(); }
     function buildDrawerBranches() {
-      const admin = (typeof isAdmin !== 'undefined') && isAdmin;
       const sec = document.getElementById('drawer-branch-sec');
       const list = document.getElementById('drawer-branch-list');
-      if (!sec || !list || !admin) return;
+      if (!sec || !list || !isAdmin) return;
       sec.style.display = '';
       const opts = [['', '🏬 كل الفروع'], ['المعمورة', 'المعمورة'], ['سان ستيفانو', 'سان ستيفانو'], ['سيدى بشر', 'سيدى بشر']];
       list.innerHTML = opts.map(([v, l]) =>
@@ -760,7 +777,15 @@
         userBranch   = (localStorage.getItem('userBranch') || '').trim();
         userRole     = (localStorage.getItem('userRole')   || 'employee').trim();
         employeeName = (localStorage.getItem('fullName') || activeUser || '').trim();
-        document.getElementById('branch-tag').textContent = userBranch;
+        isAdmin      = (userRole === 'admin');
+
+        if (isAdmin) {
+          // الأدمن بيتابع كل الفروع افتراضيًا، وممكن يفلتر فرع بعينه من القايمة اللي هتظهر
+          userBranch = '';
+          document.getElementById('branch-select-wrap').style.display = '';
+        }
+
+        updateBranchTag();
         updateFilterBtn();
         updateTabUIVisibility();
         buildDrawerBranches();
@@ -770,6 +795,25 @@
         loadMyDailyCount();
       }
     });
+
+    function updateBranchTag() {
+      document.getElementById('branch-tag').textContent =
+        isAdmin ? (userBranch || 'كل الفروع') : userBranch;
+    }
+
+    function onBranchChange(value) {
+      userBranch  = value;
+      currentPage = 1;
+      updateBranchTag();
+      loadCurrentTab();
+      loadMyDailyCount();
+      // لو تبويب التقارير مفتوح، اعِد تحميل التقرير الظاهر على الفرع الجديد
+      currentFullReportData = [];
+      if (document.body.getAttribute('data-screen') === 'reports' && typeof showReport === 'function') {
+        const a = document.querySelector('.rep-subtab.active');
+        showReport(a ? a.id.replace('rst-', '') : 'full');
+      }
+    }
 
     function updateTabUIVisibility() {
       const live = isLiveTab(currentTab);
@@ -811,18 +855,37 @@
 
       try {
         if (isLiveTab(currentTab)) {
-          const items = await fetchJardItems(userBranch, currentTab);
-          rawData = items.map(it => ({
-            ...it,
-            code: String(it.code || '').trim(),
-            _balanceFetched: false,
-            _systemQty: null
-          }));
+          if (isAdmin && !userBranch) {
+            // الأدمن مختار "كل الفروع" — نجيب كل فرع على حدة ونجمعهم مع بعض
+            const perBranch = await Promise.all(
+              BRANCHES.map(b => fetchJardItems(b, currentTab))
+            );
+            rawData = [];
+            perBranch.forEach((items, idx) => {
+              const b = BRANCHES[idx];
+              items.forEach(it => rawData.push({
+                ...it,
+                branch: b,
+                code: String(it.code || '').trim(),
+                _balanceFetched: false,
+                _systemQty: null
+              }));
+            });
+          } else {
+            const items = await fetchJardItems(userBranch, currentTab);
+            rawData = items.map(it => ({
+              ...it,
+              branch: userBranch,
+              code: String(it.code || '').trim(),
+              _balanceFetched: false,
+              _systemQty: null
+            }));
+          }
         } else {
           const items = await fetchInventoryAudit();
           rawData = items.filter(item => {
             const typeMatch   = (item.type   || '').toLowerCase() === currentTab.toLowerCase();
-            const branchMatch = (item.branch || '') === userBranch;
+            const branchMatch = (isAdmin && !userBranch) ? true : ((item.branch || '') === userBranch);
             return typeMatch && branchMatch;
           });
         }
@@ -840,6 +903,7 @@
       const canEdit = (userRole === 'inventory' || userRole === 'admin');
       document.getElementById('inv-thead').innerHTML = `
         <tr>
+          ${isAdmin ? '<th>الفرع</th>' : ''}
           ${cols.map(c => `<th>${COL_LABELS[c] || c}</th>`).join('')}
           <th>الرصيد الحالي</th>
           ${canEdit ? '<th>إجراء</th>' : '<th>الحالة</th>'}
@@ -904,15 +968,17 @@
         const isSkip     = isItemSkip(item);
         const isMismatch = isItemMismatch(item);
         const code       = String(item.code || '').trim();
+        // لازم نميّز التكرار جوه نفس الفرع بس — نفس الكود في فرعين مختلفين مش "تكرار"
+        const dedupeKey  = `${item.branch || ''}::${code}`;
 
         if (isDone || isSkip || isMismatch || !code || code === '---') {
           flags.set(String(item.id), true);
           return;
         }
-        if (seenPending.has(code)) {
+        if (seenPending.has(dedupeKey)) {
           flags.set(String(item.id), false);
         } else {
-          seenPending.add(code);
+          seenPending.add(dedupeKey);
           flags.set(String(item.id), true);
         }
       });
@@ -925,6 +991,8 @@
       const canEdit = (userRole === 'inventory' || userRole === 'admin');
       const live    = isLiveTab(currentTab);
 
+      const extraCols = isAdmin ? 1 : 0;
+
       if (items.length === 0) {
         const emptyMsg = live
           ? 'مفيش أصناف محتاجة جرد دلوقتي في الفئة دي ✅'
@@ -936,7 +1004,7 @@
               : 'لا توجد أصناف');
         const emptyTr = document.createElement('tr');
         emptyTr.className = 'empty-row';
-        emptyTr.innerHTML = `<td colspan="${cols.length + 2}" style="text-align:center;padding:40px;color:var(--text-muted);">
+        emptyTr.innerHTML = `<td colspan="${cols.length + 2 + extraCols}" style="text-align:center;padding:40px;color:var(--text-muted);">
           ${emptyMsg}
         </td>`;
         tbody.innerHTML = '';
@@ -950,14 +1018,16 @@
       let lastCategoryKey = null;
 
       items.forEach(item => {
-        const id = live ? item.code : item.id;
+        // للأصناف الحية لازم الـ id يتضمن الفرع، عشان نفس كود الصنف بيتكرر في كل الفروع
+        // (لو الأدمن بيشوف أكتر من فرع مع بعض) ومحتاجين نميّز كل صف عن التاني
+        const id = live ? `${item.branch || ''}::${item.code}` : item.id;
 
         const cat = detectCategory(item);
         if (cat.key !== lastCategoryKey) {
           lastCategoryKey = cat.key;
           const catTr = document.createElement('tr');
           catTr.className = 'category-header-row';
-          catTr.innerHTML = `<td colspan="${cols.length + 2}">${cat.label}</td>`;
+          catTr.innerHTML = `<td colspan="${cols.length + 2 + extraCols}">${cat.label}</td>`;
           tbody.appendChild(catTr);
         }
 
@@ -965,6 +1035,10 @@
         if (timeVal) {
           try { timeVal = new Date(timeVal).toLocaleDateString('ar-EG'); } catch(e) {}
         }
+
+        const branchCell = isAdmin
+          ? `<td style="font-size:0.78rem;font-weight:700;color:var(--primary);" data-label="الفرع">${item.branch || '---'}</td>`
+          : '';
 
         const colCells = cols.map(c => {
           const val = c === 'time' ? timeVal : (item[c] || '---');
@@ -976,7 +1050,7 @@
         if (live) {
           if (!item._balanceFetched) {
             balCell = `<td id="bal-cell-${id}" data-label="الرصيد الحالي">
-                 <button class="btn-balance" onclick="fetchLiveBalance('${item.code}', this)">
+                 <button class="btn-balance" onclick="fetchLiveBalance('${id}', this)">
                    <i class="fas fa-database"></i> الرصيد
                  </button>
                </td>`;
@@ -989,8 +1063,8 @@
                </td>`;
             actionCell = `<td data-label="إجراء">
                  <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                   <button class="btn-done" onclick="submitLiveMatched('${item.code}')">✅ مطابق</button>
-                   <button class="btn-mismatch" onclick="openMismatchModal('${item.code}')">❌ غير مطابق</button>
+                   <button class="btn-done" onclick="submitLiveMatched('${id}')">✅ مطابق</button>
+                   <button class="btn-mismatch" onclick="openMismatchModal('${id}')">❌ غير مطابق</button>
                  </div>
                </td>`;
           }
@@ -1036,18 +1110,28 @@
 
         const tr = document.createElement('tr');
         tr.id = `row-${id}`;
-        tr.innerHTML = `${colCells}${balCell}${actionCell}`;
+        tr.innerHTML = `${branchCell}${colCells}${balCell}${actionCell}`;
         tbody.appendChild(tr);
       });
     }
 
-    async function fetchLiveBalance(code, btn) {
-      const item = rawData.find(x => x.code === code);
+    // ملاحظة: في وضع "كل الفروع" (الأدمن) نفس كود الصنف ممكن يتكرر في أكتر من فرع،
+    // فـ id بتاع أصناف الجرد الحية بقى مركّب: "branch::code" — نفكّه هنا عشان نلاقي الصف الصح بالظبط
+    function findLiveItemById(id) {
+      const sep = id.indexOf('::');
+      const branch = sep >= 0 ? id.slice(0, sep) : '';
+      const code   = sep >= 0 ? id.slice(sep + 2) : id;
+      return rawData.find(x => x.code === code && (x.branch || '') === branch);
+    }
+
+    async function fetchLiveBalance(id, btn) {
+      const item = findLiveItemById(id);
       if (!item) return;
+      const branchForQuery = item.branch || userBranch;
       btn.disabled  = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       try {
-        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(item.code)}&branch=${encodeURIComponent(branchForQuery)}`);
         const raw  = await res.json();
         const data = Array.isArray(raw) ? raw[0] : raw;
 
@@ -1085,12 +1169,12 @@
       return await submitJardAudit(payload);
     }
 
-    async function submitLiveMatched(code) {
-      const item = rawData.find(x => x.code === code);
+    async function submitLiveMatched(id) {
+      const item = findLiveItemById(id);
       if (!item || !item._balanceFetched) return;
 
       const ok = await jardGuardedSubmit({
-        branch:      userBranch,
+        branch:      item.branch || userBranch,
         category:    currentTab,
         code:        item.code,
         itm_name_ar: item.itm_name_ar,
@@ -1103,8 +1187,8 @@
 
       if (ok) {
         showToast();
-        rawData      = rawData.filter(x => x.code !== code);
-        filteredData = filteredData.filter(x => x.code !== code);
+        rawData      = rawData.filter(x => !(x.code === item.code && (x.branch || '') === (item.branch || '')));
+        filteredData = filteredData.filter(x => !(x.code === item.code && (x.branch || '') === (item.branch || '')));
         updateSummary();
         updatePagination();
         renderPage();
@@ -1114,12 +1198,12 @@
       }
     }
 
-    async function submitLiveMismatchResult(code, actualVal) {
-      const item = rawData.find(x => x.code === code);
+    async function submitLiveMismatchResult(id, actualVal) {
+      const item = findLiveItemById(id);
       if (!item) return;
 
       const ok = await jardGuardedSubmit({
-        branch:      userBranch,
+        branch:      item.branch || userBranch,
         category:    currentTab,
         code:        item.code,
         itm_name_ar: item.itm_name_ar,
@@ -1132,8 +1216,8 @@
 
       if (ok) {
         showToast();
-        rawData      = rawData.filter(x => x.code !== code);
-        filteredData = filteredData.filter(x => x.code !== code);
+        rawData      = rawData.filter(x => !(x.code === item.code && (x.branch || '') === (item.branch || '')));
+        filteredData = filteredData.filter(x => !(x.code === item.code && (x.branch || '') === (item.branch || '')));
         updateSummary();
         updatePagination();
         renderPage();
@@ -1151,6 +1235,11 @@
 
       scanItem = null;
       if (!code) { resEl.innerHTML = '<span style="color:var(--warning);">اكتب الكود أولاً</span>'; return; }
+
+      if (isAdmin && !userBranch) {
+        resEl.innerHTML = '<span style="color:var(--warning);">⚠️ اختر فرع معين من القايمة الأول عشان تقدر تبحث برصيد</span>';
+        return;
+      }
 
       btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
       resEl.innerHTML = '<span style="color:var(--text-muted);">⏳ جاري البحث...</span>';
@@ -1251,12 +1340,14 @@
     }
 
     async function fetchBalance(id, code, btn) {
-      const cell     = document.getElementById(`bal-cell-${id}`);
-      const nameCell = document.getElementById(`col-itm_name_ar-${id}`);
+      const cell       = document.getElementById(`bal-cell-${id}`);
+      const nameCell   = document.getElementById(`col-itm_name_ar-${id}`);
+      const it0        = rawData.find(x => String(x.id) === String(id));
+      const branchForQuery = (it0 && it0.branch) || userBranch;
       btn.disabled   = true;
       btn.innerHTML  = '<i class="fas fa-spinner fa-spin"></i>';
       try {
-        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(userBranch)}`);
+        const res  = await fetch(`${BALANCE_URL}?code=${encodeURIComponent(code)}&branch=${encodeURIComponent(branchForQuery)}`);
         const raw  = await res.json();
         const data = Array.isArray(raw) ? raw[0] : raw;
 
@@ -1311,7 +1402,7 @@
           : mismatchSource === 'scan'
             ? scanItem
             : mismatchSource === 'live'
-              ? rawData.find(x => x.code === idOrCode)
+              ? findLiveItemById(idOrCode)
               : rawData.find(x => String(x.id) === String(idOrCode));
 
       const sys  = mismatchSource === 'old' ? item?.system_balance : item?._systemQty;
@@ -1383,10 +1474,12 @@
       const code    = String(clicked?.code || '').trim();
       const nowIso  = new Date().toISOString();
 
+      // لازم نقارن الفرع كمان — نفس الكود ممكن يتكرر في أكتر من فرع لو الأدمن بيشوف كل الفروع مع بعض
       const sameCode = (code && code !== '---')
         ? rawData.filter(x =>
             String(x.code || '').trim() === code &&
             (x.type || '').toLowerCase() === currentTab.toLowerCase() &&
+            (x.branch || '') === (clicked?.branch || '') &&
             !isItemDone(x) && !isItemSkip(x) && !isItemMismatch(x)
           )
         : [clicked];
@@ -1420,7 +1513,7 @@
       // بس لو الإجراء فعلي (مطابق أو غير مطابق)، مش تجاهل
       if (success && (isDone || isMismatch)) {
         await jardGuardedSubmit({
-          branch:      userBranch,
+          branch:      clicked?.branch || userBranch,
           category:    currentTab,
           code:        clicked?.code,
           itm_name_ar: clicked?.itm_name_ar,
@@ -1749,9 +1842,19 @@
     // ===== معدل الجرد اليومي (شخصي + فريق) =====
     async function loadMyDailyCount() {
       try {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        // بنجيب كل تاريخ الموظف (من بداية النظام لحد النهاردة) عشان نحسب معدل حقيقي
-        const stats = await fetchDailyJardStats('2020-01-01', todayStr, userBranch);
+        const todayStr  = new Date().toISOString().slice(0, 10);
+        const fromInput = document.getElementById('my-rate-from');
+        const toInput   = document.getElementById('my-rate-to');
+
+        // افتراضيًا: من بداية النظام لحد النهاردة (زي ما كان الحساب قبل كده)،
+        // لكن دلوقتي المستخدم يقدر يغيّر المدة من حقلي التاريخ جنب البادچ
+        if (fromInput && !fromInput.value) fromInput.value = '2020-01-01';
+        if (toInput   && !toInput.value)   toInput.value   = todayStr;
+
+        const dateFrom = (fromInput && fromInput.value) || '2020-01-01';
+        const dateTo   = (toInput   && toInput.value)   || todayStr;
+
+        const stats = await fetchDailyJardStats(dateFrom, dateTo, userBranch);
         const mine  = stats.filter(s => s.audited_by === employeeName);
         const total = mine.reduce((sum, s) => sum + (parseInt(s.audits_count) || 0), 0);
         const daysWorked = new Set(mine.map(s => s.audit_date)).size;
@@ -1845,12 +1948,12 @@
         if (byBranchBody) byBranchBody.innerHTML = branchRows.map(x => {
           const wd = x.days.size;
           const avg = wd > 0 ? (x.total / wd).toFixed(1) : '0';
-          return '<tr>' +
-            '<td data-label="الفرع" style="font-weight:800;color:var(--primary);">' + x.branch + '</td>' +
-            '<td data-label="إجمالي الأصناف" style="font-weight:700;">' + x.total + '</td>' +
-            '<td data-label="أيام الشغل">' + wd + '</td>' +
-            '<td data-label="المعدل / يوم" style="font-weight:800;color:var(--success);">' + avg + '</td>' +
-          '</tr>';
+          return `<tr>
+            <td data-label="الفرع" style="font-weight:800;color:var(--primary);">${x.branch}</td>
+            <td data-label="إجمالي الأصناف" style="font-weight:700;">${x.total}</td>
+            <td data-label="أيام الشغل">${wd}</td>
+            <td data-label="المعدل / يوم" style="font-weight:800;color:var(--success);">${avg}</td>
+          </tr>`;
         }).join('');
 
         // جدول: إجمالي كل موظف (مرتب تنازليًا حسب العدد)
