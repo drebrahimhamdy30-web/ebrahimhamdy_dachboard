@@ -1378,6 +1378,7 @@ let actions='';
       <div class="or-head" onclick="toggleOrder('${o.id}')">
         <span class="or-no">${o.bill_no||o.id?.slice(0,8)}</span>
         <span class="or-name">${o.customer_name||o.cust_name||'—'}</span>
+        ${o.is_gift?'<span style="background:#fef3c7;color:#92400e;font-weight:800;border-radius:8px;padding:1px 7px;font-size:.66rem">🎁 هدية</span>':''}
         <span class="or-status ${stClass}">${['delivered','completed'].includes(o.status)?'✅ ':''}${ST_LABEL[o.status]||o.status}</span>
         <span class="or-chevron" id="chev-${o.id}">▾</span>
       </div>
@@ -1397,6 +1398,7 @@ let actions='';
         ${o.collected_amount!=null?`<div style="font-size:.72rem;color:var(--green);font-weight:600;margin-bottom:.3rem">✓ محصل: ${Number(o.collected_amount).toLocaleString()} ج</div>${collectedNote(o)}`:''}
         ${(o.notes||'').includes('🚨')?`<div class="or-note note-urgent">🚨 طلب عاجل</div>`:''}
 ${o.staff_notes?`<div class="or-note note-staff">💼 ${o.staff_notes}</div>`:''}
+        ${o.is_gift?`<div class="or-note" style="background:#fef3c7;border:1px solid #fbbf24;color:#92400e;font-weight:800">🎁 ${o.gift_title?('هدية — '+o.gift_title):'هدية للعميل'}<br>الرجاء التأكد من وجود الهدية بداخل الطلب</div>`:''}
         ${o.status==='failed'&&o.postpone_reason?`<div class="or-note note-urgent">⚠️ تعذر: ${o.postpone_reason}</div>`:''}
         <div class="or-actions">${itemsBtnDrv(o)}${actions||''}</div>
       </div>
