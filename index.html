@@ -6,10 +6,10 @@
   <title>Phalix</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Orbitron:wght@700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;900&family=Orbitron:wght@700;900&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Tajawal', sans-serif;
+      font-family: 'Cairo', sans-serif;
       background: #0f172a;
       min-height: 100vh;
       display: flex;
@@ -25,7 +25,7 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse at 20% 20%, rgba(56,189,248,0.15) 0%, transparent 55%),
+        radial-gradient(ellipse at 20% 20%, rgba(13,148,136,0.15) 0%, transparent 55%),
         radial-gradient(ellipse at 80% 80%, rgba(99,102,241,0.12) 0%, transparent 50%),
         radial-gradient(ellipse at 60% 10%, rgba(34,197,94,0.07) 0%, transparent 40%);
     }
@@ -36,8 +36,8 @@
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+        linear-gradient(rgba(13,148,136,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13,148,136,0.04) 1px, transparent 1px);
       background-size: 40px 40px;
       pointer-events: none;
     }
@@ -65,8 +65,8 @@
       justify-content: center;
       margin: 0 auto 20px;
       box-shadow:
-        0 8px 32px rgba(56,189,248,0.4),
-        0 0 0 1px rgba(56,189,248,0.2);
+        0 8px 32px rgba(13,148,136,0.4),
+        0 0 0 1px rgba(13,148,136,0.2);
       position: relative;
     }
     .login-icon::after {
@@ -74,7 +74,7 @@
       position: absolute;
       inset: -3px;
       border-radius: 27px;
-      background: linear-gradient(135deg, rgba(56,189,248,0.3), rgba(99,102,241,0.3));
+      background: linear-gradient(135deg, rgba(13,148,136,0.3), rgba(99,102,241,0.3));
       z-index: -1;
       filter: blur(8px);
     }
@@ -112,7 +112,7 @@
       padding: 32px;
       box-shadow:
         0 24px 64px rgba(0,0,0,0.6),
-        0 0 0 1px rgba(56,189,248,0.05) inset;
+        0 0 0 1px rgba(13,148,136,0.05) inset;
       backdrop-filter: blur(12px);
     }
 
@@ -146,14 +146,14 @@
       border: 1.5px solid #334155;
       border-radius: 12px;
       color: #f1f5f9;
-      font-family: 'Tajawal', sans-serif;
+      font-family: 'Cairo', sans-serif;
       font-size: 0.95rem;
       outline: none;
       transition: all 0.2s;
     }
     .field input:focus {
       border-color: #38bdf8;
-      box-shadow: 0 0 0 3px rgba(56,189,248,0.1);
+      box-shadow: 0 0 0 3px rgba(13,148,136,0.1);
     }
     .field input:focus + i,
     .field-wrap:focus-within i { color: #38bdf8; }
@@ -172,7 +172,7 @@
       color: #fff;
       border: none;
       border-radius: 12px;
-      font-family: 'Tajawal', sans-serif;
+      font-family: 'Cairo', sans-serif;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
@@ -182,12 +182,12 @@
       justify-content: center;
       gap: 8px;
       letter-spacing: 0.5px;
-      box-shadow: 0 4px 16px rgba(56,189,248,0.3);
+      box-shadow: 0 4px 16px rgba(13,148,136,0.3);
     }
     .btn-login:hover:not(:disabled) {
       opacity: 0.92;
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(56,189,248,0.4);
+      box-shadow: 0 8px 24px rgba(13,148,136,0.4);
     }
     .btn-login:disabled {
       opacity: 0.5;

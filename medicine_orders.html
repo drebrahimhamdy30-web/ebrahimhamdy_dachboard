@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>طلبيات الأدوية - Phalix</title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
@@ -78,6 +79,8 @@
     .ord-br { border:1.5px solid var(--border);background:var(--surface);color:var(--text-secondary);border-radius:8px;padding:6px 14px;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer; }
     .ord-br.active { background:var(--primary);color:#fff;border-color:var(--primary); }
     .ord-req { font-weight:800;color:#b45309;font-size:0.9rem; }
+    /* صنف نشط شهر واحد فقط = معدل غير موثوق → السطر كله أحمر للتنبيه */
+    #tab-orders tr.ord-onemonth td { color:#dc2626 !important; }
     .ord-surp { font-size:0.72rem;color:#15803d;font-weight:700;line-height:1.5; }
     .ord-actbtn { border:none;border-radius:6px;padding:4px 8px;font-family:inherit;font-size:0.7rem;font-weight:700;cursor:pointer;white-space:nowrap; }
     .ord-tr { background:#16a34a;color:#fff; }
@@ -85,13 +88,21 @@
     /* تحكّم الأعمدة: عرض + ترتيب */
     #tab-orders .cr-table.ord-fit { width:auto;min-width:0; }
     #tab-orders .cr-table.ord-fit td, #tab-orders .cr-table.ord-fit th { white-space:nowrap; }
-    #tab-orders .cr-table th { position:relative; }
+    #tab-orders .cr-table th { position:sticky; top:0; z-index:6; }
     #tab-orders .cr-table th[draggable=true] { cursor:grab; }
     #tab-orders .cr-table th.ord-drag-over { outline:2px dashed #fff;outline-offset:-3px; }
     #tab-orders .cr-table th.ord-dragging { opacity:.45; }
     .ord-rsz { position:absolute;top:0;left:0;width:9px;height:100%;cursor:col-resize;z-index:6; }
     .ord-rsz:hover { background:rgba(255,255,255,.35); }
   </style>
+<style>
+/* الهوية الموحّدة على طلبيات الأدوية (Cairo + تركوازي + Zebra) */
+:root{ --primary:#0d9488; --primary-light:#ccfbf1; --accent:#0d9488; --accent-dark:#0f766e; --font:'Cairo',system-ui,sans-serif; }
+body,.container{ font-family:'Cairo',system-ui,sans-serif; }
+.cr-table tbody tr:nth-child(even) td{ background:#f6fbfa; }
+.cr-table tbody tr:hover td{ background:#cdeee9; }
+.mo-tab.active{ color:#0f766e; border-bottom-color:#0d9488; }
+</style>
 </head>
 <body>
   <div class="container">
@@ -357,7 +368,7 @@
   <script src="api.js"></script>
   <script>
     const CR_SIZE = 50;
-    let crPage = 1, crTotal = 0, crBusy = false, crTimer = null, canEdit = false;
+    let crPage = 1, crTotal = 0, crBusy = false, crTimer = null, canEdit = false, canOrder = false;
     let muRows = [], muHeaders = [];
     const H = { 'apikey': SB_ANON_API, 'Authorization': 'Bearer ' + SB_ANON_API };
     const REST = SB_URL_API + '/rest/v1/';
@@ -491,9 +502,9 @@
       const w = document.getElementById('ord-wh').value;
       const co = document.getElementById('ord-company').value;
       const surpOnly = document.getElementById('ord-surp-only').checked;
-      let url = REST + 'purchase_orders_flat?select=id,itm_code,itm_name,unit,price,company,stock,rate,base_rate,required,net_required,surplus_mamora,surplus_san,surplus_bishr,surplus_other,best_store,best_price,best_disc'
+      let url = REST + 'purchase_orders_flat?select=id,itm_code,itm_name,unit,price,company,stock,rate,base_rate,required,net_required,surplus_mamora,surplus_san,surplus_bishr,surplus_other,best_store,best_price,best_disc,active_months'
         + '&branch=eq.' + encodeURIComponent(ordBranch) + '&order=required.desc,itm_name.asc&limit=' + ORD_SIZE + '&offset=' + offset;
-      if (q) { const e = encodeURIComponent(q); url += '&or=(itm_name.ilike.*' + e + '*,itm_code.ilike.*' + e + '*)'; }
+      if (q) { const e = encodeURIComponent(q); url += '&or=(itm_name.ilike.*' + e + '*,itm_code.eq.' + e + ')'; }
       if (w === '__none__') url += '&best_store=is.null';       // بدون مخزن متاح
       else if (w) url += '&best_store=eq.' + encodeURIComponent(w);
       if (co) url += '&company=eq.' + encodeURIComponent(co);
@@ -658,9 +669,10 @@
           const chosen = ordWhChoice[r.id] || (r.best_store ? { store: r.best_store, price: r.best_price, disc: r.best_disc, av: true } : null);
           if (chosen) ordWhChoice[r.id] = chosen;
           const cc = String(r.itm_code).replace(/'/g, "\\'");
-          const chk = '<input type="checkbox" ' + (ordSelCodes.has(r.itm_code) ? 'checked' : '') + ' onchange="ordSelToggle(\'' + cc + '\',this.checked)">';
-          const arch = canEdit ? '<button class="ord-actbtn" style="background:#fee2e2;color:#b91c1c" title="أرشفة الصنف" onclick="archiveItem(' + r.id + ')"><i class="fas fa-box-archive"></i></button>' : '';
-          return '<tr id="ord-row-' + r.id + '">'
+          const chk = '<input type="checkbox" ' + (ordSelCodes.has(r.itm_code) ? 'checked ' : '') + (canOrder ? '' : 'disabled title="المشتريات فقط" ') + 'onchange="ordSelToggle(\'' + cc + '\',this.checked)">';
+          const arch = canOrder ? '<button class="ord-actbtn" style="background:#fee2e2;color:#b91c1c" title="أرشفة الصنف" onclick="archiveItem(' + r.id + ')"><i class="fas fa-box-archive"></i></button>' : '';
+          const oneMonth = Number(r.active_months) === 1;
+          return '<tr id="ord-row-' + r.id + '"' + (oneMonth ? ' class="ord-onemonth" title="نشط شهر واحد فقط — المعدل غير موثوق، راجع قبل الطلب"' : '') + '>'
             + '<td data-col="sel">' + chk + '</td>'
             + '<td data-col="code" class="cr-code">' + esc(r.itm_code) + '</td>'
             + '<td data-col="name" style="text-align:right;font-weight:600;">' + esc(r.itm_name) + '</td>'
@@ -684,6 +696,7 @@
       } catch (e) { body.innerHTML = '<tr><td colspan="15" style="padding:24px;color:var(--danger);">خطأ في التحميل</td></tr>'; }
     }
     async function ordSelToggle(code, on) {
+      if (!canOrder) return;   // المشتريات فقط
       try {
         if (on) {
           ordSelCodes.add(code);
@@ -695,6 +708,7 @@
       } catch (e) { alert('تعذّر حفظ التحديد: ' + e.message); }
     }
     async function ordToggleAll(el) {
+      if (!canOrder) { el.checked = false; return; }   // المشتريات فقط
       const on = el.checked;
       const codes = Object.values(ordById).map(r => r.itm_code);
       document.querySelectorAll('#ord-body input[type=checkbox]').forEach(cb => { cb.checked = on; });
@@ -710,11 +724,16 @@
       } catch (e) { alert('تعذّر الحفظ: ' + e.message); }
     }
     async function clearAllSelections() {
-      if (!confirm('مسح كل الأصناف «تحت الطلب» في كل الفروع لبدء يوم جديد؟')) return;
+      if (!confirm('بدء يوم جديد؟\nهيتمسح كل «تحت الطلب» + ارتباطات المخازن اليدوية، والأصناف تتوزّع على المخزن الأرخص تلقائيًّا.')) return;
+      const btn = document.getElementById('ord-clear'); if (btn) btn.disabled = true;
       try {
         await fetch(REST + 'order_selections?itm_code=neq.__none__', { method:'DELETE', headers:{ ...H, 'Prefer':'return=minimal' } });
-        ordSelCodes = new Set(); ordSelBranch = null; loadOrders();
+        await fetch(REST + 'order_store_override?itm_code=neq.__none__', { method:'DELETE', headers:{ ...H, 'Prefer':'return=minimal' } });   // مسح ارتباطات المخازن
+        await fetch(REST + 'rpc/refresh_purchase_orders', { method:'POST', headers:{ ...H, 'Content-Type':'application/json' }, body:'{}' });   // إعادة التوزيع الطبيعي
+        ordSelCodes = new Set(); ordSelBranch = null; ordPage = 1; await loadOrders();
+        toast('تم بدء يوم جديد — اتمسح تحت الطلب وارتباطات المخازن ✓');
       } catch (e) { alert('تعذّر المسح: ' + e.message); }
+      finally { if (btn) btn.disabled = false; }
     }
     async function archiveItem(id) {
       const r = ordById[id]; if (!r) return;
@@ -761,7 +780,7 @@
       base += w ? '&best_store=eq.' + encodeURIComponent(w) : '&best_store=not.is.null';
       if (co) base += '&company=eq.' + encodeURIComponent(co);
       if (surpOnly) base += '&surplus_other=gt.0';
-      if (q) { const e = encodeURIComponent(q); base += '&or=(itm_name.ilike.*' + e + '*,itm_code.ilike.*' + e + '*)'; }
+      if (q) { const e = encodeURIComponent(q); base += '&or=(itm_name.ilike.*' + e + '*,itm_code.eq.' + e + ')'; }
       base += ordExtraFilters();
       let all = [], off = 0, SIZE = 1000;
       try {
@@ -840,7 +859,7 @@
       document.getElementById('bw-bg').classList.add('open');
       if (!r._wh) {
         try {
-          const rows = await (await fetch(REST + 'store_item_prices?select=store,item_name,price,discount_perc,available&available=eq.true&code=eq.' + encodeURIComponent(r.itm_code), { headers: H })).json();
+          const rows = await (await fetch(REST + 'store_item_prices?select=store,item_name,price,discount_perc,available&available=eq.true&code=ilike.' + encodeURIComponent(r.itm_code), { headers: H })).json();
           r._wh = (rows || []).map(x => ({ store: x.store, name: x.item_name, price: x.price, disc: x.discount_perc, av: x.available,
             net: (x.price == null || x.price === '') ? null : Number(x.price) * (1 - (Number(x.discount_perc) || 0) / 100) }))
             .sort((a, b) => (a.net == null ? Infinity : a.net) - (b.net == null ? Infinity : b.net));
@@ -863,13 +882,23 @@
         + '</tbody></table>';
       document.getElementById('bw-bg').classList.add('open');
     }
-    function pickWh(id, i) {
+    async function pickWh(id, i) {
       const r = ordById[id]; if (!r || !r._wh || !r._wh[i]) return;
       const c = r._wh[i]; ordWhChoice[id] = c;
       document.getElementById('wh-name-' + id).innerHTML = whNameHtml(id, c);
       document.getElementById('wh-price-' + id).textContent = (c.price == null ? '—' : c.price);
       document.getElementById('wh-disc-' + id).textContent = (c.disc == null ? 0 : c.disc) + '%';
       closeBest();
+      if (canOrder) {
+        // حفظ الاستبدال: يظهر في فلتر المخزن ويفضل ثابت حتى بعد إعادة الحساب اليومية
+        try {
+          await fetch(REST + 'purchase_orders_flat?id=eq.' + r.id, { method:'PATCH', headers:{ ...H, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+            body: JSON.stringify({ best_store: c.store, best_price: c.price, best_disc: c.disc, best_item_name: c.name }) });
+          await fetch(REST + 'order_store_override?on_conflict=branch,itm_code', { method:'POST', headers:{ ...H, 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify({ branch: ordBranch, itm_code: r.itm_code, store: c.store, price: c.price, disc: c.disc, item_name: c.name, updated_at: new Date().toISOString() }) });
+          if (r) { r.best_store = c.store; r.best_price = c.price; r.best_disc = c.disc; r.best_item_name = c.name; }
+        } catch (e) { toast('تعذّر حفظ استبدال المخزن'); }
+      }
     }
     function closeBest() { document.getElementById('bw-bg').classList.remove('open'); }
 
@@ -1207,12 +1236,17 @@
 
     (function () {
       const role = (localStorage.getItem('userRole') || '').toLowerCase();
-      if (role === 'admin' || role === 'manager' || role === 'pharmacist') {   // pharmacist = مشتريات
+      canOrder = (role === 'pharmacist' || role === 'admin');   // تعديل «تحت الطلب»/الأرشفة/التحديث = المشتريات (والأدمن) فقط
+      if (role === 'admin' || role === 'manager' || role === 'pharmacist') {   // إدارة الجداول المرجعية
         canEdit = true;
         document.getElementById('mo-months').style.display = 'block';
         ['replace','exceptional','tiers','archive','settings'].forEach(t => document.getElementById('tabbtn-' + t).style.display = 'inline-block');
+      }
+      if (canOrder) {
         document.getElementById('ord-refresh').style.display = 'inline-flex';
         document.getElementById('ord-clear').style.display = 'inline-flex';
+      } else {
+        const a = document.getElementById('ord-all'); if (a) { a.disabled = true; a.title = 'المشتريات فقط'; }
       }
     })();
 
