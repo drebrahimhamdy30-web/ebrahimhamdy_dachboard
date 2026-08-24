@@ -134,7 +134,6 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 .tag-visa{background:#dbeafe;color:#1e40af}
 .tag-transfer{background:var(--green-light);color:#15803d}
 .tag-deferred{background:var(--orange-light);color:#c2410c}
-.tag-paid{background:#dcfce7;color:#15803d}
 .or-amount{font-size:1rem;font-weight:800;margin-bottom:.4rem}
 .or-note{font-size:.7rem;padding:.3rem .5rem;border-radius:6px;margin-bottom:.3rem}
 @keyframes giftPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
@@ -169,7 +168,6 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
 .po-visa{border-color:#1e40af!important;background:#dbeafe!important;color:#1e40af!important}
 .po-transfer{border-color:#15803d!important;background:var(--green-light)!important;color:#15803d!important}
 .po-deferred{border-color:#c2410c!important;background:var(--orange-light)!important;color:#c2410c!important}
-.po-paid{border-color:#15803d!important;background:#dcfce7!important;color:#15803d!important}
 .fail-opts{display:flex;flex-direction:column;gap:.5rem}
 .fail-opt{padding:.75rem 1rem;border-radius:10px;font-family:'Cairo',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;border:2px solid var(--border);background:white;text-align:right}
 .fail-opt.selected{border-color:var(--red);background:var(--red-light);color:#b91c1c}
@@ -202,9 +200,12 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
 </div>
 
 <div class="header">
-  <div>
-    <div class="h-name" id="driverName">بورتال الطيار</div>
-    <div class="h-sub" id="driverBranch">جاري التحميل...</div>
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <div id="hdrAvatar" onclick="openAvatar()" title="غيّر صورتك" style="width:42px;height:42px;border-radius:50%;background:#64748b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;overflow:hidden;background-size:cover;background-position:center;cursor:pointer;flex-shrink:0"></div>
+    <div>
+      <div class="h-name" id="driverName">بورتال الطيار</div>
+      <div class="h-sub" id="driverBranch">جاري التحميل...</div>
+    </div>
   </div>
 <div class="h-actions">
     <button class="h-btn" id="muteBtn" onclick="toggleMute()" title="كتم صوت التنبيهات">🔊</button>
@@ -277,7 +278,7 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
         <button class="pay-opt" onclick="selPay('cash',this)">💵 كاش</button>
         <button class="pay-opt" onclick="selPay('visa',this)">💳 فيزا</button>
         <button class="pay-opt" onclick="selPay('transfer',this)">🏦 تحويل</button>
-        <button class="pay-opt" onclick="selPay('paid',this)">✅ خالص</button>
+        <button class="pay-opt" onclick="selPay('deferred',this)">📋 آجل</button>
       </div>
       <input type="hidden" id="dlv-pay">
     </div>
@@ -350,13 +351,25 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
   </div>
 </div>
 
-<!-- Modal: Items -->
-<div class="modal-overlay" id="itemsModal">
+  <!-- Modal: Avatar -->
+<div class="modal-overlay" id="avatarModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="itemsTitle">🧾 أصناف الفاتورة</div>
-    <div id="itemsBody" style="min-height:60px"></div>
-    <button class="btn-full btn-gray" onclick="closeModal('itemsModal')" style="margin-top:1rem">إغلاق</button>
+    <div class="modal-title">🖼️ صورتك في شاشة التوزيع</div>
+    <div style="display:flex;justify-content:center;margin-bottom:1rem">
+      <div id="av-preview" style="width:92px;height:92px;border-radius:50%;background:#64748b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;overflow:hidden;background-size:cover;background-position:center"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ارفع صورتك</label>
+      <input type="file" accept="image/*" class="form-ctrl" id="av-file" onchange="onAvatarFile(event)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">أو اختر رمز</label>
+      <div id="av-emojis" style="display:flex;flex-wrap:wrap;gap:.4rem"></div>
+    </div>
+    <button class="btn-full btn-green" onclick="saveAvatar()">✓ حفظ</button>
+    <button class="btn-full btn-gray" onclick="clearAvatar()">مسح الصورة (رجوع للحروف)</button>
+    <button class="btn-full btn-gray" onclick="closeModal('avatarModal')">إلغاء</button>
   </div>
 </div>
 
@@ -366,73 +379,14 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
 <script src="supabase-config.js?v=brand2"></script>
 <script src="permissions.js"></script>
 <script>
-const PAY_LABELS={cash:'💵 كاش',visa:'💳 فيزا',transfer:'🏦 تحويل',deferred:'📋 آجل',paid:'✅ خالص'};
+const PAY_LABELS={cash:'💵 كاش',visa:'💳 فيزا',transfer:'🏦 تحويل',deferred:'📋 آجل'};
 const ST_LABEL={pending:'جاهز',assigned:'على رحلة',picked:'استلم',delivered:'وصّل',completed:'مكتمل',postponed:'تعذر',failed:'متعذر'};
-// ===== أصناف الفاتورة (نفس ويبهوك الأبليكشن) =====
-const SALES_ITEMS_WEBHOOK='https://agent.ebrahimhamdy.com/webhook/sales_item';
-const billItemsCacheDrv={};
-function renderBillItemsDrv(items){
-  const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  if(!items||!items.length) return '<div style="color:#64748b;font-size:.85rem;padding:.6rem 0;text-align:center">لا توجد أصناف في هذه الفاتورة</div>';
-  const rows=items.map(it=>{
-    const nm=esc(it.name||'—');
-    const q=it.qty;
-    const qs=(q!=null&&String(q).trim()!=='')?`<span style="background:#0A3D62;color:#fff;font-weight:800;font-size:.75rem;padding:.12rem .5rem;border-radius:6px;white-space:nowrap">×${esc(q)}</span>`:'';
-    const unit=it.unit?`<span style="color:#94a3b8;font-size:.72rem"> · ${esc(it.unit)}</span>`:'';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.5rem .2rem;border-bottom:1px solid #eef2f7"><span style="font-weight:600;font-size:.9rem;color:#1e293b">${nm}${unit}</span>${qs}</div>`;
-  }).join('');
-  return `<div style="font-weight:800;color:#0A3D62;font-size:.85rem;margin-bottom:.35rem;display:flex;justify-content:space-between"><span>🧾 قائمة الأصناف</span><span style="color:#64748b">${items.length} صنف</span></div>${rows}`;
-}
-async function openItemsModalDrv(billNo,branchId,oid,cc){
-  const body=document.getElementById('itemsBody');
-  document.getElementById('itemsTitle').innerHTML='🧾 أصناف الفاتورة '+(billNo?('#'+billNo):'')+(cc?` <span style="color:#64748b;font-weight:600;font-size:.8rem">· كود ${cc}</span>`:'');
-  document.getElementById('itemsModal').classList.add('open');
-  if(billItemsCacheDrv[oid]){ body.innerHTML=renderBillItemsDrv(billItemsCacheDrv[oid]); return; }
-  if(!billNo||billNo==='null'){ body.innerHTML='<div style="color:#b91c1c;font-size:.85rem;text-align:center;padding:.6rem">لا يوجد رقم فاتورة لهذا الطلب</div>'; return; }
-  body.innerHTML='<div style="color:#64748b;font-size:.85rem;text-align:center;padding:1rem">⏳ جاري جلب الأصناف...</div>';
-  try{
-    const r=await fetch(SALES_ITEMS_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({branch_id:branchId||'',bill_no:String(billNo)})});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    const root=Array.isArray(data)?(data[0]||{}):(data||{});
-    const bills=(root&&root.Data)||[];
-    const bill=bills.find(b=>String(b.bill_no)===String(billNo))||bills[0]||{};
-    const raw=(bill&&bill.Items)||[];
-    const items=raw.map(it=>({
-      name:(it.itm_name_ar||it.itm_name_en||'').toString().trim(),
-      qty:it.itm_qty,
-      unit:it.unit_name||'',
-      price:it.unit_price
-    }));
-    billItemsCacheDrv[oid]=items;
-    body.innerHTML=renderBillItemsDrv(items);
-  }catch(e){
-    body.innerHTML='<div style="color:#b91c1c;font-size:.85rem;text-align:center;padding:.6rem">❌ تعذّر جلب الأصناف<br><span style="font-size:.75rem">'+(e&&e.message||e)+'</span></div>';
-  }
-}
-function itemsBtnDrv(o){
-  const bn=(o.bill_no!=null?String(o.bill_no):'').replace(/['"\\]/g,'');
-  const bid=(o.branch_id!=null?String(o.branch_id):(driverRecord&&driverRecord.branch_id?String(driverRecord.branch_id):'')).replace(/['"\\]/g,'');
-  const cc=(o.cust_code!=null?String(o.cust_code):'').replace(/['"\\]/g,'');
-  return `<button class="oa-btn" style="background:#0A3D62;color:#fff" onclick="event.stopPropagation();openItemsModalDrv('${bn}','${bid}','${o.id}','${cc}')">🧾 الأصناف</button>`;
-}
-// أرقام العميل — كل رقم لوحده: زر اتصال + زر واتساب (يدعم أكتر من رقم)
-function _waNumberDrv(n){
-  let x=String(n).replace(/[^0-9]/g,'');
-  if(x.startsWith('00')) x=x.slice(2);
-  if(x.startsWith('20')) return x;
-  if(x.startsWith('0')) return '20'+x.slice(1);
-  if(x.length===10 && x.startsWith('1')) return '20'+x;
-  return x;
-}
+// أرقام العميل كأزرار اتصال (يدعم أكتر من رقم)
 function custPhonesDrv(raw){
   if(!raw) return '';
   const nums=String(raw).split(/[,،]/).map(s=>s.replace(/[^0-9+]/g,'')).filter(s=>s.length>=5);
   if(!nums.length) return '';
-  return nums.map(n=>`<span style="display:inline-flex;gap:.3rem;margin:.15rem .3rem .4rem 0;align-items:center">
-      <a href="tel:${n}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.35rem;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:.35rem .6rem;font-weight:700;font-size:.8rem;text-decoration:none">📞 اتصال: <bdi>${n}</bdi></a>
-      <a href="https://wa.me/${_waNumberDrv(n)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.25rem;color:#fff;background:#25D366;border-radius:8px;padding:.35rem .55rem;font-weight:800;font-size:.8rem;text-decoration:none">🟢 واتساب</a>
-    </span>`).join('');
+  return nums.map(n=>`<a href="tel:${n}" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:.35rem;margin:.15rem .3rem .4rem 0;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;padding:.35rem .6rem;font-weight:700;font-size:.8rem;text-decoration:none">📞 اتصال: <bdi>${n}</bdi></a>`).join('');
 }
 
 let currentUser=null, driverRecord=null, settings=null;
@@ -647,6 +601,12 @@ function subscribeToOrders(){
         playSound('order_removed');
         showBanner('طلب تم إزالته من رحلتك', '#6b7280');
       }
+      // رسالة جديدة من الإدارة على الطلب
+      else if(payload.eventType === 'UPDATE' && payload.new?.driver_message && payload.new.driver_message !== payload.old?.driver_message){
+        await loadAll();
+        startContinuousSound('new_order');
+        showBanner('✉️ رسالة جديدة من الإدارة على أحد طلباتك', '#1a56db', true);
+      }
       // أي تغيير تاني
       else {
         await loadAll();
@@ -671,6 +631,24 @@ function subscribeToCallNotifications(){
 function dismissCall(){
   stopContinuousSound();
   document.getElementById('callNotice').style.display = 'none';
+}
+
+// Realtime: رد على طلب «الموقع الحالي» من شاشة التوزيع
+let locChannel = null;
+function subscribeToLocationRequests(){
+  if(!driverRecord) return;
+  if(locChannel){ db.removeChannel(locChannel); locChannel=null; }
+  locChannel = db.channel(`driver-loc-${driverRecord.id}`)
+    .on('broadcast', {event: 'request'}, async () => {
+      const loc = await getMyLocation();
+      if(loc){
+        try{ await db.rpc('report_driver_location', {p_driver_id:driverRecord.id, p_lat:loc.lat, p_lng:loc.lng, p_acc:loc.acc||null}); }catch(e){}
+        locChannel.send({type:'broadcast', event:'response', payload:{ok:true, lat:loc.lat, lng:loc.lng, acc:loc.acc}});
+      } else {
+        locChannel.send({type:'broadcast', event:'response', payload:{ok:false}});
+      }
+    })
+    .subscribe();
 }
 
 function showBanner(msg, color, persistent=false){
@@ -711,6 +689,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
   load(false);
   subscribeToOrders();
   subscribeToCallNotifications();
+  subscribeToLocationRequests();
   setInterval(loadAttendance, 30000);
   setInterval(updateAllTimers, 60000);
   // Realtime subscription للطلبات
@@ -721,6 +700,7 @@ async function loadDriver(){
   try{
 const {data}=await db.from('drivers').select('*,branches(name)').eq('branch_user_id',currentUser.id);    driverRecord=data&&data.length>0?data[0]:null;
     if(driverRecord) document.getElementById('driverBranch').textContent=driverRecord.branches?.name||'—';
+    renderHeaderAvatar();
   }catch(e){console.error(e);}
 }
 
@@ -1031,23 +1011,22 @@ async function renderDriverRank(){
   const badge=document.getElementById('driverRankBadge');
   if(!badge||!driverRecord)return;
   try{
-    // نفس منطق التطبيق: RPC واحد يرجّع دور الطيار المتاح فقط (المشغول على رحلة أو المنصرف → لا يوجد دور)
+    // نفس منطق شاشة التوزيع بالظبط (أونلاين معتمد + مش مشغول، مرتّب بآخر إنهاء)
     const {data,error}=await db.rpc('get_driver_rank',{p_driver:driverRecord.id,p_branch:driverRecord.branch_id});
     const row=Array.isArray(data)?data[0]:data;
-    const rank=(row&&row.rank!=null)?Number(row.rank):null;
-    const total=(row&&row.total!=null)?Number(row.total):0;
-    if(error||rank==null){ badge.style.display='none'; return; }
+    if(error||!row||row.rank==null){ badge.style.display='none'; return; }
+    const rank=row.rank;
     badge.style.display='inline';
     if(rank===1){
       badge.textContent='دورك #1 — التالي في التوزيع';
       badge.style.background='rgba(22,163,74,.15)';
       badge.style.color='var(--green)';
     } else if(rank===2){
-      badge.textContent=`دورك #2 من ${total}`;
+      badge.textContent='دورك #2';
       badge.style.background='rgba(234,88,12,.1)';
       badge.style.color='var(--orange)';
     } else {
-      badge.textContent=`دورك #${rank} من ${total}`;
+      badge.textContent=`دورك #${rank}`;
       badge.style.background='rgba(26,86,219,.1)';
       badge.style.color='var(--primary)';
     }
@@ -1360,8 +1339,8 @@ let actionsBar='';
     actionsBar+='</div>';
   }
 
-  const _doneRank=o=>['delivered','completed'].includes(o.status)?1:0;
-  const orderRows=[...orders].sort((a,b)=>_doneRank(a)-_doneRank(b)).map(o=>{
+  const _isDoneOrd=o=>['delivered','completed'].includes(o.status);
+  const orderRows=[...orders].sort((a,b)=>(_isDoneOrd(a)?1:0)-(_isDoneOrd(b)?1:0)).map(o=>{
     const late=isLate(o);
     const stClass=`ors-${o.status}`;
     const pm=o.payment_method;
@@ -1370,7 +1349,8 @@ let actionsBar='';
     const amount=Number(o.total_bill_net||0);
 let actions='';
     if(o.status==='assigned')
-      actions=`<button class="oa-btn oa-pickup" onclick="pickupOne('${o.id}')">▶️ استلمت</button>`;
+      actions=`<button class="oa-btn oa-pickup" onclick="pickupOne('${o.id}')">▶️ استلمت</button>
+               <button class="oa-btn oa-fail" onclick="openFail('${o.id}')">⚠️ تعذر</button>`;
     else if(o.status==='picked')
       actions=`<button class="oa-btn oa-deliver" onclick="openDeliver('${o.id}')">✅ وصّلت</button>
                <button class="oa-btn oa-fail" onclick="openFail('${o.id}')">⚠️ تعذر</button>`;
@@ -1400,9 +1380,10 @@ let actions='';
         ${o.collected_amount!=null?`<div style="font-size:.72rem;color:var(--green);font-weight:600;margin-bottom:.3rem">✓ محصل: ${Number(o.collected_amount).toLocaleString()} ج</div>${collectedNote(o)}`:''}
         ${(o.notes||'').includes('🚨')?`<div class="or-note note-urgent">🚨 طلب عاجل</div>`:''}
 ${o.staff_notes?`<div class="or-note note-staff">💼 ${o.staff_notes}</div>`:''}
+        ${o.driver_message?`<div class="or-note" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;font-weight:700">✉️ رسالة من الإدارة: ${o.driver_message}</div>`:''}
         ${o.is_gift?`<div class="or-note gift-pulse" style="background:#fef3c7;border:1px solid #fbbf24;color:#92400e;font-weight:800">🎁 ${o.gift_title?('هدية — '+o.gift_title):'هدية للعميل'}<br>الرجاء التأكد من وجود الهدية بداخل الطلب</div>`:''}
         ${o.status==='failed'&&o.postpone_reason?`<div class="or-note note-urgent">⚠️ تعذر: ${o.postpone_reason}</div>`:''}
-        <div class="or-actions">${itemsBtnDrv(o)}${actions||''}</div>
+        ${actions?`<div class="or-actions">${actions}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1519,6 +1500,13 @@ function showBalanceNotice(orders){
 let _dlvBill=0;
 function openDeliver(id){
   const o=Object.values(tripOrders).flat().find(x=>x.id===id);if(!o)return;
+  // رسالة الإدارة المربوطة بالطلب — تظهر إجبارياً هنا لو الطيار مشافهاش
+  if(o.driver_message && !o.driver_message_seen_at){
+    alert('✉️ رسالة من الإدارة على هذا الطلب:\n\n'+o.driver_message);
+    const seenAt=new Date().toISOString();
+    o.driver_message_seen_at=seenAt;
+    db.from('orders').update({driver_message_seen_at:seenAt}).eq('id',id).then(()=>{}).catch(()=>{});
+  }
   _dlvBill=Number(o.total_bill_net||0);
   document.getElementById('dlv-billnote').textContent='قيمة الفاتورة: '+_dlvBill.toLocaleString('ar-EG')+' ج';
   document.getElementById('dlv-id').value=id;
@@ -1595,17 +1583,13 @@ async function confirmFail(){
   const now=new Date().toISOString();
   // الأوردر يفضل في الرحلة مع الطيار — بس حالته تبقى "متعذر"
   // مش بنشيله من trip_orders ولا بنرجّع driver_id=null
-  const upd={
-    status:'failed',
-    postpone_reason:reason,
-    driver_notes:note||null,
-    attempt_count:(o?.attempt_count||0)+1,
-    updated_at:now
-  };
-  if(floc){ upd.fail_lat=floc.lat; upd.fail_lng=floc.lng; }
-  await db.from('orders').update(upd).eq('id',id);
-  await addOrderLog(id,'order_postponed',{reason,kept_in_trip:true,
-    ...(floc?{fail_loc:'https://www.google.com/maps?q='+floc.lat+','+floc.lng, gps_accuracy_m:Math.round(floc.acc||0)}:{})});
+  // تحديث الطلب + تسجيل التعذّر في عملية واحدة ذرّية (RPC) — يمنع فجوة «اتحدّث بدون تسجيل» لو الشبكة قطعت
+  const { error:_failErr } = await db.rpc('web_driver_fail_order', {
+    p_order_id:id, p_reason:reason, p_note:note||null,
+    p_lat: floc?floc.lat:null, p_lng: floc?floc.lng:null, p_acc: floc?Math.round(floc.acc||0):null,
+    p_actor: currentUser?.full_name || '—', p_actor_id: logUserId()
+  });
+  if(_failErr){ alert('تعذّر تسجيل التعذّر — حاول تاني: '+_failErr.message); load(false); return; }
   closeModal('failModal');await loadAll();load(false);
 }
 async function retryFailed(orderId){
@@ -1737,6 +1721,60 @@ async function submitChangePassword(){
     console.error('changePassword:',e);
     alert('❌ حدث خطأ: '+(e.message||'فشل تغيير كلمة المرور'));
   }
+  load(false);
+}
+
+// ===== صورة/رمز الطيار =====
+const AV_EMOJIS=['🛵','🏍️','🚗','🚴','🧑','👨','👩','🧔','😎','🧢','⭐','🔥','🚀','🐎','⚡','🦅','🏆','👍'];
+let _avatarVal='';
+function isAvImg(v){ return typeof v==='string' && (v.startsWith('data:')||v.startsWith('http')); }
+function driverInitials(){ return (currentUser?.full_name||driverRecord?.full_name||'?').split(' ').slice(0,2).map(w=>w[0]).join(''); }
+function applyAvatarTo(el, val){
+  if(!el) return;
+  const ini=driverInitials();
+  if(isAvImg(val)){ el.style.backgroundImage=`url('${val}')`; el.textContent=''; }
+  else if(val){ el.style.backgroundImage='none'; el.textContent=val; }
+  else { el.style.backgroundImage='none'; el.textContent=ini; }
+}
+function renderHeaderAvatar(){ applyAvatarTo(document.getElementById('hdrAvatar'), driverRecord?.avatar||''); }
+function renderAvatarPreview(){ applyAvatarTo(document.getElementById('av-preview'), _avatarVal); }
+function openAvatar(){
+  if(!driverRecord){ alert('جاري تحميل بياناتك، حاول بعد لحظات'); return; }
+  _avatarVal=driverRecord.avatar||'';
+  document.getElementById('av-file').value='';
+  document.getElementById('av-emojis').innerHTML=AV_EMOJIS.map(e=>`<button type="button" onclick="pickEmoji('${e}')" style="font-size:1.4rem;width:46px;height:46px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer">${e}</button>`).join('');
+  renderAvatarPreview();
+  document.getElementById('avatarModal').classList.add('open');
+}
+function pickEmoji(e){ _avatarVal=e; document.getElementById('av-file').value=''; renderAvatarPreview(); }
+function clearAvatar(){ _avatarVal=''; renderAvatarPreview(); }
+function onAvatarFile(ev){
+  const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const size=96, c=document.createElement('canvas'); c.width=size; c.height=size;
+      const ctx=c.getContext('2d');
+      const m=Math.min(img.width,img.height), sx=(img.width-m)/2, sy=(img.height-m)/2;
+      ctx.drawImage(img, sx,sy,m,m, 0,0,size,size);
+      _avatarVal=c.toDataURL('image/jpeg',0.7);
+      renderAvatarPreview();
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+async function saveAvatar(){
+  if(!driverRecord) return;
+  load(true);
+  try{
+    const {data,error}=await db.rpc('set_driver_avatar',{p_driver_id:driverRecord.id, p_avatar:_avatarVal||null});
+    if(error||(data&&data.success===false)) throw new Error(error?.message||data?.error||'فشل الحفظ');
+    driverRecord.avatar=_avatarVal||null;
+    renderHeaderAvatar();
+    closeModal('avatarModal');
+  }catch(e){ alert('❌ تعذّر حفظ الصورة: '+(e.message||'')); }
   load(false);
 }
 
