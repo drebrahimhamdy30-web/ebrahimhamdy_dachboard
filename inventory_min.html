@@ -231,7 +231,7 @@
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
       try {
-        // جلب اسم الصنف من مخزون Supabase (stock_mamora) مباشرة بدل نداء n8n
+        // جلب اسم الصنف من مخزون Supabase مباشرة (بدل نداء ERP)
         const nameItem = await sbItemLookup(code);
         const itemName = nameItem?.itm_name_ar || '';
         const itemType = nameItem?.item_type   || '';

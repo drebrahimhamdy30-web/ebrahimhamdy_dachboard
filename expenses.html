@@ -416,7 +416,12 @@
     // فلو نفس العميل ظاهر في أكتر من صف مصروف مش هيتبعت طلب لـ n8n كل مرة تاني.
     const customerBalanceCache = {}; // key -> {status, balance}
 
-    document.addEventListener('click', (ev) => { const btn = ev.target.closest('.bal-load-btn'); if (!btn) return; loadCustomerBalance(btn.dataset.branch, btn.dataset.code, btn.dataset.name); });
+    // مستمع واحد لكل أزرار «عرض الرصيد / إعادة المحاولة» — بدل onclick inline (أأمن مع الأسماء اللي فيها رموز)
+    document.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.bal-load-btn');
+      if (!btn) return;
+      loadCustomerBalance(btn.dataset.branch, btn.dataset.code, btn.dataset.name);
+    });
 
     function escapeHtml(str) {
       return String(str == null ? '' : str)

@@ -492,7 +492,6 @@
       loadEl.classList.add('show');
       foundEl.classList.remove('show');
       try {
-        // جلب اسم الصنف من مخزون Supabase (stock_mamora) مباشرة بدل نداء n8n
         const item = await sbItemLookup(code);
         const nameAr = item?.itm_name_ar || '';
         const nameEn = item?.itm_name_en || '';
@@ -816,6 +815,7 @@
           else alert('فشل الإرسال ❌');
         } else if (actualType === 'شراء' || actualType === 'تحويل') {
           // طلب شراء/تحويل: بيتكتب مباشرة في جدول task على Supabase (بدل n8n)
+          // ونعرض البيانات "زي ما اتخزنت فعلاً" من الرد عشان نمسك أي حقل بيضيع
           const result = await sbTaskInsert(payload);
           if (result.ok) {
             showToast();

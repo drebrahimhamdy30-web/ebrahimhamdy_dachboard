@@ -337,7 +337,6 @@ async function sbSalesAccessDisable(store) {
   } catch(e){ console.error('sbSalesAccessDisable', e); return false; }
 }
 
-
 // طلبات خدمة العملاء لفرع — pendingOnly=true يرجّع بس اللي لسه محتاج إجراء (أسرع بكتير)
 async function sbCsOrders(branch, pendingOnly) {
   try {
@@ -493,8 +492,6 @@ async function sbStockLimitDelete(id) {
   } catch (e) { console.error('sbStockLimitDelete error:', e); return false; }
 }
 
-
-
 async function fetchFromN8N(category) {
   try {
     const response = await fetch(`${FETCH_URL}?type=${category}`);
@@ -558,8 +555,8 @@ async function updateCustomer({ cust_code, cust_type, note, category }) {
 
 async function fetchOrders()           { return await fetchFromN8N('orders'); }
 async function fetchData()             { return await fetchFromN8N('orders'); }
-async function fetchContracts()        { return await sbContractList(); }   // Supabase
-async function fetchMissing()          { return await sbMissingList(); }    // Supabase
+async function fetchContracts()        { return await sbContractList(); }   // Supabase (بدل n8n)
+async function fetchMissing()          { return await sbMissingList(); }    // Supabase (بدل n8n)
 async function fetchInventory()        { return await fetchFromN8N('inventory'); }
 async function fetchOffers()           { return await fetchFromN8N('offers'); }
 
@@ -725,6 +722,7 @@ async function updateDataWithResponse(data) {
   }
 }
 
+// تجديد جلسة Supabase بالـrefresh token. بيرجّع true لو الجلسة لسه صالحة أو اتجددت.
 async function sbAuthRefresh() {
   const rt = localStorage.getItem('sbRefresh');
   if (!rt) return false;
@@ -1060,7 +1058,6 @@ function logout() {
   window.location.replace('index.html');
 }
 
-
 // ===================== متابعة أرصدة الموردين (Supplier Balance Watch) =====================
 // نفس أسلوب باقي الأبلكيشن: PostgREST بمفتاح anon. snapshots/runs = append-only (إضافة فقط).
 // المرجع الحالي لأي فرع = أحدث صف في snapshots (بـ taken_at). التحقق من الصلاحية client-side.
@@ -1191,6 +1188,7 @@ async function sbSupBalSaveSettings({ threshold, updated_by }) {
     return r.ok;
   } catch (e) { console.error('sbSupBalSaveSettings error:', e); return false; }
 }
+
 
 /* ===== أدوات الجداول العامة: تحجيم الأعمدة + محاذاة تلقائية على النص =====
    تُطبَّق تلقائيًا على أي <table> فيه رأس (thead/th)، وتتخطّى الجداول ذات
