@@ -2,9 +2,10 @@
   "_ليه_الملف_ده": "عنوان الباك إند لتطبيق الطيار. التطبيق بيقراه أول ما يفتح بدل ما يكون محروق جواه — يعني التحويل للسيرفر (أو الرجوع للسحابة) = تعديل السطرين اللي تحت، من غير نسخة جديدة ولا تحديث إجباري لكل الطيارين.",
   "_تحذير": "أي غلطة هنا بتوقّف كل تطبيقات الطيارين. التطبيق بيتأكد إن الرابط https وإن المفتاح شكله JWT، ولو الملف مكسور بيكمّل بآخر إعداد نجح — بس ماتجربش عليه.",
   "_الرجوع": "لو حصلت مشكلة بعد التحويل، رجّع القيمتين دول لقيم السحابة والتطبيقات هترجع لوحدها خلال دقايق.",
-  "supabaseUrl": "https://supabase.ebrahimhamdy.com",
-  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg5NjY1NjAzLCJleHAiOjE5NDczNDU2MDN9.ywTdAdPyNPxa6_Ks9udNfTzhtt0hUGlBQztB2pGyHCo",
+
+  "supabaseUrl": "https://rxtjoqulmgkkcohmgzgi.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4dGpvcXVsbWdra2NvaG1nemdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDQ2OTUsImV4cCI6MjA5NDI4MDY5NX0.QVoJPtlRlRIz9tdhmdTZxHtKxrwAxJq0Je4QHkFKxj0",
+
   "updatedAt": "2026-09-20",
-  "pointsTo": "server",
-  "_بروفة": "بروفة معالجة 401 — بناء 72. الرجوع خلال دقايق."
+  "pointsTo": "cloud"
 }
