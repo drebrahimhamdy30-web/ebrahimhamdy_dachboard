@@ -342,8 +342,11 @@
   <script src="api.js?v=20260904c"></script>
   <script>
     const REFRESH_WEBHOOK = 'https://agent.ebrahimhamdy.com/webhook/refresh_stock';
-    const REFRESH_URLS = { mamora: REFRESH_WEBHOOK, san: REFRESH_WEBHOOK, bishr: REFRESH_WEBHOOK };
     const BRANCHES = Branches.codeMap();
+    const BR_KEYS  = Object.keys(BRANCHES);                 // أي فرع جديد بيدخل لوحده
+    // get_stock_summary بيرجّع الفرع بحرف: المعمورة m · سان s · بشر b · السيوف f
+    const BR_LETTER = { mamora:'m', san:'s', bishr:'b', seyouf:'f' };
+    const REFRESH_URLS = (function(){ var o={}; BR_KEYS.forEach(function(k){ o[k]=REFRESH_WEBHOOK; }); return o; })();
     // اسم المخزن → الكود المختصر
     const BRANCH_NAME_MAP = (function(){ var m={}; Branches.all().forEach(function(b){ (b.aliases||[]).forEach(function(a){ m[a]=b.code; }); }); return m; })();
     const STALE_HOURS = 12;
@@ -354,7 +357,7 @@
     var currentTab='prices';
     var currentPage=1;
     const PAGE_SIZE=30;
-    var branchUpdates={mamora:null, san:null, bishr:null};
+    var branchUpdates=(function(){ var o={}; BR_KEYS.forEach(function(k){ o[k]=null; }); return o; })();
 
     const LS_KEY='invmgmt_settings';
     function saveSettings(){
@@ -449,7 +452,7 @@
     }
 
     var stockLoaded=false;
-    var branchEmpty = {mamora:false, san:false, bishr:false};
+    var branchEmpty = (function(){ var o={}; BR_KEYS.forEach(function(k){ o[k]=false; }); return o; })();
     async function loadStockData(silent){
       if(stockLoaded) return true;
       if(!silent && currentTab!=='disbursement' && currentTab!=='pricechanges')
@@ -495,9 +498,7 @@
       salesData    = r[1].status==='fulfilled' ? r[1].value : [];
       var meta = stockSummary.meta || {};
 
-      branchEmpty.mamora = !(meta.mamora && meta.mamora.count>0);
-      branchEmpty.san    = !(meta.san    && meta.san.count>0);
-      branchEmpty.bishr  = !(meta.bishr  && meta.bishr.count>0);
+      BR_KEYS.forEach(function(k){ branchEmpty[k] = !(meta[k] && meta[k].count>0); });
 
       dataLoaded=true;
       stockLoaded=true;
@@ -531,9 +532,7 @@
       return isNaN(t)?null:t;
     }
     function computeBranchUpdates(){
-      branchUpdates.mamora=metaUpdated('mamora');
-      branchUpdates.san   =metaUpdated('san');
-      branchUpdates.bishr =metaUpdated('bishr');
+      BR_KEYS.forEach(function(k){ branchUpdates[k]=metaUpdated(k); });
     }
     function timeAgo(ts){
       if(!ts) return 'غير معروف';
@@ -590,11 +589,10 @@
         map[code]={
           code:code, name:item.n||'', company:item.co||'',
           unit:item.u||'',
-          isMedicine: (parseInt(item.med)||0)!==0,
-          mamora: branchObj(item.m),
-          san:    branchObj(item.s),
-          bishr:  branchObj(item.b)
+          isMedicine: (parseInt(item.med)||0)!==0
         };
+        // كل فرع من قايمة الفروع — والفرع اللي ملوش بيانات بياخد صفر بدل undefined
+        BR_KEYS.forEach(function(k){ map[code][k] = branchObj(item[BR_LETTER[k]]); });
       });
 
       // salesData بقت ملخّص جاهز من الـRPC: {itm_code, mamora_total, mamora_active, ...}
@@ -602,11 +600,12 @@
       salesData.forEach(function(row){
         var code=String(row.itm_code||'').trim();
         if(!code) return;
-        salesMap[code]={
-          mamora:{ total:parseFloat(row.mamora_total)||0, active:parseInt(row.mamora_active)||0 },
-          san:   { total:parseFloat(row.san_total)||0,    active:parseInt(row.san_active)||0 },
-          bishr: { total:parseFloat(row.bishr_total)||0,  active:parseInt(row.bishr_active)||0 }
-        };
+        salesMap[code]={};
+        // get_sales_summary بيرجّع <الكود>_total/_active — الفرع الجديد لسه مالوش
+        // أعمدة في monthly_sales فبيطلع صفر (يعني معدل استهلاكه 0 لحد ما تتضاف)
+        BR_KEYS.forEach(function(k){
+          salesMap[code][k] = { total:parseFloat(row[k+'_total'])||0, active:parseInt(row[k+'_active'])||0 };
+        });
       });
       function branchCalc(bs){
         var active=(bs&&bs.active)||0, total=(bs&&bs.total)||0;
@@ -614,8 +613,8 @@
         return {avg:avg, active:active};
       }
       Object.keys(map).forEach(function(code){
-        var sale=salesMap[code]||{mamora:{},san:{},bishr:{}};
-        ['mamora','san','bishr'].forEach(function(br){
+        var sale=salesMap[code]||{};
+        BR_KEYS.forEach(function(br){
           var c=branchCalc(sale[br]||{});
           map[code][br].avg=c.avg;
           map[code][br].active=c.active;
@@ -1500,9 +1499,10 @@
       var srcBal = sourceBalance(item, from);
       var need={}, max={};
       others.forEach(function(b){
-        var cov = coverQtyDays(inv[b].avg, coverDays);
-        need[b] = inv[b].stock < cov;
-        max[b]  = need[b] ? Math.max(0, cov - inv[b].stock) : 0;
+        var d = inv[b] || {stock:0, avg:0};          // فرع لسه مالوش بيانات في الملخّص
+        var cov = coverQtyDays(d.avg, coverDays);
+        need[b] = d.stock < cov;
+        max[b]  = need[b] ? Math.max(0, cov - d.stock) : 0;
       });
       var totalNeeded = others.reduce(function(s,b){return s+max[b];},0);
       var raw={}, floor={};
