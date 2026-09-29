@@ -12,3 +12,6 @@ node_modules/
 
 # خريطة الثغرات — ماتترفعش، الريبو عام
 SECURITY_HANDOFF.md
+
+# إعدادات سحب ابن سينا — فيها كلمة سر المورّد ومفتاح المزامنة
+tools/ibnsina.local.json
