@@ -72,7 +72,7 @@ create table if not exists public.rating_settings (
   unsent_drop_days          int  not null default 2,
   batch_hour                int  not null default 10,     -- ساعة القاهرة
   pharmacists_see_comments  boolean not null default false,
-  link_base                 text not null default 'https://drebrahimhamdy30-web.github.io/ebrahimhamdy_dachboard/rate.html?t=',
+  link_base                 text not null default 'https://phalix.ebrahimhamdy.com/rate.html?t=',
   msg_greetings             jsonb not null default '["أهلًا {n}،","مساء الخير يا {n}،","{n}، تحية طيبة.","أهلًا بحضرتك يا {n}،","يسعد أوقاتك يا {n}،"]'::jsonb,
   msg_bodies                jsonb not null default '["شكرًا لطلبك من {org} – فرع {b} (فاتورة {inv}). نرجو تقييم تجربتك مع الصيدلي ومندوب التوصيل، الأمر لا يستغرق أكثر من 20 ثانية:","وصلك طلبك من فرع {b} (فاتورة {inv}). رأيك يهمّنا: كيف كان تعامل الصيدلي ومندوب التوصيل؟ قيّمهما من هنا:","بخصوص طلبك رقم {inv} من {org} – {b}: نرجو منك دقيقة لتقييم الصيدلي الذي استقبل طلبك ومندوب التوصيل:","نشكرك على ثقتك في {org}. لو سمحت، قيّم تجربتك في طلب {inv} (فرع {b}) من هذا الرابط:"]'::jsonb,
   msg_tails                 jsonb not null default '["الرابط صالح لمدة {days} أيام. شكرًا لك.","صالح {days} أيام فقط. نقدّر وقتك.","شكرًا لوقتك، الرابط ينتهي بعد {days} أيام.","نتمنى لك دوام الصحة. (الرابط صالح {days} أيام)"]'::jsonb,
