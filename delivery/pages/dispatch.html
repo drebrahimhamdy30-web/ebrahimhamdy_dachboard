@@ -1065,14 +1065,19 @@ function postponeInfo(o){
 }
 
 // أفاتار الطيارين مرة واحدة (نادرًا بيتغيّر) — مش بيتسحب كل دورة في get_dispatch_board
-let avatarMap={}, _avatarsLoaded=false;
+let avatarMap={}, _avatarsLoaded=false, _avatarsLoading=false;
 async function ensureAvatars(){
-  if(_avatarsLoaded) return;
+  if(_avatarsLoaded || _avatarsLoading) return;
+  _avatarsLoading=true;
   try{
     const {data}=await db.from('drivers').select('id,avatar').not('avatar','is',null);
     (data||[]).forEach(d=>{ if(d.avatar) avatarMap[d.id]=d.avatar; });
     _avatarsLoaded=true;
+    // الصور وصلت → علّم الطيارين المعروضين وأعد رسم الشريط بس (من غير ما نأخّر اللوحة)
+    (allDrivers||[]).forEach(d=>{ if(avatarMap[d.id]) d.avatar=avatarMap[d.id]; });
+    try{ renderDrivers(); }catch(_){}
   }catch(e){}
+  _avatarsLoading=false;
 }
 
 async function loadAll(){
@@ -1086,8 +1091,7 @@ async function loadAll(){
     // hard_load مكاش ساعة (loadHardLoad بيرجع فورًا لو طازج)؛ الأفاتار مرة واحدة (ensureAvatars).
     const [boardRes]=await Promise.all([
       db.rpc('get_dispatch_board',{p_branch:branchId}),
-      loadHardLoad(),
-      ensureAvatars()
+      loadHardLoad()
     ]);
     if(boardRes.error) throw boardRes.error;
     const B=boardRes.data||{};
@@ -1119,6 +1123,7 @@ async function loadAll(){
     if(currentFilter==='unclosed') unclosedLoading=true;
     renderHeader();renderDrivers();renderTrips();renderOrders();renderAttNotif();
     if(currentFilter==='unclosed') refreshUnclosed();
+    ensureAvatars();   // صور الطيارين في الخلفية — تظهر لما توصل من غير ما تأخّر اللوحة
   }catch(e){console.error(e);showToast('خطأ في التحميل');}
   showLoading(false);
 }
