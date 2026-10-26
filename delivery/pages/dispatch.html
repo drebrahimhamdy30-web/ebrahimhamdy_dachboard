@@ -1064,57 +1064,51 @@ function postponeInfo(o){
   return `<div style="font-size:.62rem;font-weight:700;background:var(--purple-light);color:#6d28d9;padding:.15rem .45rem;border-radius:6px;margin-bottom:.3rem;display:inline-block">⏰ يعود ${timeStr} · باقي ${m}:${String(s).padStart(2,'0')}</div>`;
 }
 
+// أفاتار الطيارين مرة واحدة (نادرًا بيتغيّر) — مش بيتسحب كل دورة في get_dispatch_board
+let avatarMap={}, _avatarsLoaded=false;
+async function ensureAvatars(){
+  if(_avatarsLoaded) return;
+  try{
+    const {data}=await db.from('drivers').select('id,avatar').not('avatar','is',null);
+    (data||[]).forEach(d=>{ if(d.avatar) avatarMap[d.id]=d.avatar; });
+    _avatarsLoaded=true;
+  }catch(e){}
+}
+
 async function loadAll(){
   showLoading(true);
   try{
     // فلتر حسب الفرع المختار
     const branchId = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
 
-    // كل الاستعلامات المستقلة بالتوازي (طيارين/رحلات/طلبات نشطة/مناطق/إعدادات الفرع/الحضور/الأحمال/عدد الرحلات)
-    // بدل ما تشتغل واحدة ورا التانية. التبعية الوحيدة: رحلات ← أوردرات الرحلات ← الطلبات المرتبطة.
-    let driversQ=db.from('drivers').select('*,branches!drivers_branch_id_fkey(name)').eq('is_active',true).order('full_name');
-    let tripsQ=db.from('trips').select('*').in('status',['active','pending_complete']).order('created_at',{ascending:false});
-    let actQ=db.from('orders').select(DISP_ORDER_COLS).in('status',['pending','postponed','assigned','picked']).order('created_at',{ascending:false});
-    let regQ=db.from('regions').select('name,branch_id,min_order_amount,delivery_fee,below_min_fee').eq('is_active',true);
-    let dsQ=branchId?db.from('dispatch_settings').select('*').eq('branch_id',branchId):null;
-    if(branchId){ driversQ=driversQ.eq('branch_id',branchId); tripsQ=tripsQ.eq('branch_id',branchId); actQ=actQ.eq('branch_id',branchId); }
-    const [dR,tR,actR,regRes,dsRes]=await Promise.all([
-      driversQ, tripsQ, actQ, regQ, (dsQ||Promise.resolve({data:null})),
-      loadAttendanceData(), loadHardLoad(), loadTripCounts()
+    // كل بيانات اللوحة في نداء واحد (get_dispatch_board) بدل ~12 رحلة شبكة لسيرفر بعيد.
+    // الطلبات النشطة + المرتبطة بالرحلات مدموجة سيرفر-سايد؛ الحضور آخر 36 ساعة + آخر حالة لكل طيار.
+    // hard_load مكاش ساعة (loadHardLoad بيرجع فورًا لو طازج)؛ الأفاتار مرة واحدة (ensureAvatars).
+    const [boardRes]=await Promise.all([
+      db.rpc('get_dispatch_board',{p_branch:branchId}),
+      loadHardLoad(),
+      ensureAvatars()
     ]);
-    allDrivers=dR.data||[]; activeTrips=tR.data||[];
-    const _regRows=regRes.data||[];
+    if(boardRes.error) throw boardRes.error;
+    const B=boardRes.data||{};
+    allDrivers=(B.drivers||[]).map(d=>{ d.avatar=avatarMap[d.id]??d.avatar??null; return d; });
+    activeTrips=B.trips||[];
+    const _regRows=B.regions||[];
     knownRegions=new Set(_regRows.map(r=>r.name));
     regionInfo={};
     _regRows.forEach(r=>{ if(!branchId || r.branch_id===branchId) regionInfo[r.name]={min:Number(r.min_order_amount||0),fee:Number(r.delivery_fee||0),below:Number(r.below_min_fee||0)}; });
-    if(branchId) dispatchSettings=dsRes.data?.[0]||null;
-
-    // التبعية: أوردرات الرحلات النشطة ثم الطلبات المرتبطة بيها
-    let rrData=[];
-    const activeTripIds=activeTrips.map(t=>t.id);
-    if(activeTripIds.length){
-      const rrR=await db.from('trip_orders').select('trip_id,order_id').in('trip_id',activeTripIds);
-      rrData=rrR.data||[];
-    }
+    if(branchId) dispatchSettings=B.settings||null;
+    // خريطة أوردرات الرحلات النشطة
     tripOrdersMap={};
-    rrData.forEach(r=>{if(!tripOrdersMap[r.trip_id])tripOrdersMap[r.trip_id]=[];tripOrdersMap[r.trip_id].push(r.order_id);});
-    const tripOrderIds=[...new Set(rrData.map(r=>r.order_id).filter(Boolean))];
-    let linkedRows=[];
-    if(tripOrderIds.length){
-      // دفعات 50: القايمة بتتحط في الرابط، والرد بيرجّعها في هيدر
-      // Content-Location — القوايم الطويلة بتكسر الوسيط بـ502.
-      // شوف docs/server_nginx.md — بس الدفعات دلوقتي بالتوازي (Promise.all) مش ورا بعض + أعمدة خفيفة
-      const _chunks=[];
-      for(let i=0;i<tripOrderIds.length;i+=50){
-        let lq=db.from('orders').select(DISP_ORDER_COLS).in('id',tripOrderIds.slice(i,i+50));
-        if(branchId) lq=lq.eq('branch_id',branchId);
-        _chunks.push(lq);
-      }
-      const _res=await Promise.all(_chunks);
-      _res.forEach(r=>{ linkedRows=linkedRows.concat(r.data||[]); });
-    }
-    { const _seen=new Set(); allOrders=[];
-      (actR.data||[]).concat(linkedRows).forEach(o=>{ if(o && !_seen.has(o.id)){ _seen.add(o.id); allOrders.push(o); } }); }
+    (B.trip_orders||[]).forEach(r=>{ if(!tripOrdersMap[r.trip_id])tripOrdersMap[r.trip_id]=[]; tripOrdersMap[r.trip_id].push(r.order_id); });
+    // الطلبات (نشطة + مرتبطة بالرحلات) مدموجة ومنزوعة التكرار من السيرفر
+    allOrders=B.orders||[];
+    // الحضور + أسماء/فروع طلبات الحضور (att_drivers بدل نداء drivers منفصل)
+    attendanceToday=B.attendance||[];
+    attReqBranch={};
+    { const _ad=B.att_drivers||{}; Object.keys(_ad).forEach(id=>{ attNames[id]=_ad[id].full_name; attReqBranch[id]=_ad[id].branch_id; }); }
+    // عدد رحلات الشهر لكل طيار
+    { const m={}; (B.trip_counts||[]).forEach(r=>{ m[r.driver_id]=Number(r.trips)||0; }); tripCountMap=m; }
 
     // تحديث لابل الفرع
     const bl=document.getElementById('branchLabel');
