@@ -1052,6 +1052,34 @@ function buildTimers(o){
 
 // ===== LOAD =====
 let dispatchSettings = null;
+/* ===== متعلقات العميل =====
+   حاجة للعميل متبقية في الصيدلية (مرتجع مرفوض أو متعلقات شخصية).
+   بتظهر على كارت الطلب عشان الموظف يحطّها مع الطلب، والطيار هو
+   اللي يقول «سلّمته» من شاشته، والصيدلية تؤكّد. المتعلّق اللي في
+   فرع تاني بيبان تنبيه بس — مش بيتسلّم من الفرع ده. */
+let belongMap = {};
+function belongingsOf(o){ const a = belongMap[o && o.id]; return Array.isArray(a) ? a : []; }
+function belongingsBadge(o){
+  const a = belongingsOf(o);
+  if(!a.length) return '';
+  const mine  = a.filter(x=>x.same_branch);
+  const other = a.filter(x=>!x.same_branch);
+  let h = '';
+  if(mine.length){
+    const tip = mine.map(x=>(x.kind||'')+': '+(x.details||'')).join(' | ').replace(/"/g,'&quot;');
+    h += `<div style="font-size:.64rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;padding:.18rem .45rem;border-radius:5px;margin:.28rem 0;font-weight:800" title="${tip}">📦 متعلّق للعميل في الصيدلية${mine.length>1?(' ('+mine.length+')'):''} · ${(mine[0].kind||'')} — حطّه مع الطلب</div>`;
+  }
+  if(other.length){
+    h += `<div style="font-size:.62rem;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:.16rem .45rem;border-radius:5px;margin:.28rem 0;font-weight:700" title="المتعلّق موجود في فرع تاني فمايتسلّمش من هنا">📦 للعميل متعلّق في ${other.map(x=>x.branch_name||'فرع آخر').join('، ')}</div>`;
+  }
+  return h;
+}
+function belongingsDetailRow(o){
+  const a = belongingsOf(o);
+  if(!a.length) return '';
+  return a.map(x=>`<div class="d-row"><span class="d-lbl">متعلّق للعميل</span><span class="d-val" style="color:#5b21b6;font-weight:700">📦 ${x.kind||''} — ${x.details||''}${x.same_branch?'':' (في '+(x.branch_name||'فرع آخر')+')'}${Number(x.attempts)>0?(' · رجع '+x.attempts+' مرة'):''}</span></div>`).join('');
+}
+
 function postponeInfo(o){
   if(o.status!=='postponed'||!o.postpone_time)return '';
   // بدون تاريخ (موقوف) — لا يعود إلا يدويًا
@@ -1089,10 +1117,15 @@ async function loadAll(){
     // كل بيانات اللوحة في نداء واحد (get_dispatch_board) بدل ~12 رحلة شبكة لسيرفر بعيد.
     // الطلبات النشطة + المرتبطة بالرحلات مدموجة سيرفر-سايد؛ الحضور آخر 36 ساعة + آخر حالة لكل طيار.
     // hard_load مكاش ساعة (loadHardLoad بيرجع فورًا لو طازج)؛ الأفاتار مرة واحدة (ensureAvatars).
-    const [boardRes]=await Promise.all([
+    const [boardRes,belongRes]=await Promise.all([
       db.rpc('get_dispatch_board',{p_branch:branchId}),
+      db.rpc('get_board_belongings',{p_branch:branchId}),
       loadHardLoad()
     ]);
+    // متعلقات العملاء المعلّقة لكل طلب (خريطة order_id ← مصفوفة).
+    // المطابقة بالكود/التليفون محسوبة على السيرفر عشان ما يبقاش عندنا
+    // نسختين من المنطق؛ الفشل مابيوقفش اللوحة.
+    belongMap = (!belongRes.error && belongRes.data) ? belongRes.data : {};
     if(boardRes.error) throw boardRes.error;
     const B=boardRes.data||{};
     allDrivers=(B.drivers||[]).map(d=>{ d.avatar=avatarMap[d.id]??d.avatar??null; return d; });
@@ -2260,6 +2293,7 @@ function renderOrders(){
       <div class="oc-address">📍 ${o.customer_address||o.cust_address||'—'}</div>
       ${o.cust_region?`<span class="oc-region" style="${!knownRegions.has(o.cust_region)?'background:#fee2e2;color:#b91c1c;border:1px solid #fecaca':''}">${o.cust_region}${!knownRegions.has(o.cust_region)?' ⚠️':''}</span>`:''}${belowMinInfo(o)?`<span class="oc-region" style="background:#fffbeb;color:#b45309;border:1px solid #fde68a" title="إجمالي الطلب أقل من الحد الأدنى للمنطقة — راجع تكلفة التوصيل">⚠️ أقل من الحد</span>`:''}
       ${o.is_gift?`<div class="gift-pulse" style="font-size:.64rem;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;padding:.18rem .45rem;border-radius:5px;margin:.28rem 0;font-weight:800">🎁 ${o.gift_title?('هدية — '+o.gift_title):'هدية للعميل'} · تأكد من وجودها بالطلب</div>`:''}
+      ${belongingsBadge(o)}
       <div class="oc-bottom">
         <span class="oc-amount">${Number(o.total_bill_net||0).toLocaleString()} ج</span>
         ${['delivered','completed'].includes(o.status)?`<span class="oc-pay ${pmC}" title="طريقة التحصيل">${pmL}</span>`:''}
@@ -3514,6 +3548,7 @@ function openDetail(id){
     <div class="d-row"><span class="d-lbl">الطيار</span><span class="d-val">${o.deliveryman||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الموظف</span><span class="d-val">${o.employee_name||'—'}</span></div>
     <div class="d-row"><span class="d-lbl">الأصناف</span><span class="d-val">${o.count_of_items||0}</span></div>
+    ${belongingsDetailRow(o)}
     ${billItemsRow(o)}
     ${o.driver_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الطيار</span><span class="d-val">${o.driver_notes}</span></div>`:''}
     ${o.staff_notes?`<div class="d-row"><span class="d-lbl">ملاحظة الموظف</span><span class="d-val">${o.staff_notes}</span></div>`:''}
@@ -3672,6 +3707,7 @@ if(o.delivered_at){
     <div class="od-sum-due"><small>المطلوب</small> <b>${_due.toLocaleString()}</b> <small>ج.م · ${pmL}</small></div>
     ${_extra>0?`<div class="od-sum-brk">فاتورة ${_bill.toLocaleString()} + تحصيل إضافي ${_extra.toLocaleString()} = ${_due.toLocaleString()} ج</div>`:''}
     ${o.had_failed_attempt?`<div class="od-sum-brk" style="color:#b91c1c">🔁 اتعذّر توصيله قبل كده — محاولة جديدة</div>`:''}
+    ${belongingsOf(o).length?`<div class="od-sum-brk" style="color:#5b21b6;font-weight:800">📦 ${belongingsOf(o).map(x=>(x.kind||'')+(x.same_branch?'':' (في '+(x.branch_name||'فرع آخر')+')')).join(' · ')}</div>`:''}
     ${_phonesSum?`<div class="od-sum-phones">${_phonesSum}</div>`:''}
   </div>`;
 
