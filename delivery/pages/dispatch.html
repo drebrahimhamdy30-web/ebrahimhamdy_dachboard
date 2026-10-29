@@ -1734,6 +1734,7 @@ async function sendDriverMessage(orderId){
 
 async function openDriverPopup(driverId){
   const d=allDrivers.find(x=>x.id===driverId);if(!d)return;
+  currentPopupDriverId=driverId;   // مبكّرًا: أي ضغطة طيار أحدث بتلغي القديمة (منع عرض رحلات طيار تاني بسبب سباق الجلب)
   const i=allDrivers.indexOf(d);
   const c=DC[i%DC.length];
   const attStatus=getDriverAttStatus(driverId);
@@ -1760,6 +1761,7 @@ async function openDriverPopup(driverId){
   const {data:trips}=await db.from('trips')
     .select('id,status,orders_count,total_amount,created_at,completed_at')
     .eq('driver_id',driverId).order('created_at',{ascending:false}).limit(3);
+  if(currentPopupDriverId!==driverId) return;   // ضُغط طيار أحدث أثناء الجلب → اطّلع بدل ما نكتب رحلات الطيار القديم
   if(!trips?.length){
     tripsEl.innerHTML='<div style="color:#64748b;font-size:.75rem;text-align:center;padding:.5rem">لا توجد رحلات</div>';
   } else {
@@ -1872,6 +1874,7 @@ async function openDriverPopup(driverId){
         <div id="dpd-${idx}" style="display:${idx===0?'block':'none'};padding:0 .5rem .4rem">${table}${confirmRow}</div>
       </div>`;
     }).join('');
+    if(currentPopupDriverId!==driverId) return;   // ضُغط طيار أحدث أثناء جلب الطلبات/التسويات → اطّلع
     tripsEl.innerHTML=cards;
   }
 
@@ -1885,7 +1888,6 @@ async function openDriverPopup(driverId){
     startBreakBtn.style.display = (['online','break_request'].includes(attStatus) && !onTripNow) ? 'block' : 'none';
   }
 
-  currentPopupDriverId = driverId;
   document.getElementById('driverPopup').classList.add('open');
 }
 
