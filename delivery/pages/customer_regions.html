@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تعيين مناطق العملاء</title>
+<link rel="stylesheet" href="../../tokens.css?v=20260906">
+<script>try{var _t=localStorage.getItem("phalix_theme")||(localStorage.getItem("phalix_dark")==="1"?"dark":"light");document.documentElement.setAttribute("data-theme",_t==="dark"?"dark":"light");}catch(e){}</script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="../delivery-style.css">
+<script src="../../config.js?v=20261030"></script>
+<script src="../../session.js?v=20261030"></script>
+<style>
+body{padding:1.25rem;overflow-y:auto;height:100vh;background:var(--bg)}
+.top-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.branch-select,.search-input{height:40px;padding:0 .875rem;border:1.5px solid var(--border);border-radius:10px;font-family:'Cairo',sans-serif;font-size:.85rem;font-weight:600;color:var(--text);outline:none;background:var(--surface)}
+.branch-select:focus,.search-input:focus{border-color:var(--primary)}
+.search-input{flex:1;min-width:200px;font-weight:500}
+.stat-pill{font-size:.8rem;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.35rem .8rem;white-space:nowrap}
+.stat-pill b{color:var(--primary);font-size:.95rem;margin-left:.2rem}
+.cr-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:.82rem}
+.cr-table th,.cr-table td{padding:.55rem .75rem;border-bottom:1px solid var(--border);text-align:right;vertical-align:middle}
+.cr-table th{background:var(--bg);font-weight:700;color:var(--text-muted);font-size:.72rem;white-space:nowrap;position:sticky;top:0}
+.cr-table tbody tr:hover{background:var(--bg)}
+.cr-name{font-weight:700;color:var(--text)}
+.cr-addr{color:var(--text-muted);font-size:.74rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cr-code{color:var(--text-muted);font-size:.72rem}
+.cr-count{font-size:.7rem;font-weight:700;background:var(--yellow-light);color:#a16207;border-radius:20px;padding:.1rem .5rem}
+.region-pick{height:34px;min-width:160px;padding:0 .6rem;border:1.5px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:.78rem;font-weight:600;color:var(--text);background:var(--surface);cursor:pointer}
+.region-pick:focus{border-color:var(--primary)}
+.btn-save{height:34px;padding:0 .9rem;border:none;border-radius:8px;background:var(--primary);color:#fff;font-family:'Cairo',sans-serif;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-save:disabled{opacity:.45;cursor:default}
+.pager{display:flex;align-items:center;justify-content:center;gap:.4rem;margin-top:1rem;flex-wrap:wrap}
+.pager button{min-width:34px;height:34px;padding:0 .5rem;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:'Cairo',sans-serif;font-weight:700;cursor:pointer}
+.pager button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager .pinfo{font-size:.78rem;color:var(--text-muted);margin:0 .5rem}
+.empty,.loading{text-align:center;padding:3rem 1rem;color:var(--text-muted);font-size:.9rem}
+.note{font-size:.75rem;color:#0369a1;background:#f0f9ff;border-radius:10px;padding:.6rem .85rem;margin-bottom:1rem;line-height:1.7}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:.7rem 1.3rem;border-radius:10px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .2s;z-index:999;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="note">
+  ℹ️ دي الطلبات اللي بتطلع بـ«يحتاج إضافة منطقة» من وقت تشغيل الشاشة. حدّد المنطقة الصحيحة للعميل من القائمة واضغط «حفظ» —
+  هتتسجّل منطقة العميل في eplus، فالمرة الجاية يطلب يكون عنده منطقة جاهزة.
+</div>
+
+<div class="top-bar">
+  <select class="branch-select" id="branchSelect" style="display:none" onchange="onBranchChange()">
+    <option value="">كل الفروع</option>
+  </select>
+  <input type="text" class="search-input" id="search" placeholder="🔍 بحث باسم العميل أو الكود..." oninput="onSearch()">
+  <span class="stat-pill">عملاء محتاجين منطقة <b id="stCount">—</b></span>
+</div>
+
+<div id="content"><div class="loading">جارٍ التحميل…</div></div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ═══════════════ تعيين مناطق العملاء ═══════════════
+// بتعرض العملاء اللي طلباتهم «يحتاج إضافة منطقة» من وقت تشغيل الشاشة،
+// وبتخلّي الموظف يحدّد المنطقة — والحفظ (لاحقًا) بيكتبها في eplus.
+// الفرع بيتحدد من مبيعات العميل (orders.branch_id)، والمناطق قائمة واحدة مشتركة.
+
+const PLACEHOLDER = 'يحتاج إضافة منطقة';
+// من وقت «بناء الشاشة» وجاي — بنتجاهل الطلبات الأقدم
+const CUTOFF = '2026-10-30T00:00:00+02:00';
+const PAGE_SIZE = 40;
+
+let db, currentUser, activeBranch = null;
+let allRows = [];        // عميل واحد لكل صف (منزوع التكرار)
+let filtered = [];
+let page = 1;
+let regionOptions = [];  // أسماء المناطق المشتركة
+let searchTimer = null;
+
+(async function init(){
+  currentUser = Session.user();
+  if(!currentUser){ location.replace('../auth.html'); return; }
+  db = Session.client();
+
+  // نطاق الفرع: الأدمن/اللي بيشوف كل الفروع يختار؛ غيره فرعه بس
+  const seesAll = await Session.seesAllBranches('customer_regions');
+  if(seesAll){
+    activeBranch = null;
+    await buildBranchSelector();
+  } else {
+    activeBranch = currentUser.branch_id || null;
+  }
+
+  await loadRegions();
+  await loadData();
+})();
+
+async function buildBranchSelector(){
+  const sel = document.getElementById('branchSelect');
+  sel.style.display = '';
+  try{
+    const { data } = await db.from('branches').select('id,name').order('name');
+    (data||[]).forEach(b=>{
+      const o = document.createElement('option'); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
+    });
+  }catch(e){}
+}
+function onBranchChange(){ activeBranch = document.getElementById('branchSelect').value || null; page=1; loadData(); }
+
+// قائمة المناطق المشتركة (من جدول regions — نفس مناطق eplus)
+async function loadRegions(){
+  try{
+    const rows = await Session.getAll('regions?select=name&is_active=eq.true');
+    regionOptions = [...new Set((rows||[]).map(r=>r.name).filter(n=>n && n!==PLACEHOLDER))].sort((a,b)=>a.localeCompare(b,'ar'));
+  }catch(e){ regionOptions = []; }
+}
+
+async function loadData(){
+  document.getElementById('content').innerHTML = '<div class="loading">جارٍ التحميل…</div>';
+  try{
+    let path = 'orders?select=cust_code,customer_name,customer_address,customer_phone,branch_id,created_at'
+             + '&cust_region=eq.' + encodeURIComponent(PLACEHOLDER)
+             + '&created_at=gte.' + encodeURIComponent(CUTOFF)
+             + '&order=created_at.desc';
+    if(activeBranch) path += '&branch_id=eq.' + activeBranch;
+    const orders = await Session.getAll(path);
+
+    // عميل واحد لكل صف: أحدث طلب + عدد الطلبات
+    const byCust = new Map();
+    (orders||[]).forEach(o=>{
+      if(!o.cust_code) return;                 // «مرتجع» وخلافه بلا كود — نتجاهله
+      const cur = byCust.get(o.cust_code);
+      if(cur){ cur.count++; }
+      else byCust.set(o.cust_code, {
+        cust_code:o.cust_code, name:o.customer_name||'—',
+        address:o.customer_address||'', phone:o.customer_phone||'',
+        branch_id:o.branch_id, last:o.created_at, count:1
+      });
+    });
+    allRows = [...byCust.values()];
+    applyFilter();
+  }catch(e){
+    document.getElementById('content').innerHTML = '<div class="empty">خطأ في التحميل</div>';
+  }
+}
+
+function onSearch(){ clearTimeout(searchTimer); searchTimer = setTimeout(()=>{ page=1; applyFilter(); }, 280); }
+
+function applyFilter(){
+  const q = document.getElementById('search').value.trim();
+  filtered = q ? allRows.filter(r => (r.name && r.name.includes(q)) || (r.cust_code && r.cust_code.includes(q))) : allRows.slice();
+  document.getElementById('stCount').textContent = filtered.length.toLocaleString('ar-EG');
+  render();
+}
+
+function render(){
+  const total = filtered.length;
+  if(!total){
+    document.getElementById('content').innerHTML = '<div class="empty">✅ مفيش عملاء محتاجين منطقة حاليًا</div>';
+    return;
+  }
+  const pages = Math.ceil(total/PAGE_SIZE);
+  if(page>pages) page=pages;
+  const slice = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  const opts = regionOptions.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  const rows = slice.map(r=>`
+    <tr data-code="${esc(r.cust_code)}">
+      <td class="cr-code">${esc(r.cust_code)}</td>
+      <td><div class="cr-name">${esc(r.name)}</div>${r.address?`<div class="cr-addr" title="${esc(r.address)}">📍 ${esc(r.address)}</div>`:''}</td>
+      <td>${r.phone?esc(r.phone):'<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="text-align:center"><span class="cr-count">${r.count} طلب</span></td>
+      <td>
+        <select class="region-pick">
+          <option value="">— اختر المنطقة —</option>
+          ${opts}
+        </select>
+      </td>
+      <td><button class="btn-save" onclick="saveRow(this,'${esc(r.cust_code)}')">حفظ</button></td>
+    </tr>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div style="overflow:auto;border-radius:12px">
+      <table class="cr-table">
+        <thead><tr>
+          <th>الكود</th><th>العميل</th><th>التليفون</th><th>الطلبات</th><th>المنطقة</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>`;
+  renderPager(pages);
+}
+
+function renderPager(pages){
+  const el = document.getElementById('pager'); if(!el) return;
+  if(pages<=1){ el.innerHTML=''; return; }
+  let html = `<button onclick="go(1)" ${page===1?'disabled':''}>«</button><button onclick="go(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+  const from=Math.max(1,page-2), to=Math.min(pages,page+2);
+  for(let i=from;i<=to;i++) html += `<button class="${i===page?'active':''}" onclick="go(${i})">${i}</button>`;
+  html += `<button onclick="go(${page+1})" ${page===pages?'disabled':''}>›</button><button onclick="go(${pages})" ${page===pages?'disabled':''}>»</button>`;
+  html += `<span class="pinfo">صفحة ${page} من ${pages}</span>`;
+  el.innerHTML = html;
+}
+function go(p){ page=p; render(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+// ملاحظة: الحفظ الحقيقي (الكتابة في eplus) هو الباك-إند اللي هيتبني بعد موافقتك.
+async function saveRow(btn, code){
+  const tr = btn.closest('tr');
+  const region = tr.querySelector('.region-pick').value;
+  if(!region){ toast('اختر المنطقة الأول'); return; }
+  btn.disabled = true; btn.textContent = '...';
+  // TODO(backend): يكتب الطلب في جدول customer_region_requests → عامل يكتبها في eplus
+  console.log('assign region →', { cust_code: code, region, by: currentUser.username });
+  setTimeout(()=>{
+    toast('«'+region+'» للعميل '+code+' — جاهز للربط بـeplus (الباك-إند الجاي)');
+    btn.disabled=false; btn.textContent='حفظ';
+  }, 300);
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+</script>
+</body>
+</html>
