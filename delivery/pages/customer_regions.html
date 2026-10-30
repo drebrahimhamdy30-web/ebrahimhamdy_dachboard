@@ -27,7 +27,8 @@ body{padding:1.25rem;overflow-y:auto;height:100vh;background:var(--bg)}
 .cr-addr{color:var(--text-muted);font-size:.74rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cr-code{color:var(--text-muted);font-size:.72rem}
 .cr-count{font-size:.7rem;font-weight:700;background:var(--yellow-light);color:#a16207;border-radius:20px;padding:.1rem .5rem}
-.region-pick{height:34px;min-width:160px;padding:0 .6rem;border:1.5px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:.78rem;font-weight:600;color:var(--text);background:var(--surface);cursor:pointer}
+.region-pick{height:34px;min-width:230px;padding:0 .6rem;border:1.5px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:.78rem;font-weight:600;color:var(--text);background:var(--surface)}
+.cr-addr{color:var(--text);font-size:.78rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .region-pick:focus{border-color:var(--primary)}
 .btn-save{height:34px;padding:0 .9rem;border:none;border-radius:8px;background:var(--primary);color:#fff;font-family:'Cairo',sans-serif;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .btn-save:disabled{opacity:.45;cursor:default}
@@ -169,23 +170,19 @@ function render(){
   const rows = slice.map(r=>`
     <tr data-code="${esc(r.cust_code)}">
       <td class="cr-code">${esc(r.cust_code)}</td>
-      <td><div class="cr-name">${esc(r.name)}</div>${r.address?`<div class="cr-addr" title="${esc(r.address)}">📍 ${esc(r.address)}</div>`:''}</td>
-      <td>${r.phone?esc(r.phone):'<span style="color:var(--text-muted)">—</span>'}</td>
+      <td><div class="cr-name">${esc(r.name)}</div></td>
+      <td class="cr-addr" title="${esc(r.address)}">${r.address?('📍 '+esc(r.address)):'<span style="color:var(--text-muted)">— بلا عنوان —</span>'}</td>
       <td style="text-align:center"><span class="cr-count">${r.count} طلب</span></td>
-      <td>
-        <select class="region-pick">
-          <option value="">— اختر المنطقة —</option>
-          ${opts}
-        </select>
-      </td>
+      <td><input class="region-pick" list="regionsDL" placeholder="🔍 ابحث واختر المنطقة" autocomplete="off"></td>
       <td><button class="btn-save" onclick="saveRow(this,'${esc(r.cust_code)}')">حفظ</button></td>
     </tr>`).join('');
 
   document.getElementById('content').innerHTML = `
+    <datalist id="regionsDL">${opts}</datalist>
     <div style="overflow:auto;border-radius:12px">
       <table class="cr-table">
         <thead><tr>
-          <th>الكود</th><th>العميل</th><th>التليفون</th><th>الطلبات</th><th>المنطقة</th><th></th>
+          <th>الكود</th><th>العميل</th><th>العنوان</th><th>الطلبات</th><th>المنطقة</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
