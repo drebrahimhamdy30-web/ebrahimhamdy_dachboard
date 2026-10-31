@@ -27,6 +27,7 @@ body{padding:1.25rem;overflow-y:auto;height:100vh;background:var(--bg)}
 .cr-addr{color:var(--text-muted);font-size:.74rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cr-code{color:var(--text-muted);font-size:.72rem}
 .cr-count{font-size:.7rem;font-weight:700;background:var(--yellow-light);color:#a16207;border-radius:20px;padding:.1rem .5rem}
+.cr-done{font-size:.76rem;font-weight:700;color:#15803d}
 .region-pick{height:34px;min-width:230px;padding:0 .6rem;border:1.5px solid var(--border);border-radius:8px;font-family:'Cairo',sans-serif;font-size:.78rem;font-weight:600;color:var(--text);background:var(--surface)}
 .cr-addr{color:var(--text);font-size:.78rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .region-pick:focus{border-color:var(--primary)}
@@ -46,8 +47,9 @@ body{padding:1.25rem;overflow-y:auto;height:100vh;background:var(--bg)}
 <body>
 
 <div class="note">
-  ℹ️ دي الطلبات اللي بتطلع بـ«يحتاج إضافة منطقة» من وقت تشغيل الشاشة. حدّد المنطقة الصحيحة للعميل من القائمة واضغط «حفظ» —
-  هتتسجّل منطقة العميل في eplus، فالمرة الجاية يطلب يكون عنده منطقة جاهزة.
+  ℹ️ دي العناوين اللي طلباتها بتطلع بـ«يحتاج إضافة منطقة». حدّد المنطقة الصحيحة واضغط «حفظ» —
+  المنطقة بتتسجّل وبتتكتب تلقائيًا في eplus على الماستر خلال أقل من دقيقة، فالمرة الجاية يطلب العميل تكون المنطقة جاهزة.
+  العميل اللي له أكتر من عنوان بيظهر لكل عنوان صف منفصل بمنطقته.
 </div>
 
 <div class="top-bar">
@@ -74,11 +76,14 @@ const CUTOFF = '2026-10-30T00:00:00+02:00';
 const PAGE_SIZE = 40;
 
 let db, currentUser, activeBranch = null;
-let allRows = [];        // عميل واحد لكل صف (منزوع التكرار)
+let allRows = [];        // صف لكل (عميل + عنوان)
 let filtered = [];
 let page = 1;
-let regionOptions = [];  // أسماء المناطق المشتركة
+let regionOptions = [];  // أسماء المناطق المشتركة (لقطة eplus)
+let regionIdByName = new Map(); // اسم المنطقة → dc_id (من اللقطة)
+let submitted = new Map(); // key(عميل|عنوان) → {region,status} لللى اتبعت/اتطبّق
 let searchTimer = null;
+const keyOf = (code,addr)=> String(code)+'|'+String(addr||'');
 
 (async function init(){
   currentUser = Session.user();
@@ -95,6 +100,7 @@ let searchTimer = null;
   }
 
   await loadRegions();
+  await loadSubmitted();
   await loadData();
 })();
 
@@ -110,12 +116,27 @@ async function buildBranchSelector(){
 }
 function onBranchChange(){ activeBranch = document.getElementById('branchSelect').value || null; page=1; loadData(); }
 
-// قائمة المناطق المشتركة (من جدول regions — نفس مناطق eplus)
+// قائمة المناطق المشتركة = لقطة eplus (Delivery_cost_region) بالأسماء الكاملة + رقم كل منطقة.
+// المصدر ده هو الوحيد الصحيح — أسماء جدول regions القصيرة مابتطابقش eplus فما نستخدمهاش.
 async function loadRegions(){
+  regionOptions = []; regionIdByName = new Map();
   try{
-    const rows = await Session.getAll('regions?select=name&is_active=eq.true');
-    regionOptions = [...new Set((rows||[]).map(r=>r.name).filter(n=>n && n!==PLACEHOLDER))].sort((a,b)=>a.localeCompare(b,'ar'));
-  }catch(e){ regionOptions = []; }
+    const rows = await Session.getAll('eplus_delivery_regions?select=dc_id,name&order=name.asc');
+    (rows||[]).forEach(r=>{
+      if(!r.name) return;
+      if(!regionIdByName.has(r.name)){ regionIdByName.set(r.name, r.dc_id); regionOptions.push(r.name); }
+    });
+  }catch(e){}
+}
+
+// اللى اتبعت للطابور (معلّق/تم) عشان ما نكررش ونعرض الحالة
+async function loadSubmitted(){
+  submitted = new Map();
+  try{
+    let path = 'customer_region_queue?select=cust_code,cust_address,region_name,status&status=in.(pending,done)';
+    const rows = await Session.getAll(path);
+    (rows||[]).forEach(r=> submitted.set(keyOf(r.cust_code,r.cust_address), {region:r.region_name, status:r.status}));
+  }catch(e){}
 }
 
 async function loadData(){
@@ -128,19 +149,21 @@ async function loadData(){
     if(activeBranch) path += '&branch_id=eq.' + activeBranch;
     const orders = await Session.getAll(path);
 
-    // عميل واحد لكل صف: أحدث طلب + عدد الطلبات
-    const byCust = new Map();
+    // صف لكل (عميل + عنوان): المنطقة لكل عنوان، فالعنوان المختلف طلب مستقل
+    const byKey = new Map();
     (orders||[]).forEach(o=>{
       if(!o.cust_code) return;                 // «مرتجع» وخلافه بلا كود — نتجاهله
-      const cur = byCust.get(o.cust_code);
+      const addr = o.customer_address||'';
+      const k = keyOf(o.cust_code, addr);
+      const cur = byKey.get(k);
       if(cur){ cur.count++; }
-      else byCust.set(o.cust_code, {
-        cust_code:o.cust_code, name:o.customer_name||'—',
-        address:o.customer_address||'', phone:o.customer_phone||'',
+      else byKey.set(k, {
+        key:k, cust_code:o.cust_code, name:o.customer_name||'—',
+        address:addr, phone:o.customer_phone||'',
         branch_id:o.branch_id, last:o.created_at, count:1
       });
     });
-    allRows = [...byCust.values()];
+    allRows = [...byKey.values()];
     applyFilter();
   }catch(e){
     document.getElementById('content').innerHTML = '<div class="empty">خطأ في التحميل</div>';
@@ -167,17 +190,25 @@ function render(){
   const slice = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
   const opts = regionOptions.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
 
-  const rows = slice.map(r=>`
-    <tr data-code="${esc(r.cust_code)}">
+  const rows = slice.map(r=>{
+    const sub = submitted.get(r.key);
+    const cell = sub
+      ? `<td colspan="2"><span class="cr-done">${sub.status==='done'?'✅ اتسجّلت':'⏳ قيد التطبيق'}: ${esc(sub.region)}</span></td>`
+      : `<td><input class="region-pick" list="regionsDL" placeholder="🔍 ابحث واختر المنطقة" autocomplete="off"></td>
+         <td><button class="btn-save" onclick="saveRow(this)">حفظ</button></td>`;
+    return `
+    <tr data-code="${esc(r.cust_code)}" data-addr="${esc(r.address)}" data-branch="${esc(r.branch_id||'')}" data-key="${esc(r.key)}">
       <td class="cr-code">${esc(r.cust_code)}</td>
       <td><div class="cr-name">${esc(r.name)}</div></td>
       <td class="cr-addr" title="${esc(r.address)}">${r.address?('📍 '+esc(r.address)):'<span style="color:var(--text-muted)">— بلا عنوان —</span>'}</td>
       <td style="text-align:center"><span class="cr-count">${r.count} طلب</span></td>
-      <td><input class="region-pick" list="regionsDL" placeholder="🔍 ابحث واختر المنطقة" autocomplete="off"></td>
-      <td><button class="btn-save" onclick="saveRow(this,'${esc(r.cust_code)}')">حفظ</button></td>
-    </tr>`).join('');
+      ${cell}
+    </tr>`;}).join('');
 
+  const regWarn = regionOptions.length ? '' :
+    `<div class="note" style="color:#b45309;background:#fffbeb">⚠️ قائمة المناطق لسه بتتزامن من eplus — لو فضيت، شغّل سكربت الكتابة مرة واحدة على الماستر عشان تتعبّى.</div>`;
   document.getElementById('content').innerHTML = `
+    ${regWarn}
     <datalist id="regionsDL">${opts}</datalist>
     <div style="overflow:auto;border-radius:12px">
       <table class="cr-table">
@@ -203,18 +234,41 @@ function renderPager(pages){
 }
 function go(p){ page=p; render(); window.scrollTo({top:0,behavior:'smooth'}); }
 
-// ملاحظة: الحفظ الحقيقي (الكتابة في eplus) هو الباك-إند اللي هيتبني بعد موافقتك.
-async function saveRow(btn, code){
+// الحفظ = إدراج فى طابور الكتابة؛ سكربت على الماستر بيطبّقه على eplus خلال أقل من دقيقة.
+async function saveRow(btn){
   const tr = btn.closest('tr');
-  const region = tr.querySelector('.region-pick').value;
+  const code   = tr.dataset.code;
+  const addr   = tr.dataset.addr || '';
+  const branch = tr.dataset.branch || null;
+  const region = (tr.querySelector('.region-pick').value || '').trim();
   if(!region){ toast('اختر المنطقة الأول'); return; }
+  if(!regionOptions.includes(region)){ toast('اختر منطقة من القائمة بالظبط'); return; }
   btn.disabled = true; btn.textContent = '...';
-  // TODO(backend): يكتب الطلب في جدول customer_region_requests → عامل يكتبها في eplus
-  console.log('assign region →', { cust_code: code, region, by: currentUser.username });
-  setTimeout(()=>{
-    toast('«'+region+'» للعميل '+code+' — جاهز للربط بـeplus (الباك-إند الجاي)');
+  try{
+    const { error } = await db.from('customer_region_queue').insert({
+      cust_code: code,
+      cust_address: addr,
+      region_name: region,
+      dc_id: regionIdByName.get(region) ?? null,
+      branch_id: branch || null,
+      requested_by: currentUser.username || currentUser.email || null
+    });
+    if(error){
+      // 23505 = طلب معلّق موجود بالفعل لنفس (العميل+العنوان)
+      if(error.code==='23505'){ toast('اتسجّل قبل كده لنفس العنوان — قيد التطبيق'); }
+      else { throw error; }
+    } else {
+      toast('✅ اتسجّلت «'+region+'» — هتتكتب فى eplus خلال أقل من دقيقة');
+    }
+    submitted.set(tr.dataset.key, {region, status:'pending'});
+    // استبدال خليتى الإدخال والزر بخلية حالة واحدة «قيد التطبيق»
+    const inputTd = tr.querySelector('.region-pick').closest('td');
+    btn.closest('td').remove();
+    inputTd.outerHTML = '<td colspan="2"><span class="cr-done">⏳ قيد التطبيق: '+esc(region)+'</span></td>';
+  }catch(e){
+    toast('خطأ فى الحفظ، حاول تانى');
     btn.disabled=false; btn.textContent='حفظ';
-  }, 300);
+  }
 }
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
