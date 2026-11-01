@@ -73,11 +73,11 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .driver-popup.open{display:block}
 .dp-close{position:absolute;top:.75rem;left:.75rem;background:rgba(255,255,255,.1);border:none;color:#94a3b8;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center}
 .dp-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:white;margin:0 auto .625rem}
-.dp-name{color:#e2e8f0;font-weight:700;font-size:.9rem;text-align:center}
-.dp-phone{color:#94a3b8;font-size:.75rem;text-align:center;margin-bottom:.875rem;direction:ltr}
-.dp-status{font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:8px;display:inline-block;margin:.25rem auto .875rem;display:block;text-align:center;width:fit-content;margin:0 auto .875rem}
-.dp-section{color:#64748b;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
-.dp-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #334155;font-size:.75rem}
+.dp-name{color:#e2e8f0;font-weight:700;font-size:1.1rem;text-align:center}
+.dp-phone{color:#94a3b8;font-size:.9rem;text-align:center;margin-bottom:.875rem;direction:ltr}
+.dp-status{font-size:.85rem;font-weight:700;padding:.2rem .6rem;border-radius:8px;display:inline-block;margin:.25rem auto .875rem;display:block;text-align:center;width:fit-content;margin:0 auto .875rem}
+.dp-section{color:#64748b;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
+.dp-row{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #334155;font-size:.9rem}
 .dp-row:last-child{border-bottom:none}
 .dp-lbl{color:#94a3b8}
 .dp-val{color:#e2e8f0;font-weight:600}
@@ -1811,7 +1811,7 @@ async function openDriverPopup(driverId){
         const appr=!!o.collected_approved;
         // عمود طريقة الدفع — قابل للتعديل من الكاشير/المدير/الأدمن
         const payCell = canEditPay
-          ? `<select onchange="event.stopPropagation();popupChangePayment('${o.id}',this.value)" onclick="event.stopPropagation()" style="font-family:'Cairo',sans-serif;font-size:.6rem;font-weight:700;border:1px solid #cbd5e1;border-radius:5px;padding:.08rem .18rem;background:#fff;color:${pm==='cash'?'#15803d':'#b45309'}">`
+          ? `<select onchange="event.stopPropagation();popupChangePayment('${o.id}',this.value)" onclick="event.stopPropagation()" style="font-family:'Cairo',sans-serif;font-size:.76rem;font-weight:700;border:1px solid #cbd5e1;border-radius:5px;padding:.1rem .25rem;background:#fff;color:${pm==='cash'?'#15803d':'#b45309'}">`
             + ['cash','visa','transfer','deferred','paid'].map(m=>`<option value="${m}" ${pm===m?'selected':''}>${payLabels[m]}</option>`).join('')
             + `</select>`
           : `<span style="font-weight:700;color:${pm==='cash'?'#15803d':'#b45309'}">${payLabels[pm]||pm}</span>`;
@@ -1819,8 +1819,8 @@ async function openDriverPopup(driverId){
         let drvCell;
         if(changed){
           const btn = canEditPay ? (appr
-            ? `<button onclick="event.stopPropagation();popupApproveCollected('${o.id}',false)" title="تراجع لقيمة الفاتورة" style="border:none;background:#fee2e2;color:#b91c1c;font-weight:800;font-size:.58rem;padding:.06rem .3rem;border-radius:5px;cursor:pointer">↩</button>`
-            : `<button onclick="event.stopPropagation();popupApproveCollected('${o.id}',true)" title="اعتمد قيمة الطيار" style="border:none;background:#16a34a;color:#fff;font-weight:800;font-size:.58rem;padding:.06rem .3rem;border-radius:5px;cursor:pointer">✓</button>`) : '';
+            ? `<button onclick="event.stopPropagation();popupApproveCollected('${o.id}',false)" title="تراجع لقيمة الفاتورة" style="border:none;background:#fee2e2;color:#b91c1c;font-weight:800;font-size:.72rem;padding:.08rem .35rem;border-radius:5px;cursor:pointer">↩</button>`
+            : `<button onclick="event.stopPropagation();popupApproveCollected('${o.id}',true)" title="اعتمد قيمة الطيار" style="border:none;background:#16a34a;color:#fff;font-weight:800;font-size:.72rem;padding:.08rem .35rem;border-radius:5px;cursor:pointer">✓</button>`) : '';
           drvCell=`<span style="color:${appr?'#15803d':'#b45309'};font-weight:800" title="${appr?'معتمدة':'بانتظار اعتماد الكاشير'}">${coll.toLocaleString()}ج</span> ${appr?'<span style="color:#15803d">✅</span>':''}${btn}`;
         } else {
           drvCell=`<span style="color:#cbd5e1">—</span>`;
@@ -1829,7 +1829,7 @@ async function openDriverPopup(driverId){
           ? `<span style="color:#dc2626;font-weight:800">${o.status==='failed'?'تعذّر':'ملغي'}</span>`
           : `<span style="color:${ordStatusColor(o)};font-weight:700">${ordStatusLabel(o)||'—'}</span>`;
         return `<tr style="border-top:1px dashed #e5e7eb;${skip?'opacity:.65':''}">
-          <td style="padding:.22rem .25rem;max-width:130px;overflow:hidden" title="${(o.customer_name||'').replace(/"/g,'')}${o.cust_region?(' · '+o.cust_region):''}"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700">${o.customer_name||'—'}</div>${o.cust_region?`<div style="color:#0891b2;font-size:.56rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${o.cust_region}</div>`:''}</td>
+          <td style="padding:.22rem .25rem;max-width:130px;overflow:hidden" title="${(o.customer_name||'').replace(/"/g,'')}${o.cust_region?(' · '+o.cust_region):''}"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700">${o.customer_name||'—'}</div>${o.cust_region?`<div style="color:#0891b2;font-size:.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📍 ${o.cust_region}</div>`:''}</td>
           <td style="padding:.22rem .25rem;white-space:nowrap">${stHtml}</td>
           <td style="padding:.22rem .25rem;white-space:nowrap;color:#475569;font-weight:700">${bill.toLocaleString()}ج</td>
           <td style="padding:.22rem .25rem;white-space:nowrap">${drvCell}</td>
@@ -1837,36 +1837,36 @@ async function openDriverPopup(driverId){
         </tr>`;
       }).join(''):'';
       const table = os.length
-        ? `<table style="width:100%;border-collapse:collapse;font-size:.63rem;color:#334155">
-            <thead><tr style="color:#64748b;text-align:right;font-size:.56rem;border-bottom:1px solid #e2e8f0">
+        ? `<table style="width:100%;border-collapse:collapse;font-size:.8rem;color:#334155">
+            <thead><tr style="color:#64748b;text-align:right;font-size:.7rem;border-bottom:1px solid #e2e8f0">
               <th style="padding:.22rem .25rem;font-weight:800">العميل</th>
               <th style="padding:.22rem .25rem;font-weight:800">الحالة</th>
               <th style="padding:.22rem .25rem;font-weight:800">الفاتورة</th>
               <th style="padding:.22rem .25rem;font-weight:800">قيمة الطيار</th>
               <th style="padding:.22rem .25rem;font-weight:800;text-align:center">الدفع</th>
             </tr></thead><tbody>${body}</tbody></table>`
-        : '<div style="font-size:.64rem;color:#94a3b8;padding:.16rem 0">لا توجد تفاصيل طلبات</div>';
+        : '<div style="font-size:.8rem;color:#94a3b8;padding:.16rem 0">لا توجد تفاصيل طلبات</div>';
       // صف تأكيد المبلغ الكاش المستلم من الطيار
       const st=settleMap[t.id];
       let confirmRow='';
       if(st){
-        confirmRow=`<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;margin-top:.45rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:.32rem .55rem;font-size:.66rem">
+        confirmRow=`<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;margin-top:.45rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:.32rem .55rem;font-size:.82rem">
           <span style="color:#15803d;font-weight:800">✅ اتأكد استلام ${Number(st.confirmed_amount).toLocaleString()} ج</span>
-          <span style="display:flex;gap:.4rem;align-items:center">${st.confirmed_by?`<span style="color:#64748b;font-size:.56rem">${st.confirmed_by}</span>`:''}${canEditPay?`<button onclick="event.stopPropagation();popupUnconfirmTripCash('${t.id}')" style="border:none;background:#fee2e2;color:#b91c1c;font-weight:800;font-size:.58rem;padding:.1rem .4rem;border-radius:5px;cursor:pointer">↩ تراجع</button>`:''}</span>
+          <span style="display:flex;gap:.4rem;align-items:center">${st.confirmed_by?`<span style="color:#64748b;font-size:.7rem">${st.confirmed_by}</span>`:''}${canEditPay?`<button onclick="event.stopPropagation();popupUnconfirmTripCash('${t.id}')" style="border:none;background:#fee2e2;color:#b91c1c;font-weight:800;font-size:.72rem;padding:.1rem .4rem;border-radius:5px;cursor:pointer">↩ تراجع</button>`:''}</span>
         </div>`;
       } else if(canEditPay){
-        confirmRow=`<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;margin-top:.45rem;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:.32rem .55rem;font-size:.66rem">
+        confirmRow=`<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;margin-top:.45rem;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:.32rem .55rem;font-size:.82rem">
           <span style="color:#b45309;font-weight:800">المطلوب كاش: ${cash.toLocaleString()} ج</span>
-          <button onclick="event.stopPropagation();popupConfirmTripCash('${t.id}','${driverId}',${cash})" style="border:none;background:#16a34a;color:#fff;font-weight:800;font-size:.62rem;padding:.16rem .6rem;border-radius:6px;cursor:pointer">✓ تأكيد استلام المبلغ</button>
+          <button onclick="event.stopPropagation();popupConfirmTripCash('${t.id}','${driverId}',${cash})" style="border:none;background:#16a34a;color:#fff;font-weight:800;font-size:.8rem;padding:.16rem .6rem;border-radius:6px;cursor:pointer">✓ تأكيد استلام المبلغ</button>
         </div>`;
       }
       return `<div style="border:2px solid ${stColor[t.status]||'#e2e8f0'};border-radius:8px;margin-bottom:.4rem;background:var(--surface);overflow:hidden">
         <div onclick="var d=document.getElementById('dpd-${idx}');var op=d.style.display!=='none';d.style.display=op?'none':'block';this.querySelector('.dpx').textContent=op?'▾':'▴'" style="cursor:pointer;padding:.4rem .5rem">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem">
-            <span style="font-weight:800;font-size:.72rem;color:#0f172a">رحلة${idx===0?' · الأحدث':''} <span class="dpx" style="color:#94a3b8">${idx===0?'▴':'▾'}</span></span>
-            <span style="font-size:.58rem;font-weight:700;color:#fff;background:${stColor[t.status]||'#64748b'};padding:.06rem .45rem;border-radius:10px">${stLabel[t.status]||t.status}</span>
+            <span style="font-weight:800;font-size:.9rem;color:#0f172a">رحلة${idx===0?' · الأحدث':''} <span class="dpx" style="color:#94a3b8">${idx===0?'▴':'▾'}</span></span>
+            <span style="font-size:.72rem;font-weight:700;color:#fff;background:${stColor[t.status]||'#64748b'};padding:.06rem .45rem;border-radius:10px">${stLabel[t.status]||t.status}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:.63rem;color:#64748b;margin-top:.18rem">
+          <div style="display:flex;justify-content:space-between;font-size:.8rem;color:#64748b;margin-top:.18rem">
             <span>${when} · ${counted.length} طلب${os.length>counted.length?` <span style="color:#dc2626">(+${os.length-counted.length} تعذّر)</span>`:''}</span>
             <span>الإجمالي ${tot.toLocaleString()} · <strong style="color:#15803d">مطلوب ${cash.toLocaleString()} ج</strong></span>
           </div>
