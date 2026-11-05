@@ -799,7 +799,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   <div class="dp-name" id="dp-name"></div>
   <div class="dp-phone" id="dp-phone"></div>
   <div class="dp-status" id="dp-status"></div>
-  <div class="dp-section">آخر 3 رحلات</div>
+  <div class="dp-section" id="dp-trips-title">رحلات الشيفت الحالى</div>
   <div id="dp-trips"></div>
 <div style="margin-top:1rem;display:flex;gap:.5rem">
     <button onclick="callDriver(currentPopupDriverId)" style="flex:1;padding:.5rem;background:#1a56db;color:white;border:none;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.75rem;font-weight:700;cursor:pointer">📞 استدعاء</button>
@@ -1342,6 +1342,13 @@ function getDriverWorkMins(driverId){
 
 function fmWorkTime(mins){if(mins<60)return `${mins}د`;return `${Math.floor(mins/60)}س${mins%60}د`;}
 
+// بداية الشيفت الحالى = وقت اعتماد جلسة الأونلاين الحالية (أو آخر جلسة مكتملة)
+function getDriverShiftStart(driverId){
+  const recs=attendanceToday.filter(r=>r.driver_id===driverId).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const cur=recs.find(r=>r.status==='online'&&r.approved_at&&!r.ended_at) || recs.find(r=>r.status==='online'&&r.approved_at);
+  return cur?cur.approved_at:null;
+}
+
 function renderAttNotif(){
   // فلترة طلبات الحضور على فرع الشاشة (الأدمن على «كل الفروع» يشوف الكل)
   const _attBranch = currentUser?.role==='admin' ? activeBranchId : (currentUser?.branch_id||null);
@@ -1753,17 +1760,21 @@ async function openDriverPopup(driverId){
   statusEl.style.background=statusColors[attStatus]||'rgba(148,163,184,.2)';
   statusEl.style.color=attStatus==='online'?'#4ade80':attStatus==='break'?'#f87171':'#94a3b8';
 
-  // آخر 3 رحلات بتفاصيلها (طلباتها) — اضغط الكارت لعرض العملاء والقيم وطريقة السداد
+  // رحلات الشيفت الحالى بتفاصيلها (طلباتها) — اضغط الكارت لعرض العملاء والقيم وطريقة السداد
   const tripsEl=document.getElementById('dp-trips');
   tripsEl.innerHTML='<div style="color:#64748b;font-size:.72rem;text-align:center;padding:.4rem">...</div>';
-  // آخر 3 رحلات (بما فيها الرحلة الجارية) — عشان الطلبات المسلّمة تظهر هنا كأحدث نشاط
-  // من غير ما الطيار يضطر ينهي الرحلة
-  const {data:trips}=await db.from('trips')
+  // رحلات من بداية الشيفت الحالى (جلسة الأونلاين، بما فيها الجارية). لو مفيش شيفت → آخر 3 رحلات
+  const shiftStart=getDriverShiftStart(driverId);
+  const titleEl=document.getElementById('dp-trips-title');
+  if(titleEl) titleEl.textContent = shiftStart ? 'رحلات الشيفت الحالى' : 'آخر 3 رحلات';
+  let _tq=db.from('trips')
     .select('id,status,orders_count,total_amount,created_at,completed_at')
-    .eq('driver_id',driverId).order('created_at',{ascending:false}).limit(3);
+    .eq('driver_id',driverId).order('created_at',{ascending:false});
+  _tq = shiftStart ? _tq.gte('created_at',shiftStart).limit(50) : _tq.limit(3);
+  const {data:trips}=await _tq;
   if(currentPopupDriverId!==driverId) return;   // ضُغط طيار أحدث أثناء الجلب → اطّلع بدل ما نكتب رحلات الطيار القديم
   if(!trips?.length){
-    tripsEl.innerHTML='<div style="color:#64748b;font-size:.75rem;text-align:center;padding:.5rem">لا توجد رحلات</div>';
+    tripsEl.innerHTML='<div style="color:#64748b;font-size:.75rem;text-align:center;padding:.5rem">'+(shiftStart?'لا توجد رحلات فى الشيفت الحالى':'لا توجد رحلات')+'</div>';
   } else {
     const tripIds=trips.map(t=>t.id);
     // دفعات 50 في الاتنين — القوايم الطويلة في الرابط بتكسر الوسيط
