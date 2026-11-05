@@ -81,6 +81,8 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);heigh
 .dp-row:last-child{border-bottom:none}
 .dp-lbl{color:#94a3b8}
 .dp-val{color:#e2e8f0;font-weight:600}
+/* قائمة الرحلات تعمل scroll جواها فتفضل الأزرار تحت ظاهرة مهما زادت الرحلات */
+#dp-trips{max-height:46vh;overflow-y:auto;overflow-x:hidden}
 .dh-time{font-size:.7rem;color:#94a3b8}
 .icon-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#94a3b8;padding:.3rem .65rem;border-radius:8px;font-family:'Cairo',sans-serif;font-size:.7rem;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.3rem}
 .icon-btn:hover{background:rgba(255,255,255,.15);color:white}
