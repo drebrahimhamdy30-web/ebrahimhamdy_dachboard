@@ -408,6 +408,30 @@ textarea.form-ctrl{height:80px;padding:.75rem;resize:none}
   </div>
 </div>
 
+<!-- Modal: اختيار طيار لنقل الطلب -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">↪️ نقل الطلب لطيار</div>
+    <div id="tr-cust" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.6rem"></div>
+    <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.4rem">اختر الطيار المستلم (الطلب يفضل معاك لحد ما يقبل خلال دقيقة):</div>
+    <div id="tr-drivers" style="max-height:50vh;overflow-y:auto"></div>
+    <button class="btn-full btn-gray" onclick="closeModal('transferModal')" style="margin-top:.6rem">إلغاء</button>
+  </div>
+</div>
+
+<!-- Modal: طلب نقل وارد -->
+<div class="modal-overlay" id="incomingTransferModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📨 طلب نقل طلب إليك</div>
+    <div id="it-info" style="font-size:.85rem;line-height:1.9;margin-bottom:.5rem"></div>
+    <div id="it-countdown" style="text-align:center;font-weight:800;font-size:1.1rem;color:#b45309;margin-bottom:.6rem"></div>
+    <button class="btn-full btn-green" onclick="respondTransfer(true)">✓ قبول الطلب</button>
+    <button class="btn-full btn-red" onclick="respondTransfer(false)">✕ رفض</button>
+  </div>
+</div>
+
 <div class="loading-overlay" id="lo"><div class="spinner"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -727,6 +751,117 @@ function subscribeToCallNotifications(){
     .subscribe();
 }
 
+// ════════ نقل طلب من طيار لطيار ════════
+let transferChannel=null, outgoingTransfers={}, incomingT=null, itTimer=null, _trOrderId=null;
+
+function subscribeToTransfers(){
+  if(!driverRecord) return;
+  if(transferChannel){ db.removeChannel(transferChannel); transferChannel=null; }
+  transferChannel = db.channel(`driver-transfers-${driverRecord.id}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_transfer_requests',filter:`to_driver_id=eq.${driverRecord.id}`}, (p)=>{
+      const r=p.new;
+      if(r && r.status==='pending' && new Date(r.expires_at)>new Date()){ showIncoming(r); }
+      loadAll();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_transfer_requests',filter:`from_driver_id=eq.${driverRecord.id}`}, ()=>{ loadAll(); })
+    .subscribe();
+}
+
+async function loadTransfers(){
+  outgoingTransfers={};
+  if(!driverRecord) return;
+  try{
+    const {data:out}=await db.from('order_transfer_requests').select('*').eq('from_driver_id',driverRecord.id).eq('status','pending');
+    (out||[]).forEach(t=>{ if(new Date(t.expires_at)>new Date()) outgoingTransfers[t.order_id]=t; });
+    if(!incomingT){
+      const {data:inc}=await db.from('order_transfer_requests').select('*').eq('to_driver_id',driverRecord.id).eq('status','pending').order('created_at',{ascending:false}).limit(1);
+      const t=inc&&inc[0];
+      if(t && new Date(t.expires_at)>new Date()) showIncoming(t);
+    }
+  }catch(e){}
+}
+
+function transferEnabled(){ return !!(settings && settings.driver_transfer_enabled); }
+
+function transferBtnHtml(o){
+  if(!transferEnabled() || !['assigned','picked'].includes(o.status)) return '';
+  const t=outgoingTransfers[o.id];
+  if(t){ const left=Math.max(0,Math.round((new Date(t.expires_at)-new Date())/1000));
+    return `<button class="oa-btn" style="background:#fff7ed;color:#b45309;border:1px solid #fed7aa" onclick="cancelTransfer('${t.id}')">⏳ قيد النقل (${left}ث) — إلغاء</button>`; }
+  return `<button class="oa-btn" style="background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0" onclick="openTransferPicker('${o.id}')">↪️ نقل لطيار</button>`;
+}
+
+async function openTransferPicker(orderId){
+  _trOrderId=orderId;
+  const o=Object.values(tripOrders).flat().find(x=>x&&x.id===orderId);
+  document.getElementById('tr-cust').textContent = o?('الطلب: '+(o.customer_name||'—')):'';
+  const box=document.getElementById('tr-drivers');
+  box.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:1rem">...</div>';
+  document.getElementById('transferModal').classList.add('open');
+  let list=[];
+  try{
+    const {data}=await db.from('drivers').select('id,full_name,is_online').eq('branch_id',driverRecord.branch_id).eq('is_active',true);
+    list=(data||[]).filter(d=>d.id!==driverRecord.id && d.is_online);
+  }catch(e){}
+  if(!list.length){ box.innerHTML='<div style="text-align:center;color:var(--text-muted);padding:1rem">مفيش طيارين حاضرين دلوقتى</div>'; return; }
+  box.innerHTML=list.map(d=>`<button class="btn-full" style="background:#f1f5f9;color:#0f172a;text-align:right;margin-bottom:.4rem" onclick="doRequestTransfer('${d.id}')">🏍️ ${d.full_name||'طيار'}</button>`).join('');
+}
+
+async function doRequestTransfer(toId){
+  const oid=_trOrderId; if(!oid) return;
+  closeModal('transferModal'); load(true);
+  try{
+    const {data,error}=await db.rpc('driver_request_transfer',{p_order_id:oid,p_from_driver_id:driverRecord.id,p_to_driver_id:toId});
+    if(error) throw error;
+    if(data&&data.success===false){ alert('⚠️ '+(data.error||'تعذّر النقل')); }
+    else { alert('✓ تم إرسال طلب النقل — الطلب يفضل معاك لحد ما يقبل خلال دقيقة'); }
+  }catch(e){ alert('تعذّر النقل، حاول تانى'); }
+  finally{ load(false); await loadAll(); }
+}
+
+async function cancelTransfer(tid){
+  load(true);
+  try{ await db.rpc('driver_cancel_transfer',{p_transfer_id:tid,p_from_driver_id:driverRecord.id}); }catch(e){}
+  finally{ load(false); await loadAll(); }
+}
+
+async function showIncoming(t){
+  if(incomingT && incomingT.id===t.id) return;
+  incomingT=t;
+  let info='طلب نقل جديد';
+  try{
+    const {data}=await db.from('orders').select('customer_name,customer_address,cust_region,total_bill_net,extra_collection').eq('id',t.order_id).limit(1);
+    const o=data&&data[0];
+    const amt=o?(Number(o.total_bill_net||0)+Number(o.extra_collection||0)):0;
+    const {data:drv}=await db.from('drivers').select('full_name').eq('id',t.from_driver_id).limit(1);
+    const fromN=(drv&&drv[0]&&drv[0].full_name)||'طيار';
+    info=`<div>من: <b>${fromN}</b></div><div>العميل: <b>${o?.customer_name||'—'}</b></div><div>العنوان: ${o?.customer_address||'—'}</div>${o?.cust_region?`<div>المنطقة: ${o.cust_region}</div>`:''}<div>المبلغ: <b>${amt.toLocaleString('ar-EG')} ج</b></div>`;
+  }catch(e){}
+  document.getElementById('it-info').innerHTML=info;
+  document.getElementById('incomingTransferModal').classList.add('open');
+  try{ startContinuousSound('call'); }catch(e){}
+  clearInterval(itTimer);
+  const tick=()=>{
+    const left=Math.max(0,Math.round((new Date(t.expires_at)-new Date())/1000));
+    const el=document.getElementById('it-countdown'); if(el) el.textContent='⏳ '+left+' ثانية';
+    if(left<=0){ clearInterval(itTimer); try{stopContinuousSound();}catch(e){} closeModal('incomingTransferModal'); incomingT=null; loadAll(); }
+  };
+  tick(); itTimer=setInterval(tick,1000);
+}
+
+async function respondTransfer(accept){
+  const t=incomingT; if(!t) return;
+  clearInterval(itTimer); try{stopContinuousSound();}catch(e){}
+  closeModal('incomingTransferModal'); incomingT=null; load(true);
+  try{
+    const {data,error}=await db.rpc('driver_respond_transfer',{p_transfer_id:t.id,p_driver_id:driverRecord.id,p_accept:accept,p_user_name:driverRecord.full_name||'طيار'});
+    if(error) throw error;
+    if(data&&data.success===false){ alert('⚠️ '+(data.error||'تعذّر')); }
+    else if(accept){ alert('✓ تم قبول الطلب — أضيف لرحلتك'); }
+  }catch(e){ alert('تعذّر، حاول تانى'); }
+  finally{ load(false); await loadAll(); }
+}
+
 function dismissCall(){
   stopContinuousSound();
   document.getElementById('callNotice').style.display = 'none';
@@ -780,6 +915,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
   load(false);
   await subscribeToOrders();
   subscribeToCallNotifications();
+  subscribeToTransfers();
   setInterval(loadAttendance, 30000);
   setInterval(updateAllTimers, 60000);
   /* التوكن عمره ساعة وبيتجدّد في الخلفية، لكن الـWebSocket بيفضل
@@ -1247,6 +1383,7 @@ const {data:trips}=await db.from('trips').select('*')
 
     // متعلقات طلبات الرحلات المحمّلة — نداء واحد قبل الرسم
     await loadBelongings([...new Set(Object.values(tripOrders).flat().map(o=>o&&o.id).filter(Boolean))]);
+    await loadTransfers();
 
     updateStats();
     renderTabs();
@@ -1601,7 +1738,7 @@ let actions='';
         </div>
       </div>
       <div class="or-detail" id="det-${o.id}">
-        <div class="or-actions" style="margin-bottom:.4rem">${actions||''}</div>
+        <div class="or-actions" style="margin-bottom:.4rem">${actions||''}${transferBtnHtml(o)}</div>
         ${(settings?.driver_show_order_rating && o.perf_rating)?`<div style="font-size:.7rem;font-weight:700;color:${ratingColor(o.perf_rating)};margin-bottom:.3rem">⭐ ${o.perf_rating}${(o.actual_minutes!=null&&o.expected_minutes!=null)?` (${o.actual_minutes}/${o.expected_minutes} د)`:''}</div>`:''}
         ${o.collected_amount!=null?`<div style="font-size:.72rem;color:var(--green);font-weight:600;margin-bottom:.3rem">✓ محصل: ${Number(o.collected_amount).toLocaleString()} ج</div>${collectedNote(o)}`:''}
         ${(o.notes||'').includes('🚨')?`<div class="or-note note-urgent">🚨 طلب عاجل</div>`:''}

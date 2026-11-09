@@ -478,6 +478,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <button class="ftab" onclick="setFilter('late',this)">⚠️ متأخر <span id="f-late">0</span></button>
     <button class="ftab" id="prepTab" onclick="setFilter('prep',this)" style="display:none;border-color:#c7d2fe;color:#4338ca;font-weight:700">🧪 تحت التجهيز <span id="f-prep">0</span></button>
     <button class="ftab" id="prepToggle" onclick="togglePrepMode()" title="تفعيل/إيقاف وضع التحضير للفرع" style="font-weight:700">🧪 وضع التحضير: موقوف</button>
+    <button class="ftab" id="transferToggle" onclick="toggleTransferMode()" title="تفعيل/إيقاف نقل الطلبات بين الطيارين من التطبيق" style="font-weight:700">↪️ نقل الطيارين: موقوف</button>
     <button class="ftab" onclick="setFilter('unclosed',this)" style="border-color:#fecaca;color:#b91c1c">🔴 طلبات لم تُغلق على B Connect</button>
     <button class="ftab" onclick="openHardTripsModal()" title="رحلات المناطق الصعبة النهاردة" style="border-color:#fed7aa;color:#c2410c;font-weight:700">🧭 المناطق الصعبة</button>
     <button class="ftab" onclick="openRegionPrices()" title="الحد الأدنى للطلب وخدمة التوصيل لكل منطقة" style="border-color:#bae6fd;color:#0369a1;font-weight:700">🚚 تكلفة توصيل المناطق</button>
@@ -2037,6 +2038,24 @@ async function togglePrepMode(){
   showLoading(false);
 }
 
+async function toggleTransferMode(){
+  const branchId=currentUser?.role==='admin'?activeBranchId:(currentUser?.branch_id||null);
+  if(!branchId){ showToast('اختر فرعًا أولاً'); return; }
+  const cur=!!(dispatchSettings && dispatchSettings.driver_transfer_enabled);
+  const next=!cur;
+  if(!confirm(next?'تفعيل نقل الطلبات بين الطيارين من التطبيق؟ الطيار هيقدر ينقل طلب من رحلته لطيار تانى (بقبول خلال دقيقة).':'إيقاف خاصية نقل الطلبات بين الطيارين؟')) return;
+  showLoading(true);
+  try{
+    let res;
+    if(dispatchSettings && dispatchSettings.id){ res=await db.from('dispatch_settings').update({driver_transfer_enabled:next}).eq('branch_id',branchId); }
+    else { res=await db.from('dispatch_settings').insert({branch_id:branchId, driver_transfer_enabled:next}); }
+    if(res && res.error) throw res.error;
+    showToast(next?'✓ اتفعّل نقل الطيارين':'✓ اتوقف نقل الطيارين');
+  }catch(e){ showToast('تعذّر تغيير الإعداد'); }
+  await loadAll();
+  showLoading(false);
+}
+
 // ===== طلبات لم تُغلق على B Connect (trip_review_flags غير المحلولة) =====
 // قراءة حية بحتة (بدون أي كتابة): نجيب أرقام فواتير B Connect المفتوحة دلوقتى،
 // ونعرض المكتمل منها والمتسلّم من طيار على Phalix — تقاطع برقم الفاتورة.
@@ -2209,6 +2228,8 @@ function renderOrders(){
   const prepCount=allOrders.filter(o=>underPrep(o)).length;
   const _pt=document.getElementById('prepTab'); if(_pt){ _pt.style.display=prepOn?'':'none'; const _fp=document.getElementById('f-prep'); if(_fp)_fp.textContent=prepCount; }
   const _ptg=document.getElementById('prepToggle'); if(_ptg){ _ptg.textContent='🧪 وضع التحضير: '+(prepOn?'مفعّل':'موقوف'); _ptg.style.background=prepOn?'#e0e7ff':''; _ptg.style.color=prepOn?'#4338ca':''; _ptg.style.borderColor=prepOn?'#c7d2fe':''; }
+  const _trOn=!!(dispatchSettings && dispatchSettings.driver_transfer_enabled);
+  const _trg=document.getElementById('transferToggle'); if(_trg){ _trg.textContent='↪️ نقل الطيارين: '+(_trOn?'مفعّل':'موقوف'); _trg.style.background=_trOn?'#dcfce7':''; _trg.style.color=_trOn?'#15803d':''; _trg.style.borderColor=_trOn?'#bbf7d0':''; }
 
   const all=allOrders.filter(o=>
     (o.status==='pending'&&!o.driver_id)||
