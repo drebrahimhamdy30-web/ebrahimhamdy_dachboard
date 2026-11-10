@@ -2236,9 +2236,10 @@ async function doOrderSearch(){
 let _lastCardKey=null;
 async function showLastOrderCard(q){
   const el=document.getElementById('lastOrderCard'); if(!el) return;
+  const grid=document.getElementById('ordersGrid');
   q=(q||'').trim();
-  if(!q){ el.style.display='none'; el.innerHTML=''; _lastCardKey=null; _lastOrderObj=null; return; }
-  _lastCardKey=q; el.style.display='block';
+  if(!q){ el.style.display='none'; el.innerHTML=''; _lastCardKey=null; _lastOrderObj=null; if(grid) grid.style.display=''; return; }
+  _lastCardKey=q; el.style.display='block'; if(grid) grid.style.display='none';   // نعرض الكارت الكبير بس ونخفى الكروت الصغيرة
   el.innerHTML='<div class="lo-card"><div style="padding:1rem;text-align:center;color:#64748b">جارٍ جلب آخر طلب…</div></div>';
   try{
     const branchId=currentUser?.role==='admin'?activeBranchId:(currentUser?.branch_id||null);
