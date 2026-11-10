@@ -478,7 +478,6 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <button class="ftab" onclick="setFilter('late',this)">⚠️ متأخر <span id="f-late">0</span></button>
     <button class="ftab" id="prepTab" onclick="setFilter('prep',this)" style="display:none;border-color:#c7d2fe;color:#4338ca;font-weight:700">🧪 تحت التجهيز <span id="f-prep">0</span></button>
     <button class="ftab" id="prepToggle" onclick="togglePrepMode()" title="تفعيل/إيقاف وضع التحضير للفرع" style="font-weight:700">🧪 وضع التحضير: موقوف</button>
-    <button class="ftab" id="transferToggle" onclick="toggleTransferMode()" title="تفعيل/إيقاف نقل الطلبات بين الطيارين من التطبيق" style="font-weight:700">↪️ نقل الطيارين: موقوف</button>
     <button class="ftab" onclick="setFilter('unclosed',this)" style="border-color:#fecaca;color:#b91c1c">🔴 طلبات لم تُغلق على B Connect</button>
     <button class="ftab" onclick="openHardTripsModal()" title="رحلات المناطق الصعبة النهاردة" style="border-color:#fed7aa;color:#c2410c;font-weight:700">🧭 المناطق الصعبة</button>
     <button class="ftab" onclick="openRegionPrices()" title="الحد الأدنى للطلب وخدمة التوصيل لكل منطقة" style="border-color:#bae6fd;color:#0369a1;font-weight:700">🚚 تكلفة توصيل المناطق</button>
@@ -488,6 +487,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <span class="sel-info" id="selInfo"></span>
     <button class="batch-btn" id="batchBtn" onclick="openAssignModal()">🚗 تعيين طيار</button>
     <div style="display:flex;align-items:center;gap:.3rem;margin-inline-start:auto">
+      <button class="tb-ic" onclick="openDispatchSettings()" title="إعدادات التوزيع">⚙️</button>
       <button class="tb-ic" onclick="fontStep(-1)" title="تصغير الخط">A−</button>
       <button class="tb-ic" onclick="fontStep(1)" title="تكبير الخط">A+</button>
       <button class="tb-ic" id="darkToggle" onclick="toggleDark()" title="الوضع الليلي">🌙</button>
@@ -761,6 +761,23 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('regionModal')">إلغاء</button>
       <button class="btn btn-primary" onclick="confirmLastOrderRegion()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إعدادات التوزيع (توجلات الفرع) -->
+<div class="modal-overlay" id="dispatchSettingsModal">
+  <div class="modal modal-sm">
+    <div class="modal-header"><span class="modal-title">⚙️ إعدادات التوزيع</span><button class="modal-close" onclick="closeModal('dispatchSettingsModal')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:.82rem;color:#64748b;margin-bottom:.4rem">الإعدادات دي بتتطبّق على الفرع المختار.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .1rem">
+        <div style="min-width:0">
+          <div style="font-weight:800">↪️ نقل الطلبات بين الطيارين</div>
+          <div style="font-size:.78rem;color:#64748b;margin-top:.15rem">يسمح للطيار ينقل طلب من رحلته لطيار تانى من التطبيق (بقبول خلال دقيقة).</div>
+        </div>
+        <button class="btn btn-outline" id="setTransferBtn" onclick="toggleTransferMode()" style="white-space:nowrap;font-weight:800">موقوف</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2105,6 +2122,21 @@ async function toggleTransferMode(){
   showLoading(false);
 }
 
+// مودال إعدادات التوزيع (توجلات الفرع) — «نقل الطيارين» اتنقل هنا من الشريط العلوي
+function openDispatchSettings(){
+  const branchId=currentUser?.role==='admin'?activeBranchId:(currentUser?.branch_id||null);
+  if(!branchId){ showToast('اختر فرعًا أولاً'); return; }
+  syncTransferSettingBtn();
+  document.getElementById('dispatchSettingsModal').classList.add('open');
+}
+function syncTransferSettingBtn(){
+  const on=!!(dispatchSettings && dispatchSettings.driver_transfer_enabled);
+  const b=document.getElementById('setTransferBtn');
+  if(!b) return;
+  b.textContent=on?'مفعّل ✓':'موقوف';
+  b.style.background=on?'#dcfce7':''; b.style.color=on?'#15803d':''; b.style.borderColor=on?'#bbf7d0':'';
+}
+
 // ===== طلبات لم تُغلق على B Connect (trip_review_flags غير المحلولة) =====
 // قراءة حية بحتة (بدون أي كتابة): نجيب أرقام فواتير B Connect المفتوحة دلوقتى،
 // ونعرض المكتمل منها والمتسلّم من طيار على Phalix — تقاطع برقم الفاتورة.
@@ -2380,8 +2412,7 @@ function renderOrders(){
   const prepCount=allOrders.filter(o=>underPrep(o)).length;
   const _pt=document.getElementById('prepTab'); if(_pt){ _pt.style.display=prepOn?'':'none'; const _fp=document.getElementById('f-prep'); if(_fp)_fp.textContent=prepCount; }
   const _ptg=document.getElementById('prepToggle'); if(_ptg){ _ptg.textContent='🧪 وضع التحضير: '+(prepOn?'مفعّل':'موقوف'); _ptg.style.background=prepOn?'#e0e7ff':''; _ptg.style.color=prepOn?'#4338ca':''; _ptg.style.borderColor=prepOn?'#c7d2fe':''; }
-  const _trOn=!!(dispatchSettings && dispatchSettings.driver_transfer_enabled);
-  const _trg=document.getElementById('transferToggle'); if(_trg){ _trg.textContent='↪️ نقل الطيارين: '+(_trOn?'مفعّل':'موقوف'); _trg.style.background=_trOn?'#dcfce7':''; _trg.style.color=_trOn?'#15803d':''; _trg.style.borderColor=_trOn?'#bbf7d0':''; }
+  syncTransferSettingBtn();  // «نقل الطيارين» بقى في مودال إعدادات التوزيع
 
   const all=allOrders.filter(o=>
     (o.status==='pending'&&!o.driver_id)||
