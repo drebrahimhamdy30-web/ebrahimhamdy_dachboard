@@ -509,10 +509,12 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     .lo-kv .full2{grid-column:1/-1}
     .lo-h{font-size:.78rem;font-weight:800;color:#0e7490;margin-bottom:.35rem;border-bottom:1.5px solid #e2e8f0;padding-bottom:.22rem}
     .lo-scroll{max-height:30vh;overflow-y:auto}
-    .lo-ev{display:flex;gap:.5rem;align-items:flex-start;margin-bottom:.35rem}
+    /* شريط حركات الطلب أفقى — الحركات جنب بعض */
+    .lo-tl{display:flex;flex-wrap:wrap;gap:.4rem;max-height:34vh;overflow-y:auto;align-content:flex-start}
+    .lo-ev{display:inline-flex;align-items:center;gap:.4rem;background:#f8fafc;border:1px solid #eef2f7;border-radius:9px;padding:.3rem .55rem;max-width:210px}
     .lo-ic{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0}
-    .lo-evl{font-size:.8rem;font-weight:700;color:#0f172a;line-height:1.3}
-    .lo-evm{font-size:.66rem;color:#64748b}
+    .lo-evl{font-size:.78rem;font-weight:700;color:#0f172a;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .lo-evm{font-size:.64rem;color:#64748b;white-space:nowrap}
     .lo-to{display:flex;align-items:center;gap:.5rem;padding:.32rem .2rem;border-bottom:1px solid #f1f5f9}
     .lo-to .nm{flex:1;font-weight:700;font-size:.82rem}
     .lo-to .amt{font-weight:800;color:#0a3d62;white-space:nowrap;font-size:.82rem}
@@ -2287,7 +2289,7 @@ function renderLastOrderHtml(o, logs, trip, torders){
     if(l.event==='order_transferred'&&(d.from||d.to)) lab='نقل من '+(d.from||'—')+' إلى '+(d.to||'—');
     if(l.event==='order_postponed') lab = d.reason ? ('تعذّر: '+d.reason) : 'تأجيل';
     let who=l.user_name||'—'; if(l.event==='order_created'&&o.employee_name) who=o.employee_name;
-    return `<div class="lo-ev"><span class="lo-ic" style="background:${col};color:#fff">${ic}</span><div><div class="lo-evl">${E(lab)}</div><div class="lo-evm">${E(who)} · ${fmt(l.created_at)}</div></div></div>`;
+    return `<div class="lo-ev" title="${E(who)} · ${fmt(l.created_at)}"><span class="lo-ic" style="background:${col};color:#fff">${ic}</span><div style="min-width:0"><div class="lo-evl">${E(lab)}</div><div class="lo-evm">${fmt(l.created_at)}</div></div></div>`;
   }).join('') || '<div style="color:#64748b;font-size:.85rem">مفيش سجل حركة</div>';
   const stMap={active:'جارية',pending_complete:'بانتظار الإنهاء',completed:'مكتملة',cancelled:'ملغاة'};
   let tripInner;
@@ -2320,7 +2322,7 @@ function renderLastOrderHtml(o, logs, trip, torders){
           <span class="k full2" style="color:#64748b;font-weight:600">📍 العنوان</span><span class="vv full2" style="font-weight:700;font-size:.95rem">${E(o.customer_address||'—')}</span>
         </div>
         <div class="lo-h" style="margin-top:.6rem">📜 كل حركة على الطلب</div>
-        <div class="lo-scroll">${tl}</div>
+        <div class="lo-tl">${tl}</div>
       </div>
       <!-- يسار: الرحلة -->
       <div class="lo-trip">${tripInner}</div>
