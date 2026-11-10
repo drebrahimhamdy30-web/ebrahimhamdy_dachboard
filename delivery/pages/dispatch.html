@@ -514,7 +514,7 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     .lo-ev{display:inline-flex;align-items:center;gap:.4rem;background:#f8fafc;border:1px solid #eef2f7;border-radius:9px;padding:.3rem .55rem;max-width:210px}
     .lo-ic{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0}
     .lo-evl{font-size:.78rem;font-weight:700;color:#0f172a;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .lo-evm{font-size:.64rem;color:#64748b;white-space:nowrap}
+    .lo-evm{font-size:.76rem;color:#475569;font-weight:700;white-space:nowrap}
     .lo-to{display:flex;align-items:center;gap:.5rem;padding:.32rem .2rem;border-bottom:1px solid #f1f5f9}
     .lo-to .nm{flex:1;font-weight:700;font-size:.82rem}
     .lo-to .amt{font-weight:800;color:#0a3d62;white-space:nowrap;font-size:.82rem}
@@ -2313,7 +2313,8 @@ function renderLastOrderHtml(o, logs, trip, torders){
       <div class="lo-order">
         <div class="lo-h">📋 تفاصيل الطلب</div>
         <div class="lo-kv">
-          <span class="k">على مين (الطيار)</span><span class="vv">${E(drv)}</span>
+          <span class="k">الطيار</span><span class="vv">${E(drv)}</span>
+          <span class="k">الموظف (طابع الأوردر)</span><span class="vv">${E(o.employee_name||'—')}</span>
           <span class="k">المبلغ المطلوب</span><span class="vv" style="color:#0e7490">${amt.toLocaleString('ar-EG')} ج · ${E(PL[o.payment_method]||o.payment_method||'كاش')}</span>
           <span class="k">المنطقة</span><span class="vv">${E(o.cust_region||'—')}</span>
           <span class="k">رقم الفاتورة</span><span class="vv">${E(o.bill_no||'—')}</span>
