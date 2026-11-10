@@ -493,6 +493,33 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
       <button class="tb-ic" id="darkToggle" onclick="toggleDark()" title="الوضع الليلي">🌙</button>
     </div>
   </div>
+  <style>
+    #lastOrderCard{margin:0 0 1rem}
+    .lo-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.06);overflow:hidden}
+    .lo-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.9rem 1.2rem;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;flex-wrap:wrap}
+    .lo-cust{font-size:1.4rem;font-weight:800}
+    .lo-cust small{font-size:.85rem;font-weight:600;color:#94a3b8;margin-right:.4rem}
+    .lo-status{font-size:1.1rem;font-weight:800;padding:.45rem 1rem;border-radius:12px;color:#fff;white-space:nowrap}
+    .lo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#e2e8f0}
+    .lo-cell{background:#fff;padding:.8rem 1.1rem}
+    .lo-cell .l{font-size:.75rem;color:#64748b;font-weight:600;margin-bottom:.2rem}
+    .lo-cell .v{font-size:1.1rem;font-weight:800}
+    .lo-cell.full{grid-column:1/-1}
+    .lo-body{display:flex;flex-wrap:wrap;gap:1rem;padding:1rem 1.2rem}
+    .lo-col{flex:1;min-width:260px}
+    .lo-h{font-size:.85rem;font-weight:800;color:#0e7490;margin-bottom:.5rem;border-bottom:2px solid #e2e8f0;padding-bottom:.3rem}
+    .lo-ev{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.55rem}
+    .lo-ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+    .lo-evl{font-size:.9rem;font-weight:700;color:#0f172a}
+    .lo-evm{font-size:.72rem;color:#64748b}
+    .lo-to{display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid #f1f5f9}
+    .lo-to .nm{flex:1;font-weight:700;font-size:.92rem}
+    .lo-to .amt{font-weight:800;color:#0a3d62;white-space:nowrap;font-size:.9rem}
+    .lo-pill{font-size:.76rem;font-weight:800;padding:.18rem .6rem;border-radius:8px;color:#fff;white-space:nowrap}
+    .lo-actions{display:flex;gap:.6rem;padding:.8rem 1.2rem;border-top:1px solid #e2e8f0}
+    .lo-btn{border:none;border-radius:10px;padding:.6rem 1rem;font-family:'Cairo',sans-serif;font-size:.9rem;font-weight:800;cursor:pointer}
+  </style>
+  <div id="lastOrderCard" style="display:none"></div>
   <div class="orders-grid" id="ordersGrid"></div>
 </div>
 
@@ -2170,13 +2197,14 @@ function orderDT(o){
 let orderSearchResults=null;   // null = مش في وضع بحث
 let _orderSearchTimer=null;
 // دوّر على الطلب في المحمّل أو في نتائج البحث — عشان السجل/التفاصيل/التعديل يشتغلوا على نتائج البحث كمان
-function findOrder(id){ return allOrders.find(x=>x.id===id) || (orderSearchResults||[]).find(x=>x.id===id); }
+let _lastOrderObj=null;
+function findOrder(id){ return allOrders.find(x=>x.id===id) || (orderSearchResults||[]).find(x=>x.id===id) || (_lastOrderObj&&_lastOrderObj.id===id?_lastOrderObj:null); }
 function onOrderSearch(){
   const billQ=(document.getElementById('searchBill')?.value||'').trim();
   const codeQ=(document.getElementById('searchCode')?.value||'').trim();
   // في تبويب «لم تُغلق على B Connect» البحث بيفلتر القايمة المحمّلة نفسها (مش استعلام طلبات)
   if(currentFilter==='unclosed'){ renderOrders(); return; }
-  if(billQ.length<3 && codeQ.length<1){ orderSearchResults=null; renderOrders(); return; }
+  if(billQ.length<3 && codeQ.length<1){ orderSearchResults=null; showLastOrderCard(''); renderOrders(); return; }
   clearTimeout(_orderSearchTimer);
   _orderSearchTimer=setTimeout(doOrderSearch, 300);
 }
@@ -2201,6 +2229,99 @@ async function doOrderSearch(){
     orderSearchResults=rows;
   }catch(e){ orderSearchResults=[]; }
   renderOrders();
+  showLastOrderCard(codeActive?codeQ:'');
+}
+
+// ═══ كارت «آخر طلب للعميل» (بحث بالكود/الاسم) — يجيب آخر طلب أيًّا كان عمره ═══
+let _lastCardKey=null;
+async function showLastOrderCard(q){
+  const el=document.getElementById('lastOrderCard'); if(!el) return;
+  q=(q||'').trim();
+  if(!q){ el.style.display='none'; el.innerHTML=''; _lastCardKey=null; _lastOrderObj=null; return; }
+  _lastCardKey=q; el.style.display='block';
+  el.innerHTML='<div class="lo-card"><div style="padding:1rem;text-align:center;color:#64748b">جارٍ جلب آخر طلب…</div></div>';
+  try{
+    const branchId=currentUser?.role==='admin'?activeBranchId:(currentUser?.branch_id||null);
+    let code=q;
+    if(!/^\d+$/.test(q)){
+      let fq=db.from('orders').select('cust_code').not('cust_code','is',null).ilike('customer_name','%'+q.replace(/[%(),]/g,'')+'%').order('created_at',{ascending:false}).limit(1);
+      if(branchId) fq=fq.eq('branch_id',branchId);
+      const {data:fc}=await fq;
+      if(_lastCardKey!==q) return;
+      code=fc&&fc[0]&&fc[0].cust_code;
+      if(!code){ el.innerHTML='<div class="lo-card"><div style="padding:1rem;text-align:center;color:#64748b">مفيش طلبات بالاسم ده</div></div>'; return; }
+    }
+    let oq=db.from('orders').select(DISP_ORDER_COLS).eq('cust_code',String(code)).order('created_at',{ascending:false}).limit(1);
+    if(branchId) oq=oq.eq('branch_id',branchId);
+    const {data:od}=await oq; const o=od&&od[0];
+    if(_lastCardKey!==q) return;
+    if(!o){ el.innerHTML='<div class="lo-card"><div style="padding:1rem;text-align:center;color:#64748b">مفيش طلبات للعميل ده</div></div>'; return; }
+    _lastOrderObj=o;
+    const {data:logs}=await db.from('order_logs').select('*').eq('order_id',o.id).order('created_at',{ascending:true});
+    let trip=null, torders=[];
+    try{
+      const {data:tl}=await db.from('trip_orders').select('trip_id').eq('order_id',o.id).limit(1);
+      const tid=tl&&tl[0]&&tl[0].trip_id;
+      if(tid){
+        const {data:tr}=await db.from('trips').select('id,status,driver_name,orders_count').eq('id',tid).limit(1); trip=tr&&tr[0];
+        const {data:tos}=await db.from('trip_orders').select('order_id').eq('trip_id',tid);
+        const oids=(tos||[]).map(r=>r.order_id);
+        if(oids.length){ const {data:tords}=await db.from('orders').select('id,customer_name,cust_region,status,total_bill_net,extra_collection,payment_method,had_failed_attempt,prep_done_at,driver_id').in('id',oids); torders=tords||[]; }
+      }
+    }catch(e){}
+    if(_lastCardKey!==q) return;
+    el.innerHTML=renderLastOrderHtml(o, logs||[], trip, torders);
+  }catch(e){ if(_lastCardKey===q) el.innerHTML='<div class="lo-card"><div style="padding:1rem;text-align:center;color:#dc2626">تعذّر جلب آخر طلب</div></div>'; }
+}
+
+function renderLastOrderHtml(o, logs, trip, torders){
+  const E=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const PL={cash:'كاش',visa:'فيزا',transfer:'تحويل',deferred:'آجل',paid:'خالص'};
+  const fmt=t=>t?new Date(t).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+  const amt=Number(o.total_bill_net||0)+Number(o.extra_collection||0);
+  const drv=o.deliveryman||'— لسه ماتوزّعش —';
+  const tl=(logs||[]).map(l=>{
+    const ic=LOG_I[l.event]||'•', col=LOG_C[l.event]||'#64748b'; let lab=LOG_A[l.event]||l.event; const d=l.details||{};
+    if(l.event==='order_transferred'&&(d.from||d.to)) lab='نقل من '+(d.from||'—')+' إلى '+(d.to||'—');
+    if(l.event==='order_postponed') lab = d.reason ? ('تعذّر: '+d.reason) : 'تأجيل';
+    let who=l.user_name||'—'; if(l.event==='order_created'&&o.employee_name) who=o.employee_name;
+    return `<div class="lo-ev"><span class="lo-ic" style="background:${col};color:#fff">${ic}</span><div><div class="lo-evl">${E(lab)}</div><div class="lo-evm">${E(who)} · ${fmt(l.created_at)}</div></div></div>`;
+  }).join('') || '<div style="color:#64748b;font-size:.85rem">مفيش سجل حركة</div>';
+  let tripBlock;
+  const stMap={active:'جارية',pending_complete:'بانتظار الإنهاء',completed:'مكتملة',cancelled:'ملغاة'};
+  if(trip && (torders||[]).length){
+    const rows=torders.map(t=>{
+      const a=Number(t.total_bill_net||0)+Number(t.extra_collection||0);
+      const me=t.id===o.id;
+      return `<div class="lo-to" style="${me?'background:#f0fdfa':''}"><span class="lo-pill" style="background:${ordStatusColor(t)}">${E(ordStatusLabel(t))}</span><span class="nm">${E(t.customer_name||'—')}${t.cust_region?' · '+E(t.cust_region):''}${me?' ← الطلب ده':''}</span><span class="amt">${a.toLocaleString('ar-EG')} ج</span></div>`;
+    }).join('');
+    tripBlock=`<div class="lo-col"><div class="lo-h">🚗 رحلة ${E(trip.driver_name||drv)} — ${torders.length} طلب · ${E(stMap[trip.status]||trip.status)}</div>${rows}</div>`;
+  } else {
+    tripBlock=`<div class="lo-col"><div class="lo-h">🚗 الرحلة</div><div style="color:#64748b;font-size:.85rem">الطلب مش على رحلة نشطة دلوقتى.</div></div>`;
+  }
+  return `<div class="lo-card">
+    <div class="lo-top">
+      <div class="lo-cust">👤 ${E(o.customer_name||'—')} <small>كود ${E(o.cust_code||'—')}</small></div>
+      <div class="lo-status" style="background:${ordStatusColor(o)}">${E(ordStatusLabel(o))}</div>
+    </div>
+    <div class="lo-grid">
+      <div class="lo-cell"><div class="l">على مين (الطيار)</div><div class="v">${E(drv)}</div></div>
+      <div class="lo-cell"><div class="l">المبلغ المطلوب</div><div class="v" style="color:#0e7490">${amt.toLocaleString('ar-EG')} ج <small style="font-size:.75rem;color:#64748b">· ${E(PL[o.payment_method]||o.payment_method||'كاش')}</small></div></div>
+      <div class="lo-cell"><div class="l">رقم الفاتورة</div><div class="v">${E(o.bill_no||'—')}</div></div>
+      <div class="lo-cell"><div class="l">المنطقة</div><div class="v">${E(o.cust_region||'—')}</div></div>
+      <div class="lo-cell"><div class="l">التليفون</div><div class="v" style="direction:ltr;text-align:right">${E(o.customer_phone||'—')}</div></div>
+      <div class="lo-cell"><div class="l">وقت الطلب</div><div class="v" style="font-size:.95rem">${fmt(o.created_at||o.bill_date)}</div></div>
+      <div class="lo-cell full"><div class="l">العنوان</div><div class="v" style="font-size:1rem">📍 ${E(o.customer_address||'—')}</div></div>
+    </div>
+    <div class="lo-body">
+      <div class="lo-col"><div class="lo-h">📜 كل حركة على الطلب</div>${tl}</div>
+      ${tripBlock}
+    </div>
+    <div class="lo-actions">
+      <button class="lo-btn" style="background:#1a56db;color:#fff" onclick="openDetail('${o.id}')">📋 تفاصيل كاملة</button>
+      <button class="lo-btn" style="background:#ecfdf5;color:#15803d;border:1.5px solid #bbf7d0" onclick="openLog('${o.id}')">📜 سجل الطلب</button>
+    </div>
+  </div>`;
 }
 
 function renderOrders(){
