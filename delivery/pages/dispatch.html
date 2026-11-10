@@ -2388,12 +2388,13 @@ function renderLastOrderHtml(o, logs, trip, torders){
       <button class="lo-btn" style="background:#ecfdf5;color:#15803d;border:1.5px solid #bbf7d0" onclick="openLog('${o.id}')">📜 سجل الطلب</button>
       <button class="lo-btn" style="background:#fffbeb;color:#b45309;border:1.5px solid #fde68a" onclick="editLastOrderRegion('${o.id}')">📍 تعديل المنطقة</button>
     </div>
-    <div class="lo-actions2" onclick="event.stopPropagation()">${orderActionsHtml(o)}</div>
+    <div class="lo-actions2" onclick="event.stopPropagation()">${orderActionsHtml(o,false)}</div>
   </div>`;
 }
 
 // أزرار الإجراء حسب حالة الطلب — مشتركة بين الكارت العادي وكارت «آخر طلب»
-function orderActionsHtml(o){
+// includeCommon=false في كارت آخر طلب عشان تفاصيل/تعديل/سجل موجودين فوق (ما نكررهمش)
+function orderActionsHtml(o, includeCommon=true){
   let actions='';
   if(o.status==='pending'&&!o.driver_id){
     if(!underPrep(o)) actions+=`<button class="ab ab-assign" onclick="quickAssign('${o.id}',event)">تعيين</button>`;
@@ -2420,9 +2421,11 @@ function orderActionsHtml(o){
     actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
     actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
   }
-  actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
-  actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
-  actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
+  if(includeCommon){
+    actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
+    actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
+    actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
+  }
   return actions;
 }
 
