@@ -521,6 +521,9 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
     .lo-pill{font-size:.68rem;font-weight:800;padding:.14rem .5rem;border-radius:7px;color:#fff;white-space:nowrap}
     .lo-actions{display:flex;gap:.5rem;padding:.55rem .9rem;border-top:1px solid #e2e8f0;flex-shrink:0}
     .lo-btn{border:none;border-radius:9px;padding:.45rem .9rem;font-family:'Cairo',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer}
+    /* صف أزرار الإجراء الكامل داخل كارت آخر طلب — نفس أزرار الكارت العادي بس أوضح */
+    .lo-actions2{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem .9rem .7rem;flex-shrink:0}
+    .lo-actions2 .ab{font-size:.78rem;padding:.42rem .8rem;border-radius:8px;flex:0 0 auto}
   </style>
   <div id="lastOrderCard" style="display:none"></div>
   <div class="orders-grid" id="ordersGrid"></div>
@@ -1226,6 +1229,7 @@ async function loadAll(){
     // (طلبات فروع تانية بتظهر تحت المعمورة). نعلّم إنها بتتحمّل قبل الرسم ونعيد جلبها بعده.
     if(currentFilter==='unclosed') unclosedLoading=true;
     renderHeader();renderDrivers();renderTrips();renderOrders();renderAttNotif();
+    if(_lastCardKey) showLastOrderCard(_lastCardKey);   // كارت «آخر طلب» يفضل محدّث بعد أي أكشن بدون ما يرجع يدوّر على العميل
     if(currentFilter==='unclosed') refreshUnclosed();
     ensureAvatars();   // صور الطيارين في الخلفية — تظهر لما توصل من غير ما تأخّر اللوحة
   }catch(e){console.error(e);showToast('خطأ في التحميل');}
@@ -2384,7 +2388,42 @@ function renderLastOrderHtml(o, logs, trip, torders){
       <button class="lo-btn" style="background:#ecfdf5;color:#15803d;border:1.5px solid #bbf7d0" onclick="openLog('${o.id}')">📜 سجل الطلب</button>
       <button class="lo-btn" style="background:#fffbeb;color:#b45309;border:1.5px solid #fde68a" onclick="editLastOrderRegion('${o.id}')">📍 تعديل المنطقة</button>
     </div>
+    <div class="lo-actions2" onclick="event.stopPropagation()">${orderActionsHtml(o)}</div>
   </div>`;
+}
+
+// أزرار الإجراء حسب حالة الطلب — مشتركة بين الكارت العادي وكارت «آخر طلب»
+function orderActionsHtml(o){
+  let actions='';
+  if(o.status==='pending'&&!o.driver_id){
+    if(!underPrep(o)) actions+=`<button class="ab ab-assign" onclick="quickAssign('${o.id}',event)">تعيين</button>`;
+    actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
+    actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
+    actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
+  }
+  if(o.status==='postponed'){
+    actions+=`<button class="ab ab-assign" onclick="activatePostponed('${o.id}',event)" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0;font-weight:800">▶ تشغيل</button>`;
+    actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">⏰ تعديل التأجيل</button>`;
+    actions+=`<button class="ab ab-assign" onclick="quickAssign('${o.id}',event)">تعيين</button>`;
+    actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
+    actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
+  }
+  if(o.status==='assigned'){
+    actions+=`<button class="ab ab-deliver" onclick="markPicked('${o.id}',event)">استلام الطلب</button>`;
+    actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
+    actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
+  }
+  if(o.status==='picked'){
+    if(currentUser?.role!=='cashier')
+      actions+=`<button class="ab ab-deliver" onclick="openDeliver('${o.id}',event)">وصّل</button>`;
+    actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
+    actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
+    actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
+  }
+  actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
+  actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
+  actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
+  return actions;
 }
 
 function renderOrders(){
@@ -2470,35 +2509,7 @@ function renderOrders(){
     const pmC=`p-${pm==='visa'?'visa':pm==='transfer'?'transfer':pm==='deferred'?'deferred':pm==='paid'?'paid':'cash'}`;
     const stC=underPrep(o)?'s-prep':`s-${o.status}`;
 
-    let actions='';
-    if(o.status==='pending'&&!o.driver_id){
-      if(!underPrep(o)) actions+=`<button class="ab ab-assign" onclick="quickAssign('${o.id}',event)">تعيين</button>`;
-      actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
-      actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
-      actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
-    }
-    if(o.status==='postponed'){
-      actions+=`<button class="ab ab-assign" onclick="activatePostponed('${o.id}',event)" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0;font-weight:800">▶ تشغيل</button>`;
-      actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">⏰ تعديل التأجيل</button>`;
-      actions+=`<button class="ab ab-assign" onclick="quickAssign('${o.id}',event)">تعيين</button>`;
-      actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
-      actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
-    }
-    if(o.status==='assigned'){
-      actions+=`<button class="ab ab-deliver" onclick="markPicked('${o.id}',event)">استلام الطلب</button>`;
-      actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
-      actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
-    }
-    if(o.status==='picked'){
-      if(currentUser?.role!=='cashier')
-        actions+=`<button class="ab ab-deliver" onclick="openDeliver('${o.id}',event)">وصّل</button>`;
-      actions+=`<button class="ab ab-urgent" onclick="markUrgent('${o.id}',event)">عاجل</button>`;
-      actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
-      actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
-    }
-    actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
-    actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
-    actions+=`<button class="ab ab-log" onclick="openLog('${o.id}',event)">سجل</button>`;
+    const actions=orderActionsHtml(o);
 
     const _bal=Number(o.current_customer_balance||0);
     const owesBal=_bal>=3, creditBal=_bal<=-3;
