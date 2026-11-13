@@ -785,6 +785,14 @@ textarea.form-control{height:72px;padding:.5rem .75rem;resize:vertical}
   </div>
 </div>
 
+<!-- Modal: عرض رحلة الطلب (من تبويب لم تُغلق) -->
+<div class="modal-overlay" id="tripViewModal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">🚗 رحلة الطلب</span><button class="modal-close" onclick="closeModal('tripViewModal')">✕</button></div>
+    <div class="modal-body" id="tripViewBody"></div>
+  </div>
+</div>
+
 <!-- Modal: Log -->
 <div class="modal-overlay" id="logModal">
   <div class="modal">
@@ -946,6 +954,7 @@ function isFailAttempt(o){ return o && o.status==='postponed' && o.postpone_reas
 function ordStatusLabel(o){ return isFailAttempt(o) ? 'تعذّر توصيل' : underPrep(o) ? (o.prep_hold?'موقوف (تحضير)':'قيد التحضير') : (SL[o.status]||o.status); }
 function ordStatusColor(o){ return isFailAttempt(o) ? '#dc2626' : (SC[o.status]||'#64748b'); }
 const PL={cash:'كاش',visa:'فيزا',transfer:'تحويل',deferred:'آجل',paid:'خالص'};
+const PM_BADGE={cash:{t:'💵 كاش',bg:'#dcfce7',c:'#15803d',b:'#bbf7d0'},visa:{t:'💳 فيزا',bg:'#ede9fe',c:'#6d28d9',b:'#ddd6fe'},transfer:{t:'🏦 تحويل',bg:'#e0f2fe',c:'#0369a1',b:'#bae6fd'},deferred:{t:'📋 آجل',bg:'#fef9c3',c:'#a16207',b:'#fde68a'},paid:{t:'✅ خالص',bg:'#f1f5f9',c:'#334155',b:'#e2e8f0'}};
 // لون حافة الكارت حسب الحالة (خلفية بيضا دايمًا) — أحمر للحالات اللي محتاجة انتباه
 function ocBorder(o, late, owesBal){
   if((o.notes||'').includes('🚨') || late || owesBal) return '#dc2626';
@@ -2198,21 +2207,59 @@ function renderUnclosedFlags(){
     const col=notFound?'#dc2626':'#d97706';
     const bg=notFound?'#fef2f2':'#fffbeb';
     const stTxt=notFound?'⛔ غير موجودة على B Connect':'🕓 لم تُغلق (Pending)';
-    return `<div style="background:var(--surface);border:1px solid #eef2f7;border-right:4px solid ${col};border-radius:12px;padding:.65rem .8rem;display:flex;flex-direction:column;gap:.32rem">
+    const pb=PM_BADGE[f.payment_method]||PM_BADGE.cash;
+    return `<div style="background:var(--surface);border:1px solid #eef2f7;border-right:4px solid ${col};border-radius:12px;padding:.7rem .85rem;display:flex;flex-direction:column;gap:.42rem;box-shadow:0 1px 4px rgba(0,0,0,.05)">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
-        <span style="font-weight:800;color:#0f172a;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.customer_name||'—'}</span>
-        <span style="font-weight:800;color:#0A3D62;font-size:.82rem;white-space:nowrap">${Number(f.amount||0).toLocaleString('ar-EG')} ج</span>
+        <span style="font-weight:800;color:#0f172a;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 ${f.customer_name||'—'}</span>
+        <span style="font-weight:800;color:#0A3D62;font-size:.92rem;white-space:nowrap">${Number(f.amount||0).toLocaleString('ar-EG')} ج</span>
       </div>
-      <div style="font-size:.72rem;color:#475569">🧾 <strong>${f.bill_no||'—'}</strong>${f.cust_code?` · كود ${f.cust_code}`:''}</div>
-      ${f.customer_address?`<div style="font-size:.72rem;color:#475569">🏠 ${f.customer_address}</div>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
+        <span style="font-size:.7rem;font-weight:800;background:${pb.bg};color:${pb.c};border:1px solid ${pb.b};padding:.16rem .5rem;border-radius:6px;white-space:nowrap">${pb.t}</span>
+        <span style="font-size:.72rem;color:#475569">🧾 <strong>${f.bill_no||'—'}</strong>${f.cust_code?` · كود ${f.cust_code}`:''}</span>
+      </div>
+      ${f.customer_address?`<div style="font-size:.72rem;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🏠 ${f.customer_address}</div>`:''}
       <div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center;font-size:.72rem">
         <span style="color:#334155">🛵 ${f.driver_name||'—'}</span>
         <span style="color:#94a3b8">${unclosedTimeAgo(f.created_at)}</span>
       </div>
-      <div style="background:${bg};color:${col};font-weight:700;font-size:.68rem;padding:.2rem .5rem;border-radius:6px;text-align:center">${stTxt}</div>
+      <div style="background:${bg};color:${col};font-weight:700;font-size:.68rem;padding:.25rem .5rem;border-radius:6px;text-align:center">${stTxt}</div>
+      ${f.trip_id?`<button onclick="openTripView('${f.trip_id}')" style="background:#0A3D62;color:#fff;border:none;border-radius:8px;padding:.45rem;font-family:'Cairo',sans-serif;font-weight:800;font-size:.76rem;cursor:pointer">🚗 افتح رحلة الطلب</button>`:''}
     </div>`;
   }).join('');
   grid.innerHTML=head+cards;
+}
+
+// عرض الرحلة اللي كان فيها الطلب (للطلبات القديمة المكتملة — مش على اللوحة النشطة)
+async function openTripView(tripId){
+  const body=document.getElementById('tripViewBody');
+  document.getElementById('tripViewModal').classList.add('open');
+  body.innerHTML='<div style="text-align:center;padding:1.2rem;color:#64748b">⏳ جاري تحميل الرحلة...</div>';
+  try{
+    const {data:tr}=await db.from('trips').select('id,driver_name,status,created_at,completed_at,orders_count,total_amount').eq('id',tripId).limit(1);
+    const t=tr&&tr[0];
+    const {data:tos}=await db.from('trip_orders').select('order_id').eq('trip_id',tripId);
+    const oids=(tos||[]).map(r=>r.order_id);
+    let ords=[];
+    if(oids.length){ const {data:od}=await db.from('orders').select('id,customer_name,cust_code,total_bill_net,extra_collection,status,payment_method,bill_no').in('id',oids); ords=od||[]; }
+    const stMap={active:'جارية',pending_complete:'بانتظار الإنهاء',completed:'مكتملة',cancelled:'ملغاة'};
+    const fmt=d=>d?new Date(d).toLocaleString('ar-EG',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    const head=`<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:.75rem .9rem;margin-bottom:.7rem">
+      <div style="font-weight:800;color:#0e7490;font-size:1.02rem">🚗 رحلة ${t?.driver_name||'—'}</div>
+      <div style="font-size:.8rem;color:#334155;margin-top:.3rem">الحالة: <b>${stMap[t?.status]||t?.status||'—'}</b> · ${ords.length} طلب · إجمالي ${Number(t?.total_amount||0).toLocaleString('ar-EG')} ج</div>
+      <div style="font-size:.72rem;color:#64748b;margin-top:.2rem">بدأت: ${fmt(t?.created_at)}${t?.completed_at?` · انتهت: ${fmt(t.completed_at)}`:''}</div>
+    </div>`;
+    const rows=ords.map(o=>{
+      const amt=Number(o.total_bill_net||0)+Number(o.extra_collection||0);
+      const pb=PM_BADGE[o.payment_method]||PM_BADGE.cash;
+      return `<div style="display:flex;align-items:center;gap:.5rem;padding:.55rem .3rem;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:.64rem;font-weight:800;background:${pb.bg};color:${pb.c};border:1px solid ${pb.b};padding:.1rem .4rem;border-radius:5px;white-space:nowrap">${pb.t}</span>
+        <span style="flex:1;font-weight:700;font-size:.82rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.customer_name||'—'}${o.bill_no?` · 🧾${o.bill_no}`:''}</span>
+        <span style="font-weight:800;color:#0a3d62;white-space:nowrap">${amt.toLocaleString('ar-EG')} ج</span>
+        <span style="font-size:.64rem;color:#64748b;white-space:nowrap">${ordStatusLabel(o)}</span>
+      </div>`;
+    }).join('')||'<div style="color:#64748b;padding:.5rem;text-align:center">لا توجد طلبات في الرحلة</div>';
+    body.innerHTML=head+rows;
+  }catch(e){ body.innerHTML='<div style="color:#b91c1c;text-align:center;padding:1rem">تعذّر تحميل الرحلة</div>'; }
 }
 
 // ===== بحث: كود بالضبط / اسم بتقارب (fuzzy) =====
