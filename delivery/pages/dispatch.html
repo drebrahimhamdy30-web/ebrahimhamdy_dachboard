@@ -2514,6 +2514,9 @@ function orderActionsHtml(o, includeCommon=true){
     actions+=`<button class="ab ab-postpone" onclick="openPostpone('${o.id}',event)">تأجيل</button>`;
     actions+=`<button class="ab ab-cancel" onclick="openCancel('${o.id}',event)">إلغاء</button>`;
   }
+  if(o.status==='cancelled'){
+    actions+=`<button class="ab ab-assign" onclick="reactivateCancelled('${o.id}',event)" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0;font-weight:800">♻️ إعادة تعيين</button>`;
+  }
   if(includeCommon){
     actions+=`<button class="ab ab-detail" onclick="openDetail('${o.id}')">👁 تفاصيل</button>`;
     actions+=`<button class="ab ab-edit" onclick="openEdit('${o.id}',event)">تعديل</button>`;
@@ -4257,6 +4260,30 @@ async function activatePostponed(orderId, e){
   await addOrderLog(orderId,'order_edited',{action:'reactivated_from_postponed',
     ...(_detached?{removed_from_trip:true}:{})});
   showToast('✓ تم تشغيل الطلب — سيتم توزيعه تلقائياً');
+  await loadAll();
+  showLoading(false);
+}
+
+// إعادة تفعيل طلب ملغى وإرجاعه «جاهز» للتوزيع عشان يتعيّن على طيار تاني
+async function reactivateCancelled(orderId, e){
+  e?.stopPropagation();
+  if(!confirm('إعادة تفعيل الطلب الملغى وإرجاعه للتوزيع لتعيينه على طيار؟')) return;
+  showLoading(true);
+  const now=new Date().toISOString();
+  const _detached=await detachOrderFromTrip(orderId, now);  // لو كان لسه متعلّق برحلة
+  await db.from('orders').update({
+    status:'pending',
+    cancelled_reason:null,
+    postpone_reason:null,
+    driver_id:null,
+    deliveryman:null,
+    assigned_at:null,
+    picked_at:null,
+    updated_at:now
+  }).eq('id',orderId);
+  await addOrderLog(orderId,'order_edited',{action:'reactivated_from_cancelled',
+    ...(_detached?{removed_from_trip:true}:{})});
+  showToast('✓ تم إعادة تفعيل الطلب — جاهز للتعيين على طيار');
   await loadAll();
   showLoading(false);
 }
