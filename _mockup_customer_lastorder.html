@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>موك-أب: آخر طلب للعميل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#0f172a; --teal:#0e7490; --bg:#f1f5f9; --line:#e2e8f0; --muted:#64748b; }
+  *{box-sizing:border-box;font-family:'Cairo',sans-serif}
+  body{margin:0;background:var(--bg);color:#0f172a;padding:1.2rem}
+  .wrap{max-width:860px;margin:0 auto}
+  .srch{display:flex;gap:.5rem;align-items:center;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:.6rem .9rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .srch input{flex:1;border:none;outline:none;font-size:1rem;font-weight:600;font-family:'Cairo'}
+  .note{font-size:.8rem;color:var(--muted);margin:.3rem 0 1rem}
+
+  /* كارت آخر طلب */
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.06);overflow:hidden;margin-bottom:1rem}
+  .card-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff}
+  .cust{font-size:1.5rem;font-weight:800}
+  .cust small{font-size:.9rem;font-weight:600;color:#94a3b8;margin-right:.5rem}
+  .status{font-size:1.15rem;font-weight:800;padding:.5rem 1.1rem;border-radius:12px;white-space:nowrap}
+  .st-delivered{background:#16a34a;color:#fff}
+  .st-active{background:#0891b2;color:#fff}
+  .st-postponed{background:#dc2626;color:#fff}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.1rem;background:var(--line)}
+  .cell{background:#fff;padding:.9rem 1.2rem}
+  .cell .lbl{font-size:.8rem;color:var(--muted);font-weight:600;margin-bottom:.25rem}
+  .cell .val{font-size:1.15rem;font-weight:800}
+  .cell .val.big{font-size:1.35rem;color:#0e7490}
+  .driver{display:flex;align-items:center;gap:.5rem}
+  .davatar{width:34px;height:34px;border-radius:50%;background:#0e7490;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem}
+  .addr{grid-column:1/-1}
+  .times{grid-column:1/-1;display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.95rem}
+  .times b{color:#0f172a}
+  .actions{display:flex;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid var(--line)}
+  .btn{flex:1;border:none;border-radius:10px;padding:.7rem;font-family:'Cairo';font-size:.95rem;font-weight:800;cursor:pointer}
+  .btn-p{background:#1a56db;color:#fff}
+  .btn-o{background:#ecfdf5;color:#15803d;border:1.5px solid #bbf7d0}
+
+  /* رحلة الطيار */
+  .trip{background:#fff;border:1.5px solid var(--line);border-radius:16px;overflow:hidden}
+  .trip-h{display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.2rem;background:#f0fdfa;border-bottom:1px solid var(--line)}
+  .trip-h .t{font-size:1.1rem;font-weight:800;color:#0e7490}
+  .trip-h .n{font-size:.95rem;font-weight:700;color:#334155;background:#fff;border:1px solid var(--line);border-radius:20px;padding:.25rem .8rem}
+  .torder{display:flex;align-items:center;gap:.8rem;padding:.8rem 1.2rem;border-bottom:1px solid #f1f5f9}
+  .torder:last-child{border-bottom:none}
+  .torder .nm{flex:1;font-weight:700;font-size:1.02rem}
+  .torder .amt{font-weight:800;color:#0a3d62;white-space:nowrap}
+  .pill{font-size:.82rem;font-weight:800;padding:.22rem .7rem;border-radius:9px;white-space:nowrap}
+  .p-delivered{background:#dcfce7;color:#15803d}
+  .p-picked{background:#e0f2fe;color:#0369a1}
+  .p-assigned{background:#fef9c3;color:#a16207}
+  .trip-f{display:flex;justify-content:space-between;align-items:center;padding:.8rem 1.2rem;background:#fffbeb;border-top:1px solid #fde68a}
+  .trip-f b{color:#b45309;font-size:1.05rem;font-weight:800}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="srch">🔍 <input value="4618" readonly></div>
+  <div class="note">نفس الشكل سواء كتبت الكود (4618) أو الاسم (ام حسني).</div>
+
+  <!-- ===== كارت آخر طلب للعميل ===== -->
+  <div class="card">
+    <div class="card-top">
+      <div class="cust">👤 ام حسني <small>كود 4618</small></div>
+      <div class="status st-active">🏍️ على رحلة</div>
+    </div>
+    <div class="grid">
+      <div class="cell">
+        <div class="lbl">على مين (الطيار)</div>
+        <div class="val driver"><span class="davatar">أح</span> أحمد حمدي أنور</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">المبلغ المطلوب</div>
+        <div class="val big">66 ج <span style="font-size:.8rem;color:#64748b">· كاش</span></div>
+      </div>
+      <div class="cell">
+        <div class="lbl">المنطقة</div>
+        <div class="val">ش 25</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">رقم الفاتورة</div>
+        <div class="val">1505121</div>
+      </div>
+      <div class="cell addr">
+        <div class="lbl">العنوان</div>
+        <div class="val" style="font-size:1rem;font-weight:700">📍 شارع 25 عند جراج البحجان عند الجراج و نزل عليها</div>
+      </div>
+      <div class="cell times">
+        <span>🕒 الطلب: <b>8:21 م</b></span>
+        <span>▶️ الاستلام: <b>8:34 م</b></span>
+        <span>✅ التسليم: <b>— لسه</b></span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-p">📋 تفاصيل كاملة</button>
+      <button class="btn btn-o">🚗 افتح رحلته</button>
+    </div>
+  </div>
+
+  <!-- ===== رحلة الطيار (كام طلب وحالتهم) ===== -->
+  <div class="trip">
+    <div class="trip-h">
+      <div class="t">🚗 رحلة أحمد حمدي أنور</div>
+      <div class="n">٣ طلبات · جارية</div>
+    </div>
+    <div class="torder">
+      <span class="pill p-delivered">✅ وصّل</span>
+      <span class="nm">محمد عوض عبده</span>
+      <span class="amt">359 ج</span>
+    </div>
+    <div class="torder">
+      <span class="pill p-picked">📦 استلم</span>
+      <span class="nm">كريم محمد · المستشارين</span>
+      <span class="amt">33.35 ج</span>
+    </div>
+    <div class="torder" style="background:#f8fafc">
+      <span class="pill p-picked">📦 استلم</span>
+      <span class="nm">ام حسني · ش 25 ← الطلب ده</span>
+      <span class="amt">66 ج</span>
+    </div>
+    <div class="trip-f">
+      <span style="font-weight:700;color:#334155">إجمالي الرحلة: <b style="color:#0f172a">458 ج</b></span>
+      <b>المطلوب كاش: 392 ج</b>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
